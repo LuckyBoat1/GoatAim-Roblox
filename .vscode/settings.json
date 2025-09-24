@@ -1,0 +1,44 @@
+{
+  // Disable IntelliSense suggestions while typing
+  "editor.quickSuggestions": {
+    "other": false,
+    "comments": false,
+    "strings": false
+  },
+  // Don’t auto-trigger suggestions on characters like . or :
+  "editor.suggestOnTriggerCharacters": false,
+  // Turn off parameter hints popups
+  "editor.parameterHints.enabled": false,
+  // Disable all inline ghost-text suggestions
+  "editor.inlineSuggest.enabled": false,
+  // Explicitly disable Copilot inline suggestions in this workspace
+  "github.copilot.inlineSuggest.enable": false,
+  // Fully disable Copilot for all languages in this workspace
+  "github.copilot.enable": { "*": false },
+  // Allow Enter to commit structured completions (e.g., Luau's autocompleteEnd) without re-enabling popups
+  "editor.acceptSuggestionOnEnter": "smart",
+  // Auto-close pairs without suggestion UI
+  "editor.autoClosingBrackets": "languageDefined",
+  "editor.autoClosingQuotes": "languageDefined",
+  "editor.autoSurround": "languageDefined",
+  // Type-over existing closing brackets/quotes (e.g., typing ) moves past a ) ahead)
+  "editor.autoClosingOvertype": "always",
+  // Keep indentation tidy for blocks created by autocompleteEnd
+  "editor.autoIndent": "full",
+  // If supported by the Luau extension, format as you type (won't show suggestions)
+  "editor.formatOnType": true,
+
+  // Luau / tooling settings preserved
+  "luau-lsp.sourcemap.autogenerate": true,
+  "luau-lsp.types.strictDatamodelTypes": true,
+  // Ensure both .lua and .luau open with the Luau language server (not the generic Lua one)
+  "files.associations": {
+    "*.luau": "luau",
+    "*.lua": "luau",
+    "*.client.luau": "luau",
+    "*.server.luau": "luau"
+  },
+  // (Optional) You can temporarily relax strictness while importing code:
+  // "luau-lsp.diagnostics.severity": { "StrictModeFunction": "Information" }
+  "luau-lsp.completion.autocompleteEnd": true
+}

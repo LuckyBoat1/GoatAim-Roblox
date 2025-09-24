@@ -1,0 +1,10 @@
+# Tool versions managed by Aftman
+# Install Aftman first (MSI from https://github.com/LPGhatguy/aftman/releases)
+# Then run: aftman install
+
+[tools]
+# Core: Rojo for syncing/building
+rojo = "rojo-rbx/rojo@7.5.1"
+# Formatting & linting (pin versions for repeatable installs)
+stylua = "JohnnyMorganz/stylua@0.20.0"
+selene = "Kampfkarren/selene@0.26.1"

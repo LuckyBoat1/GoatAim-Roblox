@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Aftman: Install Tools",
+			"type": "shell",
+			"command": "aftman install",
+			"problemMatcher": []
+		},
+		{
+			"label": "Rojo: Serve",
+			"type": "shell",
+			"command": "aftman run rojo serve",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Rojo: Build Place",
+			"type": "shell",
+			"command": "aftman run rojo build default.project.json -o GoatAim.rbxlx",
+			"problemMatcher": []
+		},
+		{
+			"label": "Rojo: Sourcemap",
+			"type": "shell",
+			"command": "aftman run rojo sourcemap default.project.json --output sourcemap.json",
+			"problemMatcher": []
+		},
+		{
+			"label": "Rojo: Sourcemap (one-off)",
+			"type": "shell",
+			"command": "aftman run rojo sourcemap default.project.json --output sourcemap.json"
+		}
+	]
+}

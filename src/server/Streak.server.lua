@@ -1,0 +1,2 @@
+-- Streak.server.lua
+-- Paste the Streak script code from Studio here.
