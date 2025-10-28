@@ -93,7 +93,7 @@ Instance.new("UICorner", closeBtn).CornerRadius=UDim.new(0,8)
 
 -- Data fetching
 local currentSearchTerm = ""
-local currentSortMode = "rarity" -- "alphabetical" or "rarity"
+local currentSortMode = "alphabetical" -- "alphabetical" or "rarity"
 
 local function fetchData()
     if not GetPlayerData then return nil end
@@ -1671,7 +1671,7 @@ local sortStroke = Instance.new("UIStroke", sortFrame); sortStroke.Color=GREEN; 
 
 local sortBtn = Instance.new("TextButton")
 sortBtn.Size=UDim2.new(1,0,1,0); sortBtn.BackgroundTransparency=1; sortBtn.ZIndex=11
-sortBtn.Font=Enum.Font.Code; sortBtn.Text="Sort: Rarity"; sortBtn.TextSize=12; sortBtn.TextColor3=GREEN; sortBtn.TextXAlignment=Enum.TextXAlignment.Center; sortBtn.Parent=sortFrame
+sortBtn.Font=Enum.Font.Code; sortBtn.Text="Sort: A-Z"; sortBtn.TextSize=12; sortBtn.TextColor3=GREEN; sortBtn.TextXAlignment=Enum.TextXAlignment.Center; sortBtn.Parent=sortFrame
 
 -- Sort dropdown menu (initially hidden) - parented to main to avoid clipping
 local sortDropdown = Instance.new("Frame")

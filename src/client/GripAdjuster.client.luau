@@ -9,8 +9,8 @@ local playerGui = player:WaitForChild("PlayerGui")
 local gui = nil
 local currentTool = nil
 
--- Keep persistent grip adjustment values
-local persistentX, persistentY, persistentZ = 0, 0, 0
+-- DO NOT keep persistent grip adjustment values - reset each weapon switch
+-- local persistentX, persistentY, persistentZ = 0, 0, 0
 
 -- Slider references (will be set when UI is created)
 local xSlider, ySlider, zSlider = nil, nil, nil
@@ -23,15 +23,21 @@ local function updateGrip()
     local y = tonumber(ySlider.Text) or 0
     local z = tonumber(zSlider.Text) or 0
     
-    -- Update persistent values
-    persistentX, persistentY, persistentZ = x, y, z
+    -- Use grip after server processing (with rotations) but store it once to prevent stacking
+    local baseGrip = currentTool:GetAttribute("ClientBaseGrip")
+    if not baseGrip then
+        -- Wait a moment for server to finish processing, then store the result
+        wait(0.1)
+        baseGrip = currentTool.Grip
+        currentTool:SetAttribute("ClientBaseGrip", baseGrip)
+        print("[GripAdjuster] Stored base grip (after server rotation):", baseGrip)
+    end
     
-    -- Get weapon's current grip and add adjuster values
-    local currentGrip = currentTool.Grip
-    local adjustment = CFrame.new(x, y, z)
-    currentTool.Grip = currentGrip * adjustment
+    -- Use same calculation method as server: originalGrip * adjustment
+    local adjustment = CFrame.new(x, y, z)  
+    currentTool.Grip = baseGrip * adjustment
     
-    print("[GripAdjuster] Applied adjustment (" .. x .. ", " .. y .. ", " .. z .. ") to current grip")
+    print("[GripAdjuster] Applied adjustment (" .. x .. ", " .. y .. ", " .. z .. ") to base grip")
 end
 
 -- Create the grip adjustment UI
@@ -133,10 +139,10 @@ local function createGripUI()
         return textBox
     end
     
-    -- Use persistent values for all weapons
-    xSlider = createSlider("X", 40, persistentX)
-    ySlider = createSlider("Y", 90, persistentY)
-    zSlider = createSlider("Z", 140, persistentZ)
+    -- Reset to 0,0,0 for each new weapon (no persistence)
+    xSlider = createSlider("X", 40, 0)
+    ySlider = createSlider("Y", 90, 0)
+    zSlider = createSlider("Z", 140, 0)
     
     -- Connect text box events
     xSlider.FocusLost:Connect(updateGrip)
@@ -180,25 +186,14 @@ local function watchCharacter(character)
             currentTool = child
             print("[GripAdjuster] Tool equipped:", child.Name)
             
-            -- Store this weapon's original server grip immediately
-            child:SetAttribute("OriginalGrip", child.Grip)
-            print("[GripAdjuster] Stored original grip for:", child.Name, child.Grip)
+            -- Clear any old base grip so it gets stored fresh
+            child:SetAttribute("ClientBaseGrip", nil)
             
             createGripUI()
             print("[GripAdjuster] UI shown for:", child.Name)
             
-            -- Apply persistent adjustments if any
-            if persistentX ~= 0 or persistentY ~= 0 or persistentZ ~= 0 then
-                -- Small delay to let server apply its positioning first, then store updated original
-                spawn(function()
-                    wait(0.2)
-                    if currentTool == child then
-                        -- Update the original grip after server processing
-                        child:SetAttribute("OriginalGrip", child.Grip)
-                        updateGrip()
-                    end
-                end)
-            end
+            -- No persistent adjustments - each weapon starts at 0,0,0
+            -- The UI will show 0,0,0 and the weapon will use server's fullOffset
             
             -- Watch for tool being unequipped
             child.AncestryChanged:Connect(function()

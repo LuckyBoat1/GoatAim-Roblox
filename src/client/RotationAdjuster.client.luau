@@ -1,5 +1,5 @@
 -- Rotation Adjuster UI - FOR TESTING ONLY
--- Similar to GripAdjuster but for testing rotations
+-- Applies additional rotations on top of server's final grip calculations
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -10,12 +10,8 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local currentTool = nil
 local rotationAdjusterGui = nil
-local serverBaselineGrip = nil
-
--- Default rotation values (in degrees for easier editing)
-local rotationX = 0
-local rotationY = 0
-local rotationZ = 0
+local serverFinalGrip = nil -- Store the server's final grip result as baseline
+local gripChangedConnection = nil -- Track the connection to clean it up
 
 local function createRotationUI()
     -- Create ScreenGui
@@ -53,43 +49,35 @@ local function createRotationUI()
     
     -- Update rotation function (declared early so sliders can use it)
     local function updateRotation()
-        if not currentTool then return end
+        if not currentTool then 
+            print("[RotationAdjuster] ❌ updateRotation called but no currentTool!")
+            return 
+        end
+        
+        if not serverFinalGrip then
+            print("[RotationAdjuster] ❌ updateRotation called but serverFinalGrip is nil!")
+            return
+        end
         
         -- Get current rotation values
         rotationX = tonumber(xTextBox.Text) or 0
         rotationY = tonumber(yTextBox.Text) or 0
         rotationZ = tonumber(zTextBox.Text) or 0
         
-        -- Use the server's FINAL processed grip as baseline (after server positioning/rotation)
-        -- This is what the user sees and wants to adjust from
-        if not serverBaselineGrip then
-            serverBaselineGrip = currentTool.Grip
-            print("[RotationAdjuster] Using server's final processed grip as baseline:", serverBaselineGrip)
-        end
+        -- Start from the server's final grip (which already has all server calculations applied)
+        local baseGrip = serverFinalGrip
         
-        -- Simulate the EXACT server logic to preview what the rotation would look like
-        -- Server does: tool.Grip = originalGrip * (weaponRotation * gripAdjustment * heightOffset)
+        -- Create additional rotation adjustment from UI values
+        local adjusterRotation = CFrame.Angles(math.rad(rotationX), math.rad(rotationY), math.rad(rotationZ))
         
-        -- We now use the server's final processed grip as the baseline
+        -- Apply adjuster rotation on top of server's final result
+        currentTool.Grip = baseGrip * adjusterRotation
         
-        -- Create test rotation exactly like server: CFrame.Angles(math.rad(X), math.rad(Y), math.rad(Z))
-        -- BUT: Check if we need axis remapping due to coordinate system differences
-        local testRotation = CFrame.Angles(math.rad(rotationX), math.rad(rotationY), math.rad(rotationZ))
-        
-        -- Debug: Show what we're testing
-        print("[RotationAdjuster] Testing rotation: X=" .. rotationX .. "°, Y=" .. rotationY .. "°, Z=" .. rotationZ .. "°")
-        print("[RotationAdjuster] CFrame.Angles(math.rad(" .. rotationX .. "), math.rad(" .. rotationY .. "), math.rad(" .. rotationZ .. "))")
-        print("[RotationAdjuster] Server baseline grip:", serverBaselineGrip)
-        print("[RotationAdjuster] Test rotation CFrame:", testRotation)
-        
-        -- Apply rotation to server's final result (this gives the correct axis reference)
-        currentTool.Grip = serverBaselineGrip * testRotation
-        
-        print("[RotationAdjuster] Final grip:", currentTool.Grip)
-        print("[RotationAdjuster] This should match server with the same CFrame.Angles values")
-        
-        print("[RotationAdjuster] Applied rotation: X=" .. rotationX .. "°, Y=" .. rotationY .. "°, Z=" .. rotationZ .. "°")
-        print("[RotationAdjuster] New grip:", currentTool.Grip)
+        -- Debug: Show what we're applying
+        print("[RotationAdjuster] ✓ Base grip (server result):", baseGrip)
+        print("[RotationAdjuster] ✓ Adjuster rotation: X=" .. rotationX .. "°, Y=" .. rotationY .. "°, Z=" .. rotationZ .. "°")
+        print("[RotationAdjuster] ✓ Adjuster rotation CFrame:", adjusterRotation)
+        print("[RotationAdjuster] ✓ Final grip:", currentTool.Grip)
     end
     
     -- Function to create rotation slider with actual slider
@@ -203,10 +191,10 @@ local function createRotationUI()
         return textBox, resetBtn, updateSliderFromText
     end
     
-    -- Create rotation sliders
-    xTextBox, xResetBtn, xUpdateSlider = createRotationSlider("RotX", "X", 40, 0, 360, rotationX)
-    yTextBox, yResetBtn, yUpdateSlider = createRotationSlider("RotY", "Y", 70, 0, 360, rotationY)
-    zTextBox, zResetBtn, zUpdateSlider = createRotationSlider("RotZ", "Z", 100, 0, 360, rotationZ)
+    -- Create rotation sliders (ALWAYS start at 0 for fresh weapon)
+    xTextBox, xResetBtn, xUpdateSlider = createRotationSlider("RotX", "X", 40, 0, 360, 0)
+    yTextBox, yResetBtn, yUpdateSlider = createRotationSlider("RotY", "Y", 70, 0, 360, 0)
+    zTextBox, zResetBtn, zUpdateSlider = createRotationSlider("RotZ", "Z", 100, 0, 360, 0)
     
     -- Apply All button
     local applyAllBtn = Instance.new("TextButton")
@@ -250,7 +238,7 @@ local function createRotationUI()
     -- Apply all button (for convenience)
     applyAllBtn.MouseButton1Click:Connect(updateRotation)
     
-    -- Individual reset buttons
+    -- Individual reset buttons (reset to 0 = no offset from server rotation)
     xResetBtn.MouseButton1Click:Connect(function()
         xTextBox.Text = "0"
         xUpdateSlider()
@@ -269,15 +257,27 @@ local function createRotationUI()
         updateRotation()
     end)
     
-    -- Reset all button
+    -- Reset all button (reset to server's final grip)
     resetAllBtn.MouseButton1Click:Connect(function()
+        if not currentTool then return end
+        
+        -- Reset adjuster values to 0,0,0 (no additional rotation)
         xTextBox.Text = "0"
         yTextBox.Text = "0"
         zTextBox.Text = "0"
         xUpdateSlider()
         yUpdateSlider()
         zUpdateSlider()
-        updateRotation()
+        
+        -- Restore the server's final grip (which already has all server calculations)
+        if serverFinalGrip then
+            currentTool.Grip = serverFinalGrip
+            print("[RotationAdjuster] Reset to server's final grip:", serverFinalGrip)
+        else
+            -- Fallback: update with 0,0,0 rotation (which should match server result)
+            updateRotation()
+            print("[RotationAdjuster] Reset: No serverFinalGrip stored, applied 0,0,0 rotation")
+        end
     end)
     
     -- Close button
@@ -296,23 +296,100 @@ end
 local function onToolEquipped(tool)
     if not tool or not tool:IsA("Tool") then return end
     
-    currentTool = tool
-    serverBaselineGrip = nil -- Reset baseline for new tool
-    
-    -- Show UI for any weapon (not just Meshes/)
-    if not rotationAdjusterGui then
-        createRotationUI()
+    -- Clean up old grip watcher
+    if gripChangedConnection then
+        gripChangedConnection:Disconnect()
+        gripChangedConnection = nil
     end
-    print("[RotationAdjuster] Tool equipped:", tool.Name, "- UI shown")
+    
+    currentTool = tool
+    serverFinalGrip = nil -- Clear old baseline
+    
+    -- ALWAYS reset to 0,0,0 when switching weapons
+    rotationX = 0
+    rotationY = 0
+    rotationZ = 0
+    
+    print("[RotationAdjuster] Tool equipped:", tool.Name, "- Waiting for server to finish processing...")
+    
+    -- Destroy old UI immediately
+    if rotationAdjusterGui then
+        rotationAdjusterGui:Destroy()
+        rotationAdjusterGui = nil
+    end
+    
+    -- Wait for server to finish its grip adjustments
+    spawn(function()
+        -- Wait for the tool's OriginalGripStored attribute (server sets this)
+        local startTime = tick()
+        while not tool:GetAttribute("OriginalGripStored") and (tick() - startTime) < 2 do
+            wait(0.1)
+        end
+        
+        -- Additional wait to ensure server's FINAL rotation is applied
+        wait(0.5)
+        
+        if currentTool ~= tool then return end -- Tool was unequipped, abort
+        
+        -- Read the server's FINAL grip from stored attributes (never includes adjuster rotations)
+        if tool:GetAttribute("ServerFinalGripStored") then
+            local x = tool:GetAttribute("ServerFinalGripX") or 0
+            local y = tool:GetAttribute("ServerFinalGripY") or 0
+            local z = tool:GetAttribute("ServerFinalGripZ") or 0
+            local rx = tool:GetAttribute("ServerFinalGripRX") or 1
+            local ry = tool:GetAttribute("ServerFinalGripRY") or 0
+            local rz = tool:GetAttribute("ServerFinalGripRZ") or 0
+            local ux = tool:GetAttribute("ServerFinalGripUX") or 0
+            local uy = tool:GetAttribute("ServerFinalGripUY") or 1
+            local uz = tool:GetAttribute("ServerFinalGripUZ") or 0
+            
+            serverFinalGrip = CFrame.fromMatrix(
+                Vector3.new(x, y, z),
+                Vector3.new(rx, ry, rz),
+                Vector3.new(ux, uy, uz)
+            )
+            print("[RotationAdjuster] ✓ Reconstructed server's final grip from attributes:", serverFinalGrip)
+        else
+            warn("[RotationAdjuster] ⚠ ServerFinalGripStored not found! Using current tool.Grip (may include old adjuster rotations)")
+            serverFinalGrip = tool.Grip
+        end
+        
+        -- Set tool grip to server baseline (remove any leftover adjuster rotations)
+        tool.Grip = serverFinalGrip
+        
+        -- Watch for server changing the grip and update baseline automatically
+        gripChangedConnection = tool:GetPropertyChangedSignal("Grip"):Connect(function()
+            -- If rotations are 0, this is a server change - update baseline
+            if rotationX == 0 and rotationY == 0 and rotationZ == 0 then
+                local newGrip = tool.Grip
+                -- Only update if significantly different
+                if (newGrip.Position - serverFinalGrip.Position).Magnitude > 0.01 or
+                   math.abs(newGrip.LookVector:Dot(serverFinalGrip.LookVector) - 1) > 0.01 then
+                    serverFinalGrip = newGrip
+                    tool.Grip = serverFinalGrip
+                    print("[RotationAdjuster] Server updated grip, new baseline:", serverFinalGrip)
+                end
+            end
+        end)
+        
+        -- Create fresh UI with 0,0,0 values
+        createRotationUI()
+        print("[RotationAdjuster] Tool equipped:", tool.Name, "- UI shown with server baseline captured")
+    end)
 end
 
 local function onToolUnequipped(tool)
+    -- Clean up grip watcher
+    if gripChangedConnection then
+        gripChangedConnection:Disconnect()
+        gripChangedConnection = nil
+    end
+    
     if rotationAdjusterGui then
         rotationAdjusterGui:Destroy()
         rotationAdjusterGui = nil
     end
     currentTool = nil
-    serverBaselineGrip = nil
     print("[RotationAdjuster] Tool unequipped - UI hidden")
 end
 

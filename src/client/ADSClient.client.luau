@@ -25,7 +25,8 @@ end
 
 local currentTool = nil -- Tool
 local hipGrip = nil -- CFrame
-local adsGrip = nil -- CFrame
+local baseAdsGrip = nil -- CFrame - The base ADS grip from config, never modified
+local adjustedAdsGrip = nil -- CFrame - The final ADS grip with server adjustments applied
 local hipFOV = nil -- number
 local adsFOV = nil -- number
 local aiming = false
@@ -67,32 +68,68 @@ end
 
 local function setupTool(tool)
 	currentTool = tool
-	hipGrip = tool.Grip
 	
 	-- Server handles all weapon positioning and rotation
 	-- Client only handles ADS functionality
 	
-	adsGrip = nil
+	baseAdsGrip = nil
+	adjustedAdsGrip = nil
 	hipFOV = cam.FieldOfView
 	adsFOV = nil
+
+	-- Get the original grip BEFORE server adjustments (if stored)
+	local originalGrip = tool.Grip
+	print("[ADSClient] Initial tool.Grip:", tool.Grip)
+	if tool:GetAttribute("OriginalGripStored") then
+		local ox = tool:GetAttribute("OriginalGripX") or 0
+		local oy = tool:GetAttribute("OriginalGripY") or 0
+		local oz = tool:GetAttribute("OriginalGripZ") or 0
+		originalGrip = CFrame.new(ox, oy, oz)
+		print("[ADSClient] Using stored original grip:", originalGrip)
+	else
+		print("[ADSClient] No stored original, using current tool.Grip")
+	end
 
 	if isADSAllowed(tool) then
 		local adsFolder = tool:FindFirstChild("ADS")
 		if adsFolder then
 			local g = adsFolder:FindFirstChild("ADSGrip")
-			if g and g:IsA("CFrameValue") then adsGrip = g.Value end
+			if g and g:IsA("CFrameValue") then baseAdsGrip = g.Value end
 			local f = adsFolder:FindFirstChild("ADSFOV")
 			if f and f:IsA("NumberValue") then adsFOV = f.Value end
 		end
-		if not adsGrip then
-			adsGrip = SkinConfig.GetADSGripForSkin(tool:GetAttribute("SkinId"), tool.Name)
+		if not baseAdsGrip then
+			baseAdsGrip = SkinConfig.GetADSGripForSkin(tool:GetAttribute("SkinId"), tool.Name)
 		end
 		if not adsFOV then
 			adsFOV = SkinConfig.GetADSFOVForSkin(tool:GetAttribute("SkinId"), tool.Name)
 		end
 	else
-		adsGrip = nil
+		baseAdsGrip = nil
 	end
+	
+	-- Wait for server to finish applying rotations and adjustments (server waits 0.5s)
+	task.wait(0.3)
+	
+	-- Now capture the hip grip AFTER server has applied all adjustments
+	hipGrip = tool.Grip
+	
+	-- Apply server's adjustments to ADS grip AFTER waiting for server
+	-- The server applies: originalGrip * serverAdjustments = current tool.Grip
+	-- So: serverAdjustments = originalGrip:Inverse() * tool.Grip
+	if baseAdsGrip and originalGrip then
+		local serverAdjustments = originalGrip:Inverse() * tool.Grip
+		adjustedAdsGrip = baseAdsGrip * serverAdjustments
+		print("[ADSClient] Applied server adjustments to ADS grip")
+		print("[ADSClient] Original:", originalGrip)
+		print("[ADSClient] Current:", tool.Grip)
+		print("[ADSClient] Adjustments:", serverAdjustments)
+		print("[ADSClient] Base ADS Grip:", baseAdsGrip)
+		print("[ADSClient] Adjusted ADS Grip:", adjustedAdsGrip)
+	else
+		adjustedAdsGrip = baseAdsGrip
+	end
+	
 	aiming = false
 end
 
@@ -101,34 +138,36 @@ local function teardownTool()
 	-- if currentTool and hipGrip then
 	--	pcall(function() currentTool.Grip = hipGrip end)
 	-- end
-	currentTool, hipGrip, adsGrip, hipFOV, adsFOV = nil, nil, nil, nil, nil
+	currentTool, hipGrip, baseAdsGrip, adjustedAdsGrip, hipFOV, adsFOV = nil, nil, nil, nil, nil, nil
 	aiming = false
 end
 
 local function beginADS()
-	if not currentTool or not adsGrip or aiming then return end
+	if not currentTool or not adjustedAdsGrip or aiming then return end
 	aiming = true
-	tweenGrip(currentTool, adsGrip, 0.18)
+	-- Instant grip change instead of tween
+	pcall(function() currentTool.Grip = adjustedAdsGrip end)
 	tweenFOV(adsFOV or 55, 0.14)
 end
 
 local function endADS()
 	if not currentTool or not hipGrip or not aiming then return end
 	aiming = false
-	tweenGrip(currentTool, hipGrip, 0.16)
+	-- Instant grip change instead of tween
+	pcall(function() currentTool.Grip = hipGrip end)
 	tweenFOV(hipFOV or cam.FieldOfView, 0.12)
 end
 
 local function bindInputs()
 	ContextActionService:BindAction("ADS_Hold", function(_, state)
-		if not currentTool or not adsGrip then return Enum.ContextActionResult.Pass end
+		if not currentTool or not adjustedAdsGrip then return Enum.ContextActionResult.Pass end
 		if state == Enum.UserInputState.Begin then beginADS()
 		elseif state == Enum.UserInputState.End then endADS() end
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.UserInputType.MouseButton2, Enum.KeyCode.ButtonL2)
 
 	ContextActionService:BindAction("ADS_ShiftHold", function(_, state)
-		if not currentTool or not adsGrip then return Enum.ContextActionResult.Pass end
+		if not currentTool or not adjustedAdsGrip then return Enum.ContextActionResult.Pass end
 		if state == Enum.UserInputState.Begin then beginADS()
 		elseif state == Enum.UserInputState.End then endADS() end
 		return Enum.ContextActionResult.Sink
@@ -159,7 +198,7 @@ local function ensureMobileButton()
 		local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(20,250,120); s.Thickness = 2; s.Parent = btn
 	end
 
-	btn.MouseButton1Down:Connect(function() if currentTool and adsGrip then beginADS() end end)
+	btn.MouseButton1Down:Connect(function() if currentTool and adjustedAdsGrip then beginADS() end end)
 	btn.MouseButton1Up:Connect(function() if currentTool then endADS() end end)
 end
 

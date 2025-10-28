@@ -127,7 +127,6 @@ local SKINS = {
 	["HyperRed Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
 	["Infiltrator Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true },
 	["Knife"] = { weapon="Blade", rarity="common", adsAllowed=false },
-	["Knife Box 2 Kit"] = { weapon="Blade", rarity="common", adsAllowed=false },
 	-- Additional blade weapons
 	["8Bit"] = { weapon="Blade", rarity="epic", adsAllowed=false },
 	["Ball"] = { weapon="Blade", rarity="epic", adsAllowed=false },
