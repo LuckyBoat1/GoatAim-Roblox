@@ -11,7 +11,6 @@ local function getAuraDecal()
     if decalsFolder then
         local auraDecal = decalsFolder:FindFirstChild("Aura")
         if auraDecal then
-            print("MythicAura: Found Aura decal with texture:", auraDecal.Texture)
             return auraDecal.Texture
         else
             warn("MythicAura: Aura decal not found in Decals folder")
@@ -36,12 +35,9 @@ function MythicAura.ApplyMythicAuraEffect(frame, gridView)
         return false, nil
     end
     
-    print("MythicAura: Starting aura effects on frame:", frame.Name, "with gridView parent:", gridView.Name)
-    
     -- Remove any existing aura effects from gridView (not frame)
     local existing = gridView:FindFirstChild("MythicAura_ClipFrame_" .. frame.Name)
     if existing then 
-        print("MythicAura: Removing existing aura effects")
         existing:Destroy() 
     end
     
@@ -75,8 +71,6 @@ function MythicAura.ApplyMythicAuraEffect(frame, gridView)
     aura.BorderSizePixel = 0
     
     aura.Parent = clippingFrame -- Parent to clipping frame instead of gridView
-    --
-    print("MythicAura: Created constant aura effect")
     
     -- Super fast flashing animation - faster than lightning
     local animationRunning = true
@@ -122,8 +116,6 @@ function MythicAura.ApplyMythicAuraEffect(frame, gridView)
         if clippingFrame and clippingFrame.Parent then
             clippingFrame:Destroy()
         end
-        
-        print("MythicAura: Cleaned up aura effects")
     end
     
     return true, cleanup

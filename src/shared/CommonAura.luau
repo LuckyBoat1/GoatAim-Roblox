@@ -12,7 +12,6 @@ local function getAuraDecal()
     if decalsFolder then
         local auraDecal = decalsFolder:FindFirstChild("CommonAura")
         if auraDecal then
-            print("CommonAura: Found CommonAura decal with texture:", auraDecal.Texture)
             return auraDecal.Texture
         else
             warn("CommonAura: CommonAura decal not found in Decals folder")
@@ -26,10 +25,6 @@ local function getAuraDecal()
 end
 
 local function createCommonAuraEffect(slot, gridView)
-    print("COMMONAURA DEBUG: Creating common aura for slot:", slot.Name)
-    print("COMMONAURA DEBUG: Slot size:", slot.Size, "position:", slot.Position)
-    print("COMMONAURA DEBUG: GridView:", gridView and gridView.Name or "nil")
-    
     -- Create aura frame 5% smaller than other rarities
     local auraFrame = Instance.new("Frame")
     auraFrame.Name = "CommonAura_Frame_" .. slot.Name
@@ -62,11 +57,8 @@ local function createCommonAuraEffect(slot, gridView)
     
     -- No particles for common rarity - just the aura decal
     
-    print("COMMONAURA DEBUG: Created common aura with simple decal")
-    
     -- Cleanup function
     local function cleanup()
-        print("COMMONAURA DEBUG: Cleaning up common aura")
         if pulseTween then
             pulseTween:Cancel()
         end
@@ -93,7 +85,6 @@ function CommonAura.ApplyCommonAuraEffect(slot, gridView)
         existing:Destroy() 
     end
     
-    print("COMMONAURA DEBUG: Applying common aura to slot:", slot.Name)
     return createCommonAuraEffect(slot, gridView)
 end
 

@@ -60,7 +60,6 @@ local function upgradeRefiner(inst)
     local lvl = getUpgradeLevel(inst)
     if lvl < MAX_UPGRADE then
         inst:SetAttribute("UpgradeLevel", lvl + 1)
-        print("Upgraded", inst.Name, "to level", lvl + 1)
         return true
     end
     return false
@@ -136,7 +135,6 @@ local function sendRefinerInfo(plr)
                 local boxType = pickBoxType()
                 if _G.GrantBox then
                     _G.GrantBox(plr, boxType, 1)
-                    print("Granted", boxType, "box to", plr.Name, "from refiner", inst.Name)
                 else
                     warn("_G.GrantBox function not available!")
                 end
@@ -289,7 +287,6 @@ local function ensurePrompt(inst)
         -- Check if player meets rank requirement
         if playerRank < requiredRank then
             -- Player can't use this refiner yet
-            print("Player", plr.Name, "needs rank", requiredRank, "but has rank", playerRank)
             playServerSound("rbxasset://sounds/impact_generic_large_02.mp3", 0.3, 0.8)
             return
         end
@@ -301,7 +298,6 @@ local function ensurePrompt(inst)
                 progressFlag.Value = true
                 refinerModel:SetAttribute("Owner", plr.Name)
                 
-                print("Player", plr.Name, "purchased refiner", refinerModel.Name, "for", price)
                 playServerSound("rbxasset://sounds/impact_generic_large_01.mp3", 0.6, 1.2)
                 
                 -- Add purchase effects
@@ -326,21 +322,16 @@ local function ensurePrompt(inst)
                     active = true
                 }
 
-                print("SERVER: Starting refiner progress for", plr.Name, refinerModel.Name, "at time", currentTime, "duration", REFINE_DURATION)
-                
                 -- Notify client to start loot box progress bar
                 RefinerProgressRE:FireClient(plr, {
                     refiner = refinerModel.Name,
                     duration = REFINE_DURATION,
                     startTime = currentTime,
                 })
-
-                print("SERVER: Sent progress data to client - startTime:", currentTime, "duration:", REFINE_DURATION)
                 
                 -- Send immediate update to client
                 sendRefinerInfo(plr)
             else
-                print("Player", plr.Name, "cannot afford refiner", refinerModel.Name, "- needs", price, "has", pdata.money)
                 playServerSound("rbxasset://sounds/impact_generic_large_02.mp3", 0.4, 0.7)
             end
         else
@@ -361,7 +352,6 @@ local function ensurePrompt(inst)
                 if pdata.money >= price then
                     pdata.money = pdata.money - price
                     upgradeRefiner(refinerModel)
-                    print("Player", plr.Name, "upgraded refiner", refinerModel.Name, "for", price)
                     playServerSound("rbxasset://sounds/impact_generic_medium_01.mp3", 0.5, 1.4)
                     
                     -- Add upgrade effects
@@ -383,11 +373,9 @@ local function ensurePrompt(inst)
                     -- Send immediate update to client
                     sendRefinerInfo(plr)
                 else
-                    print("Player", plr.Name, "cannot afford upgrade for", refinerModel.Name, "- needs", price, "has", pdata.money)
                     playServerSound("rbxasset://sounds/impact_generic_large_02.mp3", 0.4, 0.7)
                 end
             else
-                print("Player", plr.Name, "tried to upgrade max level refiner", refinerModel.Name)
                 playServerSound("rbxasset://sounds/impact_generic_large_02.mp3", 0.3, 0.6)
             end
         end
@@ -408,10 +396,7 @@ local function setupAllRefiners()
     if not refinersFolder then return end
 
     for _, inst in ipairs(refinersFolder:GetChildren()) do
-        local refinerName = inst.Name
-        local req = tonumber(refinerName:match("%d+$")) or 1
         wait(0.1)
-        print("Refiner:", refinerName, "Required Rank:", req)
         ensurePrompt(inst)
     end
 end
@@ -506,18 +491,9 @@ end
 
 setupAllRefiners()
 
--- Initialize system
-print("RefinerSystem: Starting up...")
-print("Found RefinerProgress RE:", RefinerProgressRE ~= nil)
-print("Found RefinerInfo RE:", RefinerInfoRE ~= nil)
-print("Found _G.getData:", _G.getData ~= nil)
-print("Found _G.GrantBox:", _G.GrantBox ~= nil)
-
 -- Check for refiners folder
 local refinersFolder = workspace:FindFirstChild("Refiners")
-if refinersFolder then
-    print("Found", #refinersFolder:GetChildren(), "refiners in workspace")
-else
+if not refinersFolder then
     warn("No Refiners folder found in workspace!")
 end
 
@@ -565,8 +541,6 @@ RefinerCollectRE.OnServerEvent:Connect(function(plr, refinerName)
         warn("Invalid refiner name for collection:", refinerName)
         return
     end
-    
-    print("Player", plr.Name, "collecting loot from refiner:", refinerName)
     
     -- Find the refiner part
     local refiner = workspace:FindFirstChild("Refiners")
@@ -619,7 +593,6 @@ RefinerCollectRE.OnServerEvent:Connect(function(plr, refinerName)
     -- Grant the loot box to the player
     if _G.GrantBox then
         _G.GrantBox(plr, selectedBoxType, 1)
-        print("Granted", selectedBoxType, "loot box to", plr.Name, "from refiner", refinerName)
         
         -- Send notification to client
         local NotificationRE = RemoteEvents:FindFirstChild("RefinerNotification")

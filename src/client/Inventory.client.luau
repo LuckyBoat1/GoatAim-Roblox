@@ -19,10 +19,6 @@ local LegendaryAura = require(ReplicatedStorage:WaitForChild("Shared"):WaitForCh
 local EpicAura = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EpicAura"))
 local RareAura = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RareAura"))
 local CommonAura = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CommonAura"))
-print("DEBUG: MythicEffects module loaded successfully:", MythicEffects ~= nil)
-print("DEBUG: Testing MythicEffects:", MythicEffects.Test and MythicEffects.Test() or "Test function not found")
-print("EPICAURA DEBUG: EpicAura module loaded successfully:", EpicAura ~= nil)
-print("EPICAURA DEBUG: Testing EpicAura:", EpicAura.Test and EpicAura.Test() or "Test function not found")
 
 -- Color shortcuts
 local function C3(r,g,b) return Color3.fromRGB(r,g,b) end
@@ -557,7 +553,6 @@ local function setupViewport(vp, source, opts)
     local needsTest37Rotation = false -- 90° X only
     local needsTest38Rotation = false -- 90° Y + 90° Z
     local needsChaserRotation = false
-    print("[DEBUG] Processing item: '" .. tostring(sourceName) .. "', isBigViewport: " .. tostring(opts.isBigViewport))
     
     if not (opts.isBigViewport) then
         -- Check if this item should face left (Z-axis rotation)
@@ -2219,7 +2214,6 @@ local function createItemSlot(sourceInstance, displayName)
     -- Apply mythic blood-red effects for mythic items
     local slotEffectsCleanup
     if rarityValue == 5 and MythicEffects then
-        print("Applying mythic effects to slot:", name)
         -- Apply to slot frame - the UI lightning
         local _, cleanup = MythicEffects.ApplyMythicFrameEffects(slot)
         slotEffectsCleanup = cleanup
@@ -2239,7 +2233,6 @@ local function createItemSlot(sourceInstance, displayName)
     
     -- Apply legendary yellow aura effects for legendary items
     if rarityValue == 4 and LegendaryAura then
-        print("Applying legendary aura to slot:", name)
         -- Find the gridView container for proper aura parenting
         local inventoryContainer = slot.Parent
         local gridView = inventoryContainer and inventoryContainer.Parent
@@ -2257,7 +2250,6 @@ local function createItemSlot(sourceInstance, displayName)
     
     -- Apply epic purple particle effects for epic items
     if rarityValue == 3 and EpicAura then
-        print("Applying epic aura to slot:", name)
         -- Find the gridView container for proper aura parenting
         local inventoryContainer = slot.Parent
         local gridView = inventoryContainer and inventoryContainer.Parent
@@ -2275,7 +2267,6 @@ local function createItemSlot(sourceInstance, displayName)
 
     -- Apply rare green particle effects for rare items
     if rarityValue == 2 and RareAura then
-        print("Applying rare aura to slot:", name)
         -- Find the gridView container for proper aura parenting
         local inventoryContainer = slot.Parent
         local gridView = inventoryContainer and inventoryContainer.Parent
@@ -2293,7 +2284,6 @@ local function createItemSlot(sourceInstance, displayName)
 
     -- Apply common aura effects for common items
     if rarityValue == 1 and CommonAura then
-        print("Applying common aura to slot:", name)
         -- Find the gridView container for proper aura parenting
         local inventoryContainer = slot.Parent
         local gridView = inventoryContainer and inventoryContainer.Parent
@@ -2541,7 +2531,6 @@ local function startRainEffect()
 end
 
 local function toggleInventory()
-    print("DEBUG: toggleInventory called, isOpen:", isOpen)
     if isBusy then return end; isBusy = true
     if not isOpen then
         _G.InventoryUIOpen = true
@@ -2684,7 +2673,6 @@ startRainEffect()
 local function testMythicEffect(slotName)
     for _, item in pairs(inventoryContainer:GetChildren()) do
         if item.Name == slotName then
-            print("Testing mythic effect on:", slotName)
             MythicEffects.ApplyMythicFrameEffects(item)
             return true
         end

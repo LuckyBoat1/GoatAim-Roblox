@@ -12,18 +12,14 @@ local function getGlowDecal()
     if fireFolder then
         local glowDecal = fireFolder:FindFirstChild("Glow")
         if glowDecal and glowDecal.Texture then
-            print("DEBUG: Found Glow decal: " .. glowDecal.Texture)
             return glowDecal.Texture
         end
     end
-    print("DEBUG: No Glow decal found, using fallback")
     return "rbxassetid://241650934" -- Fallback glow texture
 end
 
 -- Create pulsing sun-like glow effect behind legendary weapons
 local function createPulsingSunGlow(container)
-    print("DEBUG: Creating pulsing sun glow effect") -- Debug print
-    
     -- Find the actual slot frame
     local slotFrame = container.Parent.Parent -- container -> fireFrame -> clippingFrame -> slotFrame
     
@@ -107,8 +103,6 @@ local function createPulsingSunGlow(container)
     -- Start the sun pulsing animations
     sunPulseTween:Play()
     corePulseTween:Play()
-    
-    print("DEBUG: Pulsing sun glow created with dual-layer animation") -- Debug print
     
     -- Return cleanup function
     return function()

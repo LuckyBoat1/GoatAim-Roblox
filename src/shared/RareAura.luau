@@ -30,8 +30,6 @@ local function createRandomParticleEffect(container)
     local randomDecal = decals[math.random(1, #decals)]
     local texture = randomDecal:IsA("Decal") and randomDecal.Texture or randomDecal.Value
     
-    print("RareAura: Creating particle with texture:", texture)
-    
     -- Create particle ImageLabel
     local particle = Instance.new("ImageLabel")
     particle.Name = "RareParticle_" .. tick()
@@ -98,7 +96,6 @@ local function getAuraDecal()
     if decalsFolder then
         local auraDecal = decalsFolder:FindFirstChild("RareAura")
         if auraDecal then
-            print("RareAura: Found RareAura decal with texture:", auraDecal.Texture)
             return auraDecal.Texture
         else
             warn("RareAura: RareAura decal not found in Decals folder")
@@ -112,11 +109,7 @@ local function getAuraDecal()
 end
 
 local function createRareAuraEffect(slot, gridView)
-    print("RAREAURA DEBUG: Creating rare particle aura for slot:", slot.Name)
-    print("RAREAURA DEBUG: Slot size:", slot.Size, "position:", slot.Position)
-    print("RAREAURA DEBUG: GridView:", gridView and gridView.Name or "nil")
-    
-    -- Create aura frame same size as epic (matching epic structure)
+    -- Create aura frame same size as mythic/legendary
     local auraFrame = Instance.new("Frame")
     auraFrame.Name = "RareAura_Frame_" .. slot.Name
     auraFrame.Size = UDim2.new(0, 252, 0, 289) -- Made 10% wider (229*1.10=252) and 10% taller (263*1.10=289)
@@ -194,11 +187,8 @@ local function createRareAuraEffect(slot, gridView)
         end
     end)
     
-    print("RAREAURA DEBUG: Created rare aura with particle system")
-    
     -- Cleanup function
     local function cleanup()
-        print("RAREAURA DEBUG: Cleaning up rare aura and particles")
         if pulseTween then
             pulseTween:Cancel()
         end
@@ -225,7 +215,6 @@ function RareAura.ApplyRareAuraEffect(slot, gridView)
         existing:Destroy() 
     end
     
-    print("RAREAURA DEBUG: Applying rare aura to slot:", slot.Name)
     return createRareAuraEffect(slot, gridView)
 end
 

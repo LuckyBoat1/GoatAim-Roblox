@@ -11,6 +11,15 @@ local SkinConfig = require(Rs:WaitForChild("Shared"):WaitForChild("SkinConfig"))
 local player = Players.LocalPlayer
 local cam = workspace.CurrentCamera
 
+-- Get/create ADS remote event for replicating arm positions
+local remoteEvents = Rs:WaitForChild("RemoteEvents")
+local adsRemote = remoteEvents:FindFirstChild("ADSToggle")
+if not adsRemote then
+	adsRemote = Instance.new("RemoteEvent")
+	adsRemote.Name = "ADSToggle"
+	adsRemote.Parent = remoteEvents
+end
+
 -- Optional: force third-person for testing so you can see the weapon
 do
 	local FORCE_THIRD_PERSON = false  -- DISABLED to allow first-person
@@ -30,22 +39,153 @@ local adjustedAdsGrip = nil -- CFrame - The final ADS grip with server adjustmen
 local hipFOV = nil -- number
 local adsFOV = nil -- number
 local aiming = false
+local shoulderTweens = {} -- Store active shoulder tweens
 
 local gripDriver = nil -- CFrameValue
 
-local function tweenGrip(tool, toCF, dur)
-	if not gripDriver then
-		local newVal = Instance.new("CFrameValue")
-		gripDriver = newVal
-		newVal:GetPropertyChangedSignal("Value"):Connect(function()
-			if currentTool == tool then
-				pcall(function() tool.Grip = newVal.Value end)
-			end
-		end)
+-- Procedurally animate arms to ADS position
+local function animateArmsToADS(character, isADS)
+	if not character then 
+		print("[ADSClient] ❌ No character provided")
+		return 
 	end
-	local drv = gripDriver -- capture non-nil
-	drv.Value = tool.Grip
-	TweenService:Create(drv, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Value = toCF }):Play()
+	
+	print("[ADSClient] Character:", character.Name)
+	print("[ADSClient] Character children:")
+	for _, child in ipairs(character:GetChildren()) do
+		print("  -", child.Name, "(" .. child.ClassName .. ")")
+	end
+	
+	-- Find torso and shoulders
+	local torso = character:FindFirstChild("Torso")
+	local isR15 = false
+	
+	if not torso then
+		torso = character:FindFirstChild("UpperTorso")
+		isR15 = true
+		print("[ADSClient] Using R15 rig - found UpperTorso")
+	else
+		print("[ADSClient] Using R6 rig - found Torso")
+	end
+	
+	if not torso then 
+		warn("[ADSClient] ❌ No torso or UpperTorso found!")
+		return 
+	end
+	
+	print("[ADSClient] Torso children:")
+	for _, child in ipairs(torso:GetChildren()) do
+		print("  -", child.Name, "(" .. child.ClassName .. ")")
+	end
+	
+	local rightShoulder, leftShoulder
+	
+	if isR15 then
+		-- R15: Shoulder Motor6Ds are in the arm parts, not the torso
+		local rightUpperArm = character:FindFirstChild("RightUpperArm")
+		local leftUpperArm = character:FindFirstChild("LeftUpperArm")
+		
+		if rightUpperArm then
+			rightShoulder = rightUpperArm:FindFirstChild("RightShoulder")
+			print("[ADSClient] Found RightUpperArm, looking for shoulder joint:", rightShoulder)
+		end
+		
+		if leftUpperArm then
+			leftShoulder = leftUpperArm:FindFirstChild("LeftShoulder")
+			print("[ADSClient] Found LeftUpperArm, looking for shoulder joint:", leftShoulder)
+		end
+	else
+		-- R6 joints are in the torso
+		rightShoulder = torso:FindFirstChild("Right Shoulder")
+		leftShoulder = torso:FindFirstChild("Left Shoulder")
+	end
+	
+	if not rightShoulder or not leftShoulder then
+		warn("[ADSClient] ⚠️ Shoulders not found!")
+		warn("[ADSClient] Looking for:", isR15 and "RightShoulder/LeftShoulder" or "Right Shoulder/Left Shoulder")
+		warn("[ADSClient] Right shoulder:", rightShoulder)
+		warn("[ADSClient] Left shoulder:", leftShoulder)
+		return
+	end
+	
+	print("[ADSClient] Found shoulders - Right:", rightShoulder, "Left:", leftShoulder)
+	
+	-- Store original C0 values if not already stored (use CFrame values directly)
+	local rightOriginalValue = rightShoulder:FindFirstChild("OriginalC0")
+	if not rightOriginalValue then
+		rightOriginalValue = Instance.new("CFrameValue")
+		rightOriginalValue.Name = "OriginalC0"
+		rightOriginalValue.Value = rightShoulder.C0
+		rightOriginalValue.Parent = rightShoulder
+		print("[ADSClient] Stored right shoulder original C0:", rightShoulder.C0)
+	end
+	
+	local leftOriginalValue = leftShoulder:FindFirstChild("OriginalC0")
+	if not leftOriginalValue then
+		leftOriginalValue = Instance.new("CFrameValue")
+		leftOriginalValue.Name = "OriginalC0"
+		leftOriginalValue.Value = leftShoulder.C0
+		leftOriginalValue.Parent = leftShoulder
+		print("[ADSClient] Stored left shoulder original C0:", leftShoulder.C0)
+	end
+	
+	-- Get original positions
+	local rightOriginal = rightOriginalValue.Value
+	local leftOriginal = leftOriginalValue.Value
+	
+	-- Cancel existing tweens
+	for _, tween in pairs(shoulderTweens) do
+		tween:Cancel()
+	end
+	shoulderTweens = {}
+	
+	if isADS then
+		-- ADS position: Move RIGHT shoulder back to match weapon ADS movement
+		-- Positive Z = moves BACK toward the body
+		-- Left arm stays stationary (no movement)
+		
+		-- Right arm: move shoulder back 0.5 studs max (or it goes out of body)
+		local rightADS = rightOriginal * CFrame.new(0, 0, 0.5)
+		-- Left arm: NO CHANGE - keep original position
+		local leftADS = leftOriginal
+		
+		print("[ADSClient] Calculated ADS positions:")
+		print("  Right original:", rightOriginal)
+		print("  Right ADS:", rightADS)
+		print("  Left original:", leftOriginal)
+		print("  Left ADS:", leftADS)
+		
+		-- Tween to ADS position
+		local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		
+		shoulderTweens.right = TweenService:Create(rightShoulder, tweenInfo, {C0 = rightADS})
+		shoulderTweens.left = TweenService:Create(leftShoulder, tweenInfo, {C0 = leftADS})
+		
+		shoulderTweens.right:Play()
+		shoulderTweens.left:Play()
+		
+		print("[ADSClient] ✅ Tweening arms to ADS position")
+		print("  Current right C0:", rightShoulder.C0)
+		print("  Current left C0:", leftShoulder.C0)
+		
+		-- Tell server to replicate to other players
+		adsRemote:FireServer(true, rightADS, leftADS)
+		print("[ADSClient] Fired to server")
+	else
+		-- Return to original position
+		local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		
+		shoulderTweens.right = TweenService:Create(rightShoulder, tweenInfo, {C0 = rightOriginal})
+		shoulderTweens.left = TweenService:Create(leftShoulder, tweenInfo, {C0 = leftOriginal})
+		
+		shoulderTweens.right:Play()
+		shoulderTweens.left:Play()
+		
+		print("[ADSClient] ✅ Tweening arms back to hip position")
+		
+		-- Tell server to reset for other players
+		adsRemote:FireServer(false, rightOriginal, leftOriginal)
+	end
 end
 
 local function tweenFOV(toFOV, dur)
@@ -69,6 +209,14 @@ end
 local function setupTool(tool)
 	currentTool = tool
 	
+	print("=== [ADSClient] Setting up tool:", tool.Name, "===")
+	print("[ADSClient] Tool ClassName:", tool.ClassName)
+	print("[ADSClient] Tool has Handle?", tool:FindFirstChild("Handle") ~= nil)
+	if tool:FindFirstChild("Handle") then
+		print("[ADSClient] Handle ClassName:", tool.Handle.ClassName)
+	end
+	print("[ADSClient] Tool.RequiresHandle:", tool.RequiresHandle)
+	
 	-- Server handles all weapon positioning and rotation
 	-- Client only handles ADS functionality
 	
@@ -80,6 +228,7 @@ local function setupTool(tool)
 	-- Get the original grip BEFORE server adjustments (if stored)
 	local originalGrip = tool.Grip
 	print("[ADSClient] Initial tool.Grip:", tool.Grip)
+	
 	if tool:GetAttribute("OriginalGripStored") then
 		local ox = tool:GetAttribute("OriginalGripX") or 0
 		local oy = tool:GetAttribute("OriginalGripY") or 0
@@ -104,6 +253,7 @@ local function setupTool(tool)
 		if not adsFOV then
 			adsFOV = SkinConfig.GetADSFOVForSkin(tool:GetAttribute("SkinId"), tool.Name)
 		end
+		print("[ADSClient] Base ADS grip from config:", baseAdsGrip)
 	else
 		baseAdsGrip = nil
 	end
@@ -113,21 +263,24 @@ local function setupTool(tool)
 	
 	-- Now capture the hip grip AFTER server has applied all adjustments
 	hipGrip = tool.Grip
+	print("[ADSClient] Hip grip (after server adjustments):", hipGrip)
 	
-	-- Apply server's adjustments to ADS grip AFTER waiting for server
-	-- The server applies: originalGrip * serverAdjustments = current tool.Grip
-	-- So: serverAdjustments = originalGrip:Inverse() * tool.Grip
+	-- Apply the ADS grip as a RELATIVE OFFSET from hip position
+	-- baseAdsGrip defines how much to move the weapon (e.g., 0.2 studs back)
 	if baseAdsGrip and originalGrip then
-		local serverAdjustments = originalGrip:Inverse() * tool.Grip
-		adjustedAdsGrip = baseAdsGrip * serverAdjustments
-		print("[ADSClient] Applied server adjustments to ADS grip")
-		print("[ADSClient] Original:", originalGrip)
-		print("[ADSClient] Current:", tool.Grip)
-		print("[ADSClient] Adjustments:", serverAdjustments)
-		print("[ADSClient] Base ADS Grip:", baseAdsGrip)
-		print("[ADSClient] Adjusted ADS Grip:", adjustedAdsGrip)
+		-- The baseAdsGrip from config is a relative offset
+		-- Multiply it with hipGrip to apply the offset in the weapon's local space
+		adjustedAdsGrip = hipGrip * baseAdsGrip
+		
+		print("[ADSClient] === Grip Setup Complete ===")
+		print("[ADSClient] Hip grip:", hipGrip)
+		print("[ADSClient] Original grip:", originalGrip)
+		print("[ADSClient] Base ADS offset:", baseAdsGrip)
+		print("[ADSClient] Final ADS grip (hip * offset):", adjustedAdsGrip)
+		print("[ADSClient] =====================================")
 	else
 		adjustedAdsGrip = baseAdsGrip
+		print("[ADSClient] Using base ADS grip (no adjustments)")
 	end
 	
 	aiming = false
@@ -145,16 +298,60 @@ end
 local function beginADS()
 	if not currentTool or not adjustedAdsGrip or aiming then return end
 	aiming = true
-	-- Instant grip change instead of tween
-	pcall(function() currentTool.Grip = adjustedAdsGrip end)
+	
+	print("[ADSClient] ▶ ENTERING ADS")
+	
+	-- Animate arms to ADS position
+	local character = player.Character
+	if character then
+		animateArmsToADS(character, true)
+	end
+	
+	-- Change tool grip - this moves the weapon in your hand
+	pcall(function()
+		currentTool.Grip = adjustedAdsGrip
+		print("[ADSClient] Set tool.Grip to ADS grip")
+	end)
+	
+	-- Use Humanoid.CameraOffset for first-person ADS feel
+	if character then
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.CameraOffset = Vector3.new(0, -1, -1.5)
+			print("[ADSClient] Camera offset applied - ADS view")
+		end
+	end
+	
 	tweenFOV(adsFOV or 55, 0.14)
 end
 
 local function endADS()
 	if not currentTool or not hipGrip or not aiming then return end
 	aiming = false
-	-- Instant grip change instead of tween
-	pcall(function() currentTool.Grip = hipGrip end)
+	
+	print("[ADSClient] ◀ EXITING ADS")
+	
+	-- Animate arms back to hip position
+	local character = player.Character
+	if character then
+		animateArmsToADS(character, false)
+	end
+	
+	if character then
+		-- Reset Humanoid.CameraOffset
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.CameraOffset = Vector3.new(0, 0, 0)
+			print("[ADSClient] Camera offset reset")
+		end
+	end
+	
+	-- Reset tool.Grip to hip grip
+	pcall(function()
+		currentTool.Grip = hipGrip
+		print("[ADSClient] Tool grip reset to hip")
+	end)
+	
 	tweenFOV(hipFOV or cam.FieldOfView, 0.12)
 end
 

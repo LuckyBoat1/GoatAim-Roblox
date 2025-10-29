@@ -30,14 +30,11 @@ local function updateGrip()
         wait(0.1)
         baseGrip = currentTool.Grip
         currentTool:SetAttribute("ClientBaseGrip", baseGrip)
-        print("[GripAdjuster] Stored base grip (after server rotation):", baseGrip)
     end
     
     -- Use same calculation method as server: originalGrip * adjustment
     local adjustment = CFrame.new(x, y, z)  
     currentTool.Grip = baseGrip * adjustment
-    
-    print("[GripAdjuster] Applied adjustment (" .. x .. ", " .. y .. ", " .. z .. ") to base grip")
 end
 
 -- Create the grip adjustment UI
@@ -184,13 +181,11 @@ local function watchCharacter(character)
     character.ChildAdded:Connect(function(child)
         if child:IsA("Tool") then
             currentTool = child
-            print("[GripAdjuster] Tool equipped:", child.Name)
             
             -- Clear any old base grip so it gets stored fresh
             child:SetAttribute("ClientBaseGrip", nil)
             
             createGripUI()
-            print("[GripAdjuster] UI shown for:", child.Name)
             
             -- No persistent adjustments - each weapon starts at 0,0,0
             -- The UI will show 0,0,0 and the weapon will use server's fullOffset
@@ -198,7 +193,6 @@ local function watchCharacter(character)
             -- Watch for tool being unequipped
             child.AncestryChanged:Connect(function()
                 if not child.Parent then
-                    print("[GripAdjuster] Tool unequipped - hiding UI")
                     hideGripUI()
                 end
             end)
@@ -207,7 +201,6 @@ local function watchCharacter(character)
     
     character.ChildRemoved:Connect(function(child)
         if child:IsA("Tool") and child == currentTool then
-            print("[GripAdjuster] Tool removed - hiding UI")
             hideGripUI()
         end
     end)
@@ -220,8 +213,5 @@ end
 
 -- Watch for character spawning
 player.CharacterAdded:Connect(function(character)
-    print("[GripAdjuster] Character spawned, setting up tool watching")
     watchCharacter(character)
 end)
-
-print("[GripAdjuster] Client-side grip adjuster initialized")

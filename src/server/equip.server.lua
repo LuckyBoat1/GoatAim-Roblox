@@ -9,9 +9,9 @@ local CORRECT_WEAPON_ROTATIONS = {
     -- Non-spear weapons
     ["PKM"] = CFrame.Angles(math.rad(360), math.rad(0), math.rad(90)),
     ["shiv"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
-    ["Vintorez"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(270)),
+    ["Vintorez"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
     ["Viper/Mp5"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(-90)),
-    ["Chaser"] = CFrame.Angles(math.rad(90), math.rad(180), math.rad(90)),
+    ["Chaser"] = CFrame.Angles(math.rad(90), math.rad(270), math.rad(180)),
     
     -- WORKING ROTATIONS - These weapons rotate correctly
     ["Meshes/blue"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(0)),
@@ -134,9 +134,10 @@ local FINAL_ROTATION_ADJUSTMENTS = {
     ["Enfield Bren"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
     ["enforcer"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
     ["Engraved Revolver"] = CFrame.Angles(math.rad(270), math.rad(180), math.rad(0)),
-    ["Fabric Storm"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(180)),
+    ["Fabric Storm"] = CFrame.Angles(math.rad(90), math.rad(180), math.rad(0)),
     ["Fabulous Revolver"] = CFrame.Angles(math.rad(270), math.rad(180), math.rad(0)),
     ["Fang"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+    ["Flame"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
     ["flaregun"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
     ["FN2000"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
     ["Fort"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
@@ -170,7 +171,7 @@ local FINAL_ROTATION_ADJUSTMENTS = {
     ["Goblin_Goblin_Club_01"] = CFrame.Angles(math.rad(270), math.rad(90), math.rad(0)),
     ["Goblin_Goblin_Gem_Hammer_01"] = CFrame.Angles(math.rad(270), math.rad(-90), math.rad(0)),
     ["Goblin_Goblin_Halberd_01"] = CFrame.Angles(math.rad(270), math.rad(-90), math.rad(0)),
-    ["Goblin_Goblin_Mace_01"] = CFrame.Angles(math.rad(270), math.rad(0), math.rad(0)),
+    ["Goblin_Goblin_Mace_01"] = CFrame.Angles(math.rad(270), math.rad(180), math.rad(0)),
     ["Goblin_Goblin_Machete_01"] = CFrame.Angles(math.rad(270), math.rad(-90), math.rad(0)),
     ["Goblin_Goblin_Machete_Spikes_01"] = CFrame.Angles(math.rad(270), math.rad(-90), math.rad(0)),
     ["Goblin_Goblin_Shiv_Bone_01"] = CFrame.Angles(math.rad(270), math.rad(-90), math.rad(0)),
@@ -213,6 +214,7 @@ local FINAL_ROTATION_ADJUSTMENTS = {
     ["Heat"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
     ["heatmaker"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
     ["HyperRed Revolver"] = CFrame.Angles(math.rad(270), math.rad(180), math.rad(0)),
+    ["Illusion"] = CFrame.Angles(math.rad(90), math.rad(180), math.rad(0)),
     ["Infiltrator Revolver"] = CFrame.Angles(math.rad(90), math.rad(180), math.rad(0)),
     ["iRevolver"] = CFrame.Angles(math.rad(180), math.rad(180), math.rad(0)),
     ["Knife"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
@@ -267,7 +269,7 @@ local FINAL_ROTATION_ADJUSTMENTS = {
     ["PM"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
     ["Portal Revolver"] = CFrame.Angles(math.rad(270), math.rad(180), math.rad(0)),
     ["Power"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
-    ["Predator"] = CFrame.Angles(math.rad(90), math.rad(180), math.rad(0)),
+    ["Predator"] = CFrame.Angles(math.rad(90), math.rad(90), math.rad(0)),
     ["Pro"] = CFrame.Angles(math.rad(90), math.rad(180), math.rad(0)),
     ["quickfix"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
     ["Rainbow"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
@@ -416,7 +418,7 @@ local GRIP_ADJUSTMENTS = {
     ["AA12 - Digicam"] = CFrame.new(0, 0.2, 1.2),
     ["AA12 - Festive Wrap"] = CFrame.new(0, 0.2, 1.2),
     ["Abakan/AC-96"] = CFrame.new(0, 0, 2.7),
-    ["Ace"] = CFrame.new(0, -0.1, 0.5),
+    ["Ace"] = CFrame.new(0, -0.1, 0.8),
     ["Adurite Revolver"] = CFrame.new(0, 0, 0.9),
     ["AK47"] = CFrame.new(0, -0.2, 1.1),
     ["AK47 - Gold Lord"] = CFrame.new(0, -0.2, 1.1),
@@ -447,255 +449,258 @@ local GRIP_ADJUSTMENTS = {
     ["Beretta M9 - Combat Pro"] = CFrame.new(0, -0.3, 0),
     ["Black kite"] = CFrame.new(0, 0, 0.6),
     ["BlackIron Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Blizzard"] = CFrame.new(0, -2.50, 0.5),
-    ["Blood"] = CFrame.new(0, 0, 0.5),
+    ["Blizzard"] = CFrame.new(0, -3.20, 0.5),
+    ["Blood"] = CFrame.new(0, 0, 0.8),
     ["Blood&Bones"] = CFrame.new(0, 0, 1.2),
     ["Bluesteel Revolver"] = CFrame.new(0, 0, 0.9),
     ["Borders"] = CFrame.new(0, -0.8, 0),
-    ["carbine"] = CFrame.new(0, 0, 0),
+    ["carbine"] = CFrame.new(0, 0.2, 0.4),
     ["Carbon"] = CFrame.new(0, -0.3, 0.9),
     ["Caution"] = CFrame.new(0, -0.8, 0),
     ["Cheesy"] = CFrame.new(0, -0.8, 0),
     ["Chroma Fang"] = CFrame.new(0, -1, 0),
-    ["classic"] = CFrame.new(0, 0, 0),
+    ["classic"] = CFrame.new(0, -0.3, 1.3),
     ["ComputerBlaster Revolver"] = CFrame.new(0, 0, 0.9),
     ["crossbow"] = CFrame.new(0, -0.8, 0.8),
-    ["Crystal"] = CFrame.new(0, 0, 0),
+    ["Crystal"] = CFrame.new(0, -0.8, 0),
     ["CyanMissingTexture Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Cyborg"] = CFrame.new(0, 0.6, 0),
-    ["Death"] = CFrame.new(0, 0.6, 0),
+    ["Cyborg"] = CFrame.new(0, -0.1, 0.5),
+    ["Death"] = CFrame.new(0, -0.1, 0.5),
     ["Desert Eagle"] = CFrame.new(0, 0, 0),
     ["Desert Eagle - Bengal Bling"] = CFrame.new(0, 0, 0),
     ["Desert Eagle - Dead Red"] = CFrame.new(0, 0, 0),
-    ["diamondback"] = CFrame.new(0, 0, 0),
+    ["diamondback"] = CFrame.new(0, -0.1, 0.7),
     ["Donkey Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Dragon Glass"] = CFrame.new(0, 0, 0),
+    ["Dragon Glass"] = CFrame.new(0, 0, 0.8),
     ["Dreams of Revolvers"] = CFrame.new(0, 0, 0.9),
-    ["Ego"] = CFrame.new(0, 0, 0),
+    ["Ego"] = CFrame.new(0, -3.20, 0.5),
     ["Elite Revolver"] = CFrame.new(0, 0, 0.9),
     ["Enfield Bren"] = CFrame.new(0, 0, 0),
-    ["enforcer"] = CFrame.new(0, 0, 0),
+    ["enforcer"] = CFrame.new(0, 0, 0.4),
     ["Engraved Revolver"] = CFrame.new(0, 0, 0.9),
     ["Fabric Storm"] = CFrame.new(0, 0, 0),
     ["Fabulous Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Fang"] = CFrame.new(0, 0, 0),
-    ["flaregun"] = CFrame.new(0, 0, 0),
-    ["FN2000"] = CFrame.new(0, 0, 0),
-    ["Fort"] = CFrame.new(0, 0, 0),
+    ["Fang"] = CFrame.new(0, -1, 0),
+    ["Flame"] = CFrame.new(0, -1.40, -0.3),
+    ["flaregun"] = CFrame.new(0, -0.3, 0.6),
+    ["FN2000"] = CFrame.new(0, -0.6, 0.9),
+    ["Fort"] = CFrame.new(0, -0.10, 1.2),
     ["frontier"] = CFrame.new(0, 0, 0),
-    ["G36"] = CFrame.new(0, 0, 0),
+    ["G36"] = CFrame.new(0, -0.3, 3.90),
     ["Galactic Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Gauss rifle"] = CFrame.new(0, 0, 0),
-    ["Gear"] = CFrame.new(0, 0, 0),
-    ["Genesis"] = CFrame.new(0, 0, 0),
+    ["Gauss rifle"] = CFrame.new(0, -0.8, 0.4),
+    ["Gear"] = CFrame.new(0, -0.3, 0.5),
+    ["Genesis"] = CFrame.new(0, -0.3, 0.5),
     ["Glock 23"] = CFrame.new(0, 0, 0),
     ["Glock 23 - Bengal"] = CFrame.new(0, 0, 0),
     ["Glock 23 - Homeland"] = CFrame.new(0, 0, 0),
     ["Glock 23 - Packin' Heat"] = CFrame.new(0, 0, 0),
-    ["Goblin_Axe_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Axe_Nature_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Axe_Rune_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Banner_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Bone_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Bone_02"] = CFrame.new(0, 0, 0),
-    ["Goblin_BrokenSword_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Crystal_Axe_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Crystal_Axe_Large_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Crystal_DoubleSword_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Crystal_Halberd_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Crystal_Ornate_Straightsword_01"] = CFrame.new(0, -1.10, 0),
-    ["Goblin_Cutlass_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Axe_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Axe_Large_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Axe_Spikes_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Bone_Axe_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Club_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Gem_Hammer_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Halberd_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Mace_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Machete_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Machete_Spikes_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Shiv_Bone_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Shiv_Stone_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Spear_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Goblin_Staff_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_GreatSword_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Greatsword_Round_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Greatsword_Straight_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Halberd_06"] = CFrame.new(0, 0, 0),
-    ["Goblin_Hammer_Large_Metal_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Hammer_Large_Metal_010"] = CFrame.new(0, 0, 0),
-    ["Goblin_Hammer_Large_Stone_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Hammer_Large_Wood_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Hammer_Mace_Sphere_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Hammer_Mace_Spikes_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Hammer_Mace_Stone_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Hammer_Small_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Hammer_Small_02"] = CFrame.new(0, 0, 0),
-    ["Goblin_HandAxe_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Handle_Metal_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Handle_Wood_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Mace_Blades_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Ornate_Axe_02"] = CFrame.new(0, 0, 0),
-    ["Goblin_Ornate_GreatAxe_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Ornate_Spear_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Ornate_Spikes_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Ornate_Spikes_Long_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Ornate_Sword_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Ornate_Sword_02"] = CFrame.new(0, 0, 0),
-    ["Goblin_Spear_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Spear_02"] = CFrame.new(0, 0, 0),
-    ["Goblin_Staff_DoubleBlade_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Staff_Gem_01"] = CFrame.new(0, 0, 0),
-    ["Goblin_Straightsword_01"] = CFrame.new(0, 0, 0),
-    ["Gold"] = CFrame.new(0, 0, 0),
+    ["Goblin_Axe_01"] = CFrame.new(0, -2, 0),
+    ["Goblin_Axe_Nature_01"] = CFrame.new(0, -2, 0),
+    ["Goblin_Axe_Rune_01"] = CFrame.new(0, -2.2, 0.3),
+    ["Goblin_Banner_01"] = CFrame.new(0, -2, 0),
+    ["Goblin_Bone_01"] = CFrame.new(0, -2.1, 0.4),
+    ["Goblin_Bone_02"] = CFrame.new(0, -2.1, 0.4),
+    ["Goblin_BrokenSword_01"] = CFrame.new(0, -1.6, 0),
+    ["Goblin_Crystal_Axe_01"] = CFrame.new(0, -2, 0),
+    ["Goblin_Crystal_Axe_Large_01"] = CFrame.new(0, -3.6, 0.8),
+    ["Goblin_Crystal_DoubleSword_01"] = CFrame.new(0, -2.4, 0),
+    ["Goblin_Crystal_Halberd_01"] = CFrame.new(0, -4.5, 0.3),
+    ["Goblin_Crystal_Ornate_Straightsword_01"] = CFrame.new(0, -2.6, 0),
+    ["Goblin_Cutlass_01"] = CFrame.new(0, -2.6, 0),
+    ["Goblin_Goblin_Axe_01"] = CFrame.new(0, -1.8, 0.4),
+    ["Goblin_Goblin_Axe_Large_01"] = CFrame.new(0, -4.2, 0),
+    ["Goblin_Goblin_Axe_Spikes_01"] = CFrame.new(0, -2, 0.7),
+    ["Goblin_Goblin_Bone_Axe_01"] = CFrame.new(0, -2.8, 0.4),
+    ["Goblin_Goblin_Club_01"] = CFrame.new(0, -2.5, 0),
+    ["Goblin_Goblin_Gem_Hammer_01"] = CFrame.new(0, -2.6, 0.1),
+    ["Goblin_Goblin_Halberd_01"] = CFrame.new(0, -6.6, -0.5),
+    ["Goblin_Goblin_Mace_01"] = CFrame.new(0, -2, 0),
+    ["Goblin_Goblin_Machete_01"] = CFrame.new(0, -2.6, 0),
+    ["Goblin_Goblin_Machete_Spikes_01"] = CFrame.new(0, -2.7, 0),
+    ["Goblin_Goblin_Shiv_Bone_01"] = CFrame.new(0, -2.1, 0.4),
+    ["Goblin_Goblin_Shiv_Stone_01"] = CFrame.new(0, -2, 0),
+    ["Goblin_Goblin_Spear_01"] = CFrame.new(0.3, -2.9, 0),
+    ["Goblin_Goblin_Staff_01"] = CFrame.new(0, -4.2, 0),
+    ["Goblin_GreatSword_01"] = CFrame.new(0, -3, 0),
+    ["Goblin_Greatsword_Round_01"] = CFrame.new(0, -3.3, 0),
+    ["Goblin_Greatsword_Straight_01"] = CFrame.new(0, -5.5, 0),
+    ["Goblin_Halberd_06"] = CFrame.new(0, -2.8, -0.2),
+    ["Goblin_Hammer_Large_Metal_01"] = CFrame.new(-0.1, -3.7, 0),
+    ["Goblin_Hammer_Large_Metal_010"] = CFrame.new(0, -3.7, 0),
+    ["Goblin_Hammer_Large_Stone_01"] = CFrame.new(0, -2.9, 0),
+    ["Goblin_Hammer_Large_Wood_01"] = CFrame.new(0, -3.5, 0),
+    ["Goblin_Hammer_Mace_Sphere_01"] = CFrame.new(0, -1.6, 0),
+    ["Goblin_Hammer_Mace_Spikes_01"] = CFrame.new(0, -2, 0),
+    ["Goblin_Hammer_Mace_Stone_01"] = CFrame.new(0, -2, 0.2),
+    ["Goblin_Hammer_Small_01"] = CFrame.new(0, -2, 0),
+    ["Goblin_Hammer_Small_02"] = CFrame.new(0, -2, 0),
+    ["Goblin_HandAxe_01"] = CFrame.new(0, -2, 0.7),
+    ["Goblin_Handle_Metal_01"] = CFrame.new(0, -2, 0),
+    ["Goblin_Handle_Wood_01"] = CFrame.new(0, -3.4, 0),
+    ["Goblin_Mace_Blades_01"] = CFrame.new(0, -4, 0),
+    ["Goblin_Ornate_Axe_02"] = CFrame.new(0, -3, 0),
+    ["Goblin_Ornate_GreatAxe_01"] = CFrame.new(0, -2, -0.2),
+    ["Goblin_Ornate_Spear_01"] = CFrame.new(0, -4.1, 0),
+    ["Goblin_Ornate_Spikes_01"] = CFrame.new(0, -2, 0),
+    ["Goblin_Ornate_Spikes_Long_01"] = CFrame.new(0, -4.8, 0),
+    ["Goblin_Ornate_Sword_01"] = CFrame.new(0, -3.5, 0),
+    ["Goblin_Ornate_Sword_02"] = CFrame.new(0, -3.5, 0),
+    ["Goblin_Spear_01"] = CFrame.new(0, -5, 0),
+    ["Goblin_Spear_02"] = CFrame.new(0, -5, 0),
+    ["Goblin_Staff_DoubleBlade_01"] = CFrame.new(0, -3.6, 0),
+    ["Goblin_Staff_Gem_01"] = CFrame.new(0, -3.6, 0.8),
+    ["Goblin_Straightsword_01"] = CFrame.new(0, -3, 0.2),
+    ["Gold"] = CFrame.new(0, -0.3, 0.5),
     ["Gold Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Grand Prix"] = CFrame.new(0, 0, 0),
-    ["Handgun"] = CFrame.new(0, 0, 0),
-    ["Heat"] = CFrame.new(0, 0, 0),
-    ["heatmaker"] = CFrame.new(0, 0, 0),
+    ["Grand Prix"] = CFrame.new(0, -0.4, 0.5),
+    ["Handgun"] = CFrame.new(0, 0, 0.4),
+    ["Heat"] = CFrame.new(0, -0.1, 0.5),
+    ["heatmaker"] = CFrame.new(0, -0.30, 0.6),
     ["HyperRed Revolver"] = CFrame.new(0, 0, 0.9),
+    ["Illusion"] = CFrame.new(0, -0.4, 0.5),
     ["Infiltrator Revolver"] = CFrame.new(0, 0, 0.9),
     ["iRevolver"] = CFrame.new(0, 0, 0.9),
-    ["Knife"] = CFrame.new(0, 0, 0),
+    ["Knife"] = CFrame.new(0, -0.4, 0),
     ["Knife Box 2 Kit"] = CFrame.new(0, 0, 0),
-    ["Kypto"] = CFrame.new(0, 0, 0),
-    ["L85"] = CFrame.new(0, 0, 0),
-    ["leechgun"] = CFrame.new(0, 0, 0),
+    ["Kypto"] = CFrame.new(0, -0.8, 0),
+    ["L85"] = CFrame.new(0, 0.3, -0.60),
+    ["leechgun"] = CFrame.new(0, -0.30, 0.7),
     ["le'tranger"] = CFrame.new(0, 0, 0),
-    ["Leviathan"] = CFrame.new(0, 0, 0),
-    ["Linked"] = CFrame.new(0, 0, 0),
-    ["Lizard"] = CFrame.new(0, 0, 0),
+    ["Leviathan"] = CFrame.new(0, -0.4, 0.5),
+    ["Linked"] = CFrame.new(0, -0.8, 0),
+    ["Lizard"] = CFrame.new(0, -0.4, 0.5),
     ["M16"] = CFrame.new(0, 0, 0),
     ["M16 - Green Envy"] = CFrame.new(0, 0, 0),
-    ["M1911"] = CFrame.new(0, 0, 0),
-    ["M1911 - Earthy"] = CFrame.new(0, 0, 0),
-    ["M1911 - Star-Spangled"] = CFrame.new(0, 0, 0),
-    ["M1A"] = CFrame.new(0, 0, 0),
-    ["M1A - Flammo"] = CFrame.new(0, 0, 0),
-    ["M1A - Wood Classic"] = CFrame.new(0, 0, 0),
-    ["M249"] = CFrame.new(0, 0, 0),
-    ["M249 - Festive Wrap"] = CFrame.new(0, 0, 0),
-    ["M249 - Mojave"] = CFrame.new(0, 0, 0),
-    ["M249 - Plastic"] = CFrame.new(0, 0, 0),
-    ["M4 Black"] = CFrame.new(0, 0, 0),
-    ["M4 Carbine"] = CFrame.new(0, 0, 0),
-    ["M4 Carbine - Bengal"] = CFrame.new(0, 0, 0),
-    ["M4 Carbine - Fort Hope Elite"] = CFrame.new(0, 0, 0),
-    ["M4 Carbine - Golden Death"] = CFrame.new(0, 0, 0),
-    ["machina"] = CFrame.new(0, 0, 0),
-    ["Makarov"] = CFrame.new(0, 0, 0),
+    ["M1911"] = CFrame.new(0, -0.4, 0.1),
+    ["M1911 - Earthy"] = CFrame.new(0, -0.4, 0.1),
+    ["M1911 - Star-Spangled"] = CFrame.new(0, -0.4, 0.1),
+    ["M1A"] = CFrame.new(0, 0.1, 1.40),
+    ["M1A - Flammo"] = CFrame.new(0, 0.1, 1.40),
+    ["M1A - Wood Classic"] = CFrame.new(0, 0.1, 1.40),
+    ["M249"] = CFrame.new(1.6, -1, 1.40),
+    ["M249 - Festive Wrap"] = CFrame.new(1.6, -1, 1.40),
+    ["M249 - Mojave"] = CFrame.new(1.6, -1, 1.40),
+    ["M249 - Plastic"] = CFrame.new(1.6, -1, 1.40),
+    ["M4 Black"] = CFrame.new(0, -0.4, 0.5),
+    ["M4 Carbine"] = CFrame.new(0, 0.20, 1),
+    ["M4 Carbine - Bengal"] = CFrame.new(0, 0.20, 1),
+    ["M4 Carbine - Fort Hope Elite"] = CFrame.new(0, 0.20, 1),
+    ["M4 Carbine - Golden Death"] = CFrame.new(0, 0.20, 1),
+    ["machina"] = CFrame.new(0,-0.50, 1),
+    ["Makarov"] = CFrame.new(0, 0, 0.3),
     ["McDonald Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Missing"] = CFrame.new(0, 0, 0),
+    ["Missing"] = CFrame.new(0, -0.8, 0),
     ["Molecular Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Money"] = CFrame.new(0, 0, 0),
-    ["Monster"] = CFrame.new(0, 0, 0),
-    ["Morgan"] = CFrame.new(0, 0, 0),
-    ["MP5"] = CFrame.new(0, 0, 0),
-    ["MP5 - Copperhead"] = CFrame.new(0, 0, 0),
-    ["MP5 - Festive Wrap"] = CFrame.new(0, 0, 0),
-    ["MP5 - Purple People Eater"] = CFrame.new(0, 0, 0),
+    ["Money"] = CFrame.new(0, -0.4, 0.9),
+    ["Monster"] = CFrame.new(0, 0, 1.3),
+    ["Morgan"] = CFrame.new(0, 0, 0.5),
+    ["MP5"] = CFrame.new(0, -0.50, 0.8),
+    ["MP5 - Copperhead"] = CFrame.new(0, -0.50, 0.8),
+    ["MP5 - Festive Wrap"] = CFrame.new(0, -0.50, 0.8),
+    ["MP5 - Purple People Eater"] = CFrame.new(0, -0.50, 0.8),
     ["MS Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Nano"] = CFrame.new(0, 0, 0),
-    ["natach"] = CFrame.new(0, 0, 0),
-    ["Necromancer"] = CFrame.new(0, 0, 0),
+    ["Nano"] = CFrame.new(0, -0.4, 0.9),
+    ["natach"] = CFrame.new(0, -0.2, 3.3),
+    ["Necromancer"] = CFrame.new(0, -0.4, 0.5),
     ["NightStalker Revolver"] = CFrame.new(0, 0, 0.9),
     ["Original Revolver"] = CFrame.new(0, 0, 0.9),
     ["Overseer Revolver"] = CFrame.new(0, 0, 0.9),
-    ["overuse"] = CFrame.new(0, 0, 0),
-    ["P99"] = CFrame.new(0, 0, 0),
-    ["PB"] = CFrame.new(0, 0, 0),
-    ["Phoenix"] = CFrame.new(0, 0, 0),
-    ["PM"] = CFrame.new(0, 0, 0),
+    ["overuse"] = CFrame.new(0, -0.30, 0.6),
+    ["P99"] = CFrame.new(0, 0, 0.4),
+    ["PB"] = CFrame.new(0, 0, 0.9),
+    ["Phoenix"] = CFrame.new(0, -0.3, 0.5),
+    ["PM"] = CFrame.new(0, 0, 0.4),
     ["Portal Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Power"] = CFrame.new(0, 0, 0),
-    ["Predator"] = CFrame.new(0, 0, 0),
-    ["Pro"] = CFrame.new(0, 0, 0),
-    ["quickfix"] = CFrame.new(0, 0, 0),
-    ["Rainbow"] = CFrame.new(0, 0, 0),
+    ["Power"] = CFrame.new(0, -3.20, 0.5),
+    ["Predator"] = CFrame.new(0, 0, 0.9),
+    ["Pro"] = CFrame.new(0, -0.4, 0.5),
+    ["quickfix"] = CFrame.new(0, -0.20, 0.20),
+    ["Rainbow"] = CFrame.new(0, -0.8, 0),
     ["Rainbow Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Ranch Rifle"] = CFrame.new(0, 0, 0),
-    ["Ranch Rifle - Laminated"] = CFrame.new(0, 0, 0),
-    ["Red Dragon"] = CFrame.new(0, 0, 0),
+    ["Ranch Rifle"] = CFrame.new(0, 0, 1.2),
+    ["Ranch Rifle - Laminated"] = CFrame.new(0, 0, 1.2),
+    ["Red Dragon"] = CFrame.new(0, 0, 0.9),
     ["Revolver of Destiny"] = CFrame.new(0, 0, 0.9),
     ["Rose Revolver"] = CFrame.new(0, 0, 0.9),
-    ["RPG-7"] = CFrame.new(0, 0, 0),
-    ["RPK"] = CFrame.new(0, 0, 0),
-    ["RPK - Fort Hope Elite"] = CFrame.new(0, 0, 0),
-    ["RPK - Winter Warfare"] = CFrame.new(0, 0, 0),
-    ["Ruger American"] = CFrame.new(0, 0, 0),
-    ["Ruger American - Heirloom"] = CFrame.new(0, 0, 0),
-    ["Samurai"] = CFrame.new(0, 0, 0),
+    ["RPG-7"] = CFrame.new(0, -0.5, 1.10),
+    ["RPK"] = CFrame.new(),
+    ["RPK - Fort Hope Elite"] = CFrame.new(0, 0.3, 1.3),
+    ["RPK - Winter Warfare"] = CFrame.new(0, 0.3, 1.3),
+    ["Ruger American"] = CFrame.new(0, 0, 1),
+    ["Ruger American - Heirloom"] = CFrame.new(0, 0, 1),
+    ["Samurai"] = CFrame.new(0, -0.4, 0.5),
     ["Sand Revolver"] = CFrame.new(0, 0, 0.9),
-    ["sawn-off"] = CFrame.new(0, 0, 0),
-    ["SCAR"] = CFrame.new(0, 0, 0),
-    ["SCAR - Bengal"] = CFrame.new(0, 0, 0),
-    ["SCAR - Desert Classic"] = CFrame.new(0, 0, 0),
-    ["SCAR - Fancicam"] = CFrame.new(0, 0, 0),
-    ["Scratch"] = CFrame.new(0, 0, 0),
-    ["shna"] = CFrame.new(0, 0, 0),
-    ["Sig220"] = CFrame.new(0, 0, 0),
-    ["SiG550"] = CFrame.new(0, 0, 0),
-    ["Sky"] = CFrame.new(0, 0, 0),
-    ["Slate"] = CFrame.new(0, 0, 0),
-    ["sleeper"] = CFrame.new(0, 0, 0),
-    ["Sparkles"] = CFrame.new(0, 0, 0),
+    ["sawn-off"] = CFrame.new(0, -0.1, 0),
+    ["SCAR"] = CFrame.new(0, -0.40, 1),
+    ["SCAR - Bengal"] = CFrame.new(0, -0.40, 1),
+    ["SCAR - Desert Classic"] = CFrame.new(0, -0.40, 1),
+    ["SCAR - Fancicam"] = CFrame.new(0, -0.40, 1),
+    ["Scratch"] = CFrame.new(0, -0.3, 0.5),
+    ["shna"] = CFrame.new(0, -0.6, 0),
+    ["Sig220"] = CFrame.new(0, 0, 0.5),
+    ["SiG550"] = CFrame.new(0, -0.1, 1.40),
+    ["Sky"] = CFrame.new(0, -0.4, 0.9),
+    ["Slate"] = CFrame.new(0, -0.8, 0),
+    ["sleeper"] = CFrame.new(0, -0.20, 1.1),
+    ["Sparkles"] = CFrame.new(0, -0.8, 0),
     ["SparkleTime Revolver"] = CFrame.new(0, 0, 0.9),
-    ["SPAS"] = CFrame.new(0, 0, 0),
-    ["Spectum"] = CFrame.new(0, 0, 0),
-    ["Speed"] = CFrame.new(0, 0, 0),
+    ["SPAS"] = CFrame.new(0, 0, 2.2),
+    ["Spectum"] = CFrame.new(0, -0.8, 0),
+    ["Speed"] = CFrame.new(0, -0.3, 0.5),
     ["Splitfire Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Sport"] = CFrame.new(0, 0, 0),
-    ["Sport V2"] = CFrame.new(0, 0, 0),
-    ["Stalker"] = CFrame.new(0, 0, 0),
+    ["Sport"] = CFrame.new(0, -0.3, 0.5),
+    ["Sport V2"] = CFrame.new(0, -0.3, 0.5),
+    ["Stalker"] = CFrame.new(0, -0.8, 0),
     ["StarPlayer Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Sun"] = CFrame.new(0, 0, 0),
-    ["Super 90"] = CFrame.new(0, 0, 0),
-    ["Super 90 - Festive Wrap"] = CFrame.new(0, 0, 0),
-    ["Super 90 - Hexed"] = CFrame.new(0, 0, 0),
-    ["SVD"] = CFrame.new(0, 0, 0),
-    ["SVU"] = CFrame.new(0, 0, 0),
-    ["Swag"] = CFrame.new(0, 0, 0),
-    ["TAC14"] = CFrame.new(0, 0, 0),
-    ["TAC14 - Bengal"] = CFrame.new(0, 0, 0),
-    ["TAC14 - ODG"] = CFrame.new(0, 0, 0),
-    ["TAC14 - Zombie Slayer"] = CFrame.new(0, 0, 0),
-    ["TEC-9"] = CFrame.new(0, 0, 0),
-    ["TEC-9 - Bengal"] = CFrame.new(0, 0, 0),
-    ["TEC-9 - Killing You Softly"] = CFrame.new(0, 0, 0),
-    ["The Belgian"] = CFrame.new(0, 0, 0),
-    ["The Belgian - First Class"] = CFrame.new(0, 0, 0),
+    ["Sun"] = CFrame.new(0, -0.3, 1.1),
+    ["Super 90"] = CFrame.new(0, -0.20, 0.8),
+    ["Super 90 - Festive Wrap"] = CFrame.new(0, -0.20, 0.8),
+    ["Super 90 - Hexed"] = CFrame.new(0, -0.20, 0.8),
+    ["SVD"] = CFrame.new(0, 0, 1.3),
+    ["SVU"] = CFrame.new(0, 0, -0.9),
+    ["Swag"] = CFrame.new(0, -0.8, 0),
+    ["TAC14"] = CFrame.new(0, 0, 0.8),
+    ["TAC14 - Bengal"] = CFrame.new(0, 0, 0.8),
+    ["TAC14 - ODG"] = CFrame.new(0, 0, 0.8),
+    ["TAC14 - Zombie Slayer"] = CFrame.new(0, 0, 0.8),
+    ["TEC-9"] = CFrame.new(0, 0.3, 1.10),
+    ["TEC-9 - Bengal"] = CFrame.new(0, 0.3, 1.10),
+    ["TEC-9 - Killing You Softly"] = CFrame.new(0, 0.3, 1.10),
+    ["The Belgian"] = CFrame.new(0, -0.5, 1.10),
+    ["The Belgian - First Class"] = CFrame.new(0, -0.5, 1.10),
     ["TheHyperLaser Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Thunder"] = CFrame.new(0, 0, 0),
-    ["Tiger"] = CFrame.new(0, 0, 0),
-    ["tommy gun"] = CFrame.new(0, 0, 0),
-    ["TOZ"] = CFrame.new(0, 0, 0),
-    ["Treasure Hunter"] = CFrame.new(0, 0, 0),
-    ["TRS-301"] = CFrame.new(0, 0, 0),
-    ["Tunder S14"] = CFrame.new(0, 0, 0),
-    ["type 99"] = CFrame.new(0, 0, 0),
-    ["ubersaw"] = CFrame.new(0, 0, 0),
-    ["UMP-45"] = CFrame.new(0, 0, 0),
-    ["UMP-45 - Festive Wrap"] = CFrame.new(0, 0, 0),
-    ["UMP-45 - Lava Lamp"] = CFrame.new(0, 0, 0),
+    ["Thunder"] = CFrame.new(0, 0, 0.9),
+    ["Tiger"] = CFrame.new(0, -0.4, 0.5),
+    ["tommy gun"] = CFrame.new(0, -0.20, 0),
+    ["TOZ"] = CFrame.new(0, -0.3, 2.60),
+    ["Treasure Hunter"] = CFrame.new(0, -0.4, 0.9),
+    ["TRS-301"] = CFrame.new(0, -0.8, 0.4),
+    ["Tunder S14"] = CFrame.new(0, 0, -0.9),
+    ["type 99"] = CFrame.new(0, 0.2, 0),
+    ["ubersaw"] = CFrame.new(0, -0.1, 0.9),
+    ["UMP-45"] = CFrame.new(0, 0.4, 1.1),
+    ["UMP-45 - Festive Wrap"] = CFrame.new(0, 0.4, 1.1),
+    ["UMP-45 - Lava Lamp"] = CFrame.new(0, 0.4, 1.1),
     ["United States Revolver"] = CFrame.new(0, 0, 0.9),
-    ["Uzi"] = CFrame.new(0, 0, 0),
-    ["Uzi - Fort Hope Elite"] = CFrame.new(0, 0, 0),
-    ["Uzi - Porcelain Vengeance"] = CFrame.new(0, 0, 0),
-    ["vac"] = CFrame.new(0, 0, 0),
-    ["Vector"] = CFrame.new(0, 0, 0),
-    ["Vector - Bengal"] = CFrame.new(0, 0, 0),
-    ["Vector - Circuit Breaker"] = CFrame.new(0, 0, 0),
-    ["Vision"] = CFrame.new(0, 0, 0),
-    ["vita"] = CFrame.new(0, 0, 0),
-    ["waka"] = CFrame.new(0, 0, 0),
-    ["Winner"] = CFrame.new(0, 0, 0),
-    ["Winter Sport"] = CFrame.new(0, 0, 0),
-    ["Wolf"] = CFrame.new(0, 0, 0),
-    ["Worm"] = CFrame.new(0, 0, 0),
-    ["wrangler"] = CFrame.new(0, 0, 0),
-    ["XM24A3"] = CFrame.new(0, 0, 0),
-    ["Zoom"] = CFrame.new(0, 0, 0),
+    ["Uzi"] = CFrame.new(0, 0.3, 0.1),
+    ["Uzi - Fort Hope Elite"] = CFrame.new(0, 0.3, 0.1),
+    ["Uzi - Porcelain Vengeance"] = CFrame.new(0, 0.3, 0.1),
+    ["vac"] = CFrame.new(0, 0.3, 0),
+    ["Vector"] = CFrame.new(0, 0.7, 1),
+    ["Vector - Bengal"] = CFrame.new(0, 0.7, 1),
+    ["Vector - Circuit Breaker"] = CFrame.new(0, 0.7, 1),
+    ["Vintorez"] = CFrame.new(0, 0, 0.8),
+    ["Vision"] = CFrame.new(0, -0.80, 0),
+    ["vita"] = CFrame.new(0, -0.3, 0.7),
+    ["waka"] = CFrame.new(0, -0.5, 0),
+    ["Winner"] = CFrame.new(0, 0, 0.9),
+    ["Winter Sport"] = CFrame.new(0, -0.3, 0.5),
+    ["Wolf"] = CFrame.new(0, -0.4, 0.5),
+    ["Worm"] = CFrame.new(0, -0.4, 0.9),
+    ["wrangler"] = CFrame.new(0, -0.50, 0.3),
+    ["XM24A3"] = CFrame.new(0, 0.3, 0.4),
+    ["Zoom"] = CFrame.new(0, -0.4, 0.9),
 }
 
 -- Function to get equipped weapon rotation (separate from viewport rotations)
@@ -707,30 +712,13 @@ local function getEquippedWeaponRotation(weaponName, skinId)
         sourceName = skinId
     end
     
-    print("[EquipServer] Getting equipped rotation for:", sourceName)
-    print("[EquipServer] SkinId (raw):", skinId)
-    print("[EquipServer] SkinId length:", skinId and #skinId or "nil")
-    
     -- Check for specific weapon rotations FIRST (including specific Meshes/ weapons)
     if CORRECT_WEAPON_ROTATIONS[sourceName] then
         local specificRotation = CORRECT_WEAPON_ROTATIONS[sourceName]
-        print("[EquipServer] ✓ Found and applied specific rotation for", sourceName, ":", specificRotation)
         return specificRotation
     end
     
-    -- Debug: Show similar entries if not found
-    if sourceName:find("Meshes/") then
-        print("[EquipServer] ✗ No exact match found for:", sourceName)
-        print("[EquipServer] Looking for similar entries in table:")
-        for key, _ in pairs(CORRECT_WEAPON_ROTATIONS) do
-            if key:lower():find(sourceName:lower():sub(8, 20)) then -- Compare part after "Meshes/"
-                print("[EquipServer]   - Found similar key:", key)
-            end
-        end
-    end
-    
     -- Default: no rotation for equipped weapons
-    print("[EquipServer] No specific rotation found, using default (no rotation)")
     return CFrame.new()
 end
 local function adjustWeaponGrip(tool)
@@ -750,19 +738,14 @@ local function adjustWeaponGrip(tool)
             local currentGrip = tool.Grip
             tool.Grip = currentGrip * weaponRotation
             tool:SetAttribute(rotationKey, true)
-            print("[EquipServer] Applied weapon rotation:", weaponRotation)
         end
     end
     
     -- Now check grip adjustment processing (use cleaned skinId for the key)
     local gripKey = "GripAdjusted_" .. cleanSkinId
-    print("🟦 [EquipServer] Checking grip attribute:", gripKey, "- Value:", tool:GetAttribute(gripKey))
     if tool:GetAttribute(gripKey) then
-        print("[EquipServer] Grip adjustment already processed, skipping")
         return
     end
-    
-    print("[EquipServer] Processing weapon:", tool.Name)
     
     -- Store the original grip BEFORE we modify it (for client grip adjuster to use)
     if not tool:GetAttribute("OriginalGripStored") then
@@ -780,31 +763,13 @@ local function adjustWeaponGrip(tool)
         tool:SetAttribute("OriginalGripLY", original.LookVector.Y)
         tool:SetAttribute("OriginalGripLZ", original.LookVector.Z)
         tool:SetAttribute("OriginalGripStored", true)
-        print("[EquipServer] Stored original grip:", original)
     end
     
     -- Get the SkinId attribute (this is where "Meshes/" info is stored)
     -- (reusing skinId variable from above)
-    print("[EquipServer] SkinId:", skinId or "none")
-    print("[EquipServer] SkinId length:", skinId and #skinId or "N/A")
-    print("[EquipServer] Tool name:", tool.Name)
-    
-    -- Check if this SkinId exists in our rotation table
-    if skinId and CORRECT_WEAPON_ROTATIONS[skinId] then
-        print("[EquipServer] ✓ Found rotation entry for:", skinId)
-    elseif skinId then
-        print("[EquipServer] ✗ NO rotation entry found for:", skinId)
-        print("[EquipServer] Available similar entries:")
-        for key, _ in pairs(CORRECT_WEAPON_ROTATIONS) do
-            if key:find("Meshes/") and (key:lower():find("blackcliff") or key:lower():find("primordial") or key:lower():find("blue")) then
-                print("[EquipServer]   - Available:", key)
-            end
-        end
-    end
     
     -- Check if it's a Meshes/ weapon (check both tool name and skin)
     local isMeshesWeapon = (skinId and string.find(skinId, "Meshes/")) or string.find(tool.Name, "Meshes/")
-    print("[EquipServer] Is Meshes/ weapon:", isMeshesWeapon and "YES" or "NO")
     
     -- Rotation already handled above, now just do grip adjustments
     local weaponRotation = CFrame.new() -- No additional rotation here
@@ -818,35 +783,13 @@ local function adjustWeaponGrip(tool)
     
     if GRIP_ADJUSTMENTS[gripLookupKey] then
         gripAdjustment = GRIP_ADJUSTMENTS[gripLookupKey]
-        if gripLookupKey == "870 Express - Fort Hope Elite" then
-            print("🟩 [EquipServer] Fort Hope Elite lookup key:", gripLookupKey)
-        end
-        print("[EquipServer] ✓ Applied specific grip adjustment for", gripLookupKey, ":", gripAdjustment)
-        print("[EquipServer] Grip adjustment position:", gripAdjustment.Position)
-        print("[EquipServer] Grip adjustment X,Y,Z:", gripAdjustment.X, gripAdjustment.Y, gripAdjustment.Z)
     -- Apply Meshes/ adjustment for all other Meshes/ weapons
     elseif isMeshesWeapon and GRIP_ADJUSTMENTS["Meshes/"] then
         gripAdjustment = GRIP_ADJUSTMENTS["Meshes/"]
-        print("[EquipServer] Applied Meshes/ grip adjustment:", gripAdjustment)
-        print("[EquipServer] Meshes grip adjustment position:", gripAdjustment.Position)
-        print("[EquipServer] Meshes grip adjustment X,Y,Z:", gripAdjustment.X, gripAdjustment.Y, gripAdjustment.Z)
-    else
-    print("[EquipServer] ✗ No grip adjustment found for key:", gripLookupKey, "(skinId:", skinId, ", tool.Name:", tool.Name, ")")
-    print("[EquipServer] Available GRIP_ADJUSTMENTS keys:")
-    for k, _ in pairs(GRIP_ADJUSTMENTS) do print("[EquipServer]   ", k) end
     end
     
     -- Add height adjustment for spear weapons (Meshes/)
     local heightOffset = CFrame.new()
-    if isMeshesWeapon then
-        -- TEMPORARILY DISABLED to see default position
-        -- heightOffset = CFrame.new(0, 0.5, 0) -- Raise spears by 0.5 studs
-        print("[EquipServer] Height adjustment DISABLED for testing")
-    end
-    
-    print("[EquipServer] Weapon rotation:", weaponRotation)
-    print("[EquipServer] Grip adjustment:", gripAdjustment)
-    print("[EquipServer] Height offset:", heightOffset)
     
     -- Apply combined transformations (visible to all players)
     local originalGrip = tool.Grip
@@ -858,17 +801,11 @@ local function adjustWeaponGrip(tool)
     if skinId and FINAL_ROTATION_ADJUSTMENTS[skinId] then
         local finalRotation = FINAL_ROTATION_ADJUSTMENTS[skinId]
         tool.Grip = tool.Grip * finalRotation
-        print("[EquipServer] ✓ Applied FINAL rotation adjustment for", skinId, ":", finalRotation)
     end
     
     -- Step 3: Apply grip adjustment AFTER all rotations (matches client GripAdjuster behavior)
     local positionOffset = gripAdjustment * heightOffset
     tool.Grip = tool.Grip * positionOffset
-    print("[EquipServer] ✓ Applied grip adjustment after rotations:", positionOffset)
-    
-    print("[EquipServer] Original grip:", originalGrip)
-    print("[EquipServer] New grip:", tool.Grip)
-    print("[EquipServer] Adjusted grip for:", tool.Name, "with equipped rotation - visible to all players")
     
     -- Store the server's FINAL grip for RotationAdjuster to use as baseline
     local finalGrip = tool.Grip
@@ -885,7 +822,6 @@ local function adjustWeaponGrip(tool)
     tool:SetAttribute("ServerFinalGripLY", finalGrip.LookVector.Y)
     tool:SetAttribute("ServerFinalGripLZ", finalGrip.LookVector.Z)
     tool:SetAttribute("ServerFinalGripStored", true)
-    print("[EquipServer] ✓ Stored server's final grip as attributes for RotationAdjuster")
     
     -- Mark this tool+skin combination as processed so we don't adjust it again
     tool:SetAttribute(gripKey, true)
@@ -902,20 +838,12 @@ local function watchToolForGripAdjustment(tool)
     end
     
     -- Apply grip adjustment with a small delay to ensure skin is loaded
-    print("[EquipServer] Found new tool:", tool.Name, "SkinId:", tool:GetAttribute("SkinId") or "none")
     
     -- Apply initial grip adjustment
     spawn(function()
         wait(0.2) -- Give time for SkinId to be applied
         
-        print("[EquipServer] Processing tool after delay:", tool.Name, "SkinId:", tool:GetAttribute("SkinId") or "none")
-        print("[EquipServer] About to call adjustWeaponGrip for:", tool.Name)
-        local success, err = pcall(adjustWeaponGrip, tool)
-        if not success then
-            print("[EquipServer] ERROR in adjustWeaponGrip:", err)
-        else
-            print("[EquipServer] adjustWeaponGrip completed successfully for:", tool.Name)
-        end
+        pcall(adjustWeaponGrip, tool)
     end)
     
     -- Only set up the watcher connection if we haven't already
@@ -931,11 +859,9 @@ local function watchToolForGripAdjustment(tool)
             
             -- Ignore if it's the same skin being applied again
             if newSkinId == lastProcessedSkinId then
-                print("[EquipServer] SkinId set to same value, ignoring:", newSkinId)
                 return
             end
             
-            print("[EquipServer] SkinId actually changed from", lastProcessedSkinId, "to:", newSkinId)
             lastProcessedSkinId = newSkinId
             
             -- Clear all old grip adjustment and rotation attributes (to allow reprocessing)
@@ -948,7 +874,6 @@ local function watchToolForGripAdjustment(tool)
             
             for _, attrName in ipairs(attributesToClear) do
                 tool:SetAttribute(attrName, nil)
-                print("[EquipServer] Cleared old grip attribute:", attrName)
             end
             
             -- Reset grip to original if we have it stored
@@ -957,11 +882,9 @@ local function watchToolForGripAdjustment(tool)
                 local originalY = tool:GetAttribute("OriginalGripY") or 0
                 local originalZ = tool:GetAttribute("OriginalGripZ") or 0
                 tool.Grip = CFrame.new(originalX, originalY, originalZ)
-                print("[EquipServer] Reset grip to original:", tool.Grip)
             end
             
             -- Now reprocess with new skin
-            print("[EquipServer] SkinId changed, adjusting grip for:", tool.Name)
             wait(0.1) -- Small delay to ensure skin is fully applied
             adjustWeaponGrip(tool)
         end
@@ -992,7 +915,6 @@ local function watchPlayerTools(player)
         -- Watch for new tools
         container.ChildAdded:Connect(function(child)
             if child:IsA("Tool") then
-                print("[EquipServer] New tool detected for", player.Name, ":", child.Name)
                 watchToolForGripAdjustment(child)
             end
         end)
@@ -1011,14 +933,12 @@ local function watchPlayerTools(player)
     
     -- Watch for character respawns
     player.CharacterAdded:Connect(function(character)
-        print("[EquipServer] Character respawned for", player.Name)
         watchContainer(character)
     end)
     
     -- Watch for backpack creation
     player.ChildAdded:Connect(function(child)
         if child.Name == "Backpack" then
-            print("[EquipServer] Backpack created for", player.Name)
             watchContainer(child)
         end
     end)
@@ -1031,8 +951,5 @@ end
 
 -- Watch for new players joining
 Players.PlayerAdded:Connect(function(player)
-    print("[EquipServer] Player joined:", player.Name)
     watchPlayerTools(player)
 end)
-
-print("[EquipServer] Server-side equipment handler initialized")

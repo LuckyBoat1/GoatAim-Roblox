@@ -102,10 +102,12 @@ local SKINS = {
 	["Desert Eagle - Bengal Bling"] = { weapon="Pistol", rarity="rare", adsAllowed=true },
 	["Desert Eagle - Dead Red"] = { weapon="Pistol", rarity="epic", adsAllowed=true },
 	["Donkey Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },
+	["Flame"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
 	["Heat"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },
 	["Dragon Glass"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
 	["Dreams of Revolvers"] = { weapon="Revolver", rarity="rare", adsAllowed=true, faceLeft=true },
 	["Elite Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
+	["Illusion"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },
 	["Enfield Bren"] = { weapon="LMG", rarity="common", adsAllowed=true },
 	["Engraved Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },
 	["FN2000"] = { weapon="Rifle", rarity="common", adsAllowed=true },
@@ -123,7 +125,6 @@ local SKINS = {
 	["Glock 23 - Packin' Heat"] = { weapon="Pistol", rarity="epic", adsAllowed=true },
 	["Gold Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
 	["Grand Prix"] = { weapon="Blade", rarity="rare", adsAllowed=false },
-	["Handgun"] = { weapon="Pistol", rarity="common", adsAllowed=true },
 	["HyperRed Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
 	["Infiltrator Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true },
 	["Knife"] = { weapon="Blade", rarity="common", adsAllowed=false },
@@ -522,8 +523,6 @@ local function scanSkinLibrary()
 				}
 				
 				newSkinsCount = newSkinsCount + 1
-				print(string.format("[SkinConfig] Added skin: %s (weapon=%s, rarity=%s, textureId=%s)", 
-					skinId, weapon, rarity, textureId or "fallback"))
 			end
 		end
 	end
@@ -531,7 +530,6 @@ local function scanSkinLibrary()
 	local totalSkins = 0
 	for _ in pairs(SKINS) do totalSkins = totalSkins + 1 end
 	
-	warn(string.format("[SkinConfig] Scan complete - Added %d new skins, total: %d", newSkinsCount, totalSkins))
 	_scanned = true
 end
 
@@ -645,7 +643,7 @@ function SkinConfig.GetADSGripForSkin(skinId, toolName)
 	local meta = SKINS[skinId]
 	if meta and meta.adsGrip then return meta.adsGrip end
 	local weapon = meta and meta.weapon or normalizeWeaponName(toolName)
-	return (weapon and DEFAULT_ADS.Grip[weapon]) or CFrame.new(0, -0.4, -1.0)
+	return (weapon and DEFAULT_ADS.Grip[weapon]) or CFrame.new(0, 0, -0.2)
 end
 
 function SkinConfig.GetADSFOVForSkin(skinId, toolName)
@@ -673,25 +671,6 @@ function SkinConfig.GetAllSkins()
 	return out
 end
 
--- Debug function to print all found skins
-function SkinConfig.DebugPrintSkins()
-	scanSkinLibrary()
-	print("=== SkinConfig Debug - All Skins ===")
-	local sortedSkins = {}
-	for skinId, meta in pairs(SKINS) do
-		table.insert(sortedSkins, {id = skinId, weapon = meta.weapon, rarity = meta.rarity, textureId = meta.textureId})
-	end
-	
-	-- Sort alphabetically by skin ID
-	table.sort(sortedSkins, function(a, b) return a.id < b.id end)
-	
-	for i, skin in ipairs(sortedSkins) do
-		print(string.format("[%d] %s: weapon=%s, rarity=%s, textureId=%s", 
-			i, skin.id, skin.weapon, skin.rarity, skin.textureId or "nil"))
-	end
-	print(string.format("Total skins found: %d", #sortedSkins))
-end
-
 -- Function to get all skin names for easy rarity assignment
 function SkinConfig.GetAllSkinNames()
 	-- Safely try to scan - don't fail if it doesn't work
@@ -707,7 +686,6 @@ function SkinConfig.GetAllSkinNames()
 	       table.insert(names, skinId)
        end
        -- Don't sort here - let the inventory handle sorting based on user preference
-       print("[SkinConfig] GetAllSkinNames returned " .. #names .. " skins (unsorted)")
        return names
 end
 
@@ -729,8 +707,5 @@ function SkinConfig.GetStats()
 		moduleLoaded = true
 	}
 end
-
--- Print load confirmation
-warn("[SkinConfig] Module loaded successfully!")
 
 return SkinConfig

@@ -124,8 +124,6 @@ local function getLegendaryAuraDecal()
 end
 
 local function createLegendaryFireEffect(slot, gridView)
-    print("LEGENDARY DEBUG: Creating legendary fire aura for slot:", slot.Name)
-    
     -- Create aura frame
     local auraFrame = Instance.new("Frame")
     auraFrame.Name = "LegendaryAura_Frame_" .. slot.Name
@@ -186,11 +184,8 @@ local function createLegendaryFireEffect(slot, gridView)
         end
     end)
     
-    print("LEGENDARY DEBUG: Created legendary fire aura")
-    
     -- Cleanup function
     local function cleanup()
-        print("LEGENDARY DEBUG: Cleaning up legendary fire aura")
         if pulseTween then
             pulseTween:Cancel()
         end

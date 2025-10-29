@@ -171,10 +171,7 @@ function CrateConfig.initializeDynamicContents()
 	-- Populate each crate type with dynamic contents
 	for crateType, crateData in pairs(CrateConfig.Crates) do
 		crateData.contents = generateCrateContents()
-		print("[CrateConfig] Initialized " .. crateType .. " crate with " .. #crateData.contents .. " skins")
 	end
-	
-	print("[CrateConfig] All crate contents initialized with guaranteed skins")
 end
 
 -- Call initialization on load

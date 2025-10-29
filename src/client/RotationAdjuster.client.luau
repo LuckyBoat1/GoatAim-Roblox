@@ -50,12 +50,10 @@ local function createRotationUI()
     -- Update rotation function (declared early so sliders can use it)
     local function updateRotation()
         if not currentTool then 
-            print("[RotationAdjuster] ❌ updateRotation called but no currentTool!")
             return 
         end
         
         if not serverFinalGrip then
-            print("[RotationAdjuster] ❌ updateRotation called but serverFinalGrip is nil!")
             return
         end
         
@@ -72,12 +70,6 @@ local function createRotationUI()
         
         -- Apply adjuster rotation on top of server's final result
         currentTool.Grip = baseGrip * adjusterRotation
-        
-        -- Debug: Show what we're applying
-        print("[RotationAdjuster] ✓ Base grip (server result):", baseGrip)
-        print("[RotationAdjuster] ✓ Adjuster rotation: X=" .. rotationX .. "°, Y=" .. rotationY .. "°, Z=" .. rotationZ .. "°")
-        print("[RotationAdjuster] ✓ Adjuster rotation CFrame:", adjusterRotation)
-        print("[RotationAdjuster] ✓ Final grip:", currentTool.Grip)
     end
     
     -- Function to create rotation slider with actual slider
@@ -272,11 +264,9 @@ local function createRotationUI()
         -- Restore the server's final grip (which already has all server calculations)
         if serverFinalGrip then
             currentTool.Grip = serverFinalGrip
-            print("[RotationAdjuster] Reset to server's final grip:", serverFinalGrip)
         else
             -- Fallback: update with 0,0,0 rotation (which should match server result)
             updateRotation()
-            print("[RotationAdjuster] Reset: No serverFinalGrip stored, applied 0,0,0 rotation")
         end
     end)
     
@@ -286,10 +276,7 @@ local function createRotationUI()
             rotationAdjusterGui:Destroy()
             rotationAdjusterGui = nil
         end
-        print("[RotationAdjuster] UI closed")
     end)
-    
-    print("[RotationAdjuster] UI created successfully")
 end
 
 -- Function to show/hide UI based on tool equipping
@@ -309,8 +296,6 @@ local function onToolEquipped(tool)
     rotationX = 0
     rotationY = 0
     rotationZ = 0
-    
-    print("[RotationAdjuster] Tool equipped:", tool.Name, "- Waiting for server to finish processing...")
     
     -- Destroy old UI immediately
     if rotationAdjusterGui then
@@ -348,9 +333,7 @@ local function onToolEquipped(tool)
                 Vector3.new(rx, ry, rz),
                 Vector3.new(ux, uy, uz)
             )
-            print("[RotationAdjuster] ✓ Reconstructed server's final grip from attributes:", serverFinalGrip)
         else
-            warn("[RotationAdjuster] ⚠ ServerFinalGripStored not found! Using current tool.Grip (may include old adjuster rotations)")
             serverFinalGrip = tool.Grip
         end
         
@@ -367,14 +350,12 @@ local function onToolEquipped(tool)
                    math.abs(newGrip.LookVector:Dot(serverFinalGrip.LookVector) - 1) > 0.01 then
                     serverFinalGrip = newGrip
                     tool.Grip = serverFinalGrip
-                    print("[RotationAdjuster] Server updated grip, new baseline:", serverFinalGrip)
                 end
             end
         end)
         
         -- Create fresh UI with 0,0,0 values
         createRotationUI()
-        print("[RotationAdjuster] Tool equipped:", tool.Name, "- UI shown with server baseline captured")
     end)
 end
 
@@ -390,7 +371,6 @@ local function onToolUnequipped(tool)
         rotationAdjusterGui = nil
     end
     currentTool = nil
-    print("[RotationAdjuster] Tool unequipped - UI hidden")
 end
 
 -- Watch for character and tools
@@ -427,12 +407,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if currentTool and rotationAdjusterGui then
             rotationAdjusterGui:Destroy()
             rotationAdjusterGui = nil
-            print("[RotationAdjuster] UI toggled off")
         elseif currentTool then
             createRotationUI()
-            print("[RotationAdjuster] UI toggled on")
         end
     end
 end)
-
-print("[RotationAdjuster] Rotation adjuster initialized - Press R to toggle UI")

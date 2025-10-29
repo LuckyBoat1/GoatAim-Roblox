@@ -41,15 +41,10 @@ local function applySkinToTool(tool, skinId)
 	if not tool or not tool:IsA("Tool") then return end
 	if not skinId or skinId == "" then return end
 	
-	warn(string.format("[SkinClient] 🎨 Requesting server apply skin '%s' to tool '%s'", skinId, tool.Name))
-	
 	-- Request server-side skin application through SkinService
 	setupRemoteEvents()
 	if EquipSkin then
 		EquipSkin:FireServer({ skinId = skinId, target = "tool", toolName = tool.Name })
-		warn(string.format("[SkinClient] ✅ Sent server request to apply skin '%s' to tool '%s'", skinId, tool.Name))
-	else
-		warn(string.format("[SkinClient] ❌ EquipSkin remote not found - cannot apply skin '%s'", skinId))
 	end
 end
 
@@ -57,12 +52,11 @@ end
 local function watchToolForSkin(tool)
 	if not tool:IsA("Tool") then return end
 	
-	warn(string.format("[SkinClient] 👀 Watching tool '%s' for skin changes", tool.Name))
+	-- Check for existing SkinId
 	
 	-- Check for existing SkinId
 	local currentSkinId = tool:GetAttribute("SkinId")
 	if currentSkinId then
-		warn(string.format("[SkinClient] Found existing SkinId '%s' on tool '%s'", currentSkinId, tool.Name))
 		applySkinToTool(tool, currentSkinId)
 	end
 	
@@ -70,7 +64,6 @@ local function watchToolForSkin(tool)
 	local connection = tool:GetAttributeChangedSignal("SkinId"):Connect(function()
 		local newSkinId = tool:GetAttribute("SkinId")
 		if newSkinId then
-			warn(string.format("[SkinClient] 🔄 SkinId changed to '%s' on tool '%s'", newSkinId, tool.Name))
 			applySkinToTool(tool, newSkinId)
 		end
 	end)
@@ -79,7 +72,6 @@ local function watchToolForSkin(tool)
 	tool.AncestryChanged:Connect(function()
 		if not tool.Parent then
 			connection:Disconnect()
-			warn(string.format("[SkinClient] Stopped watching tool '%s'", tool.Name))
 		end
 	end)
 end
@@ -87,8 +79,6 @@ end
 -- Watch character for new tools
 local function watchCharacter(character)
 	if not character then return end
-	
-	warn(string.format("[SkinClient] 👤 Watching character '%s' for tools", character.Name))
 	
 	-- Watch for existing tools
 	for _, child in ipairs(character:GetChildren()) do
@@ -100,7 +90,6 @@ local function watchCharacter(character)
 	-- Watch for new tools
 	character.ChildAdded:Connect(function(child)
 		if child:IsA("Tool") then
-			warn(string.format("[SkinClient] ⚔️ New tool equipped: '%s'", child.Name))
 			watchToolForSkin(child)
 		end
 	end)
@@ -109,8 +98,6 @@ end
 -- Watch backpack for tools
 local function watchBackpack(backpack)
 	if not backpack then return end
-	
-	warn(string.format("[SkinClient] 🎒 Watching backpack for tools"))
 	
 	-- Watch for existing tools
 	for _, child in ipairs(backpack:GetChildren()) do
@@ -122,7 +109,6 @@ local function watchBackpack(backpack)
 	-- Watch for new tools
 	backpack.ChildAdded:Connect(function(child)
 		if child:IsA("Tool") then
-			warn(string.format("[SkinClient] 🔧 New tool in backpack: '%s'", child.Name))
 			watchToolForSkin(child)
 		end
 	end)
@@ -130,8 +116,6 @@ end
 
 -- Initialize the skin system
 local function initialize()
-	warn("[SkinClient] 🚀 Initializing skin attribute watcher...")
-	
 	-- Watch current character
 	if player.Character then
 		watchCharacter(player.Character)
@@ -151,8 +135,6 @@ local function initialize()
 			watchBackpack(child)
 		end
 	end)
-	
-	warn("[SkinClient] ✅ Skin attribute watcher initialized successfully")
 end
 
 -- API for other scripts
@@ -161,7 +143,6 @@ local SkinClient = {}
 function SkinClient.EquipToTool(skinId, toolName)
 	setupRemoteEvents()
 	if not EquipSkin then
-		warn("[SkinClient] EquipSkin remote not found. Skin could not be applied.")
 		return
 	end
 	EquipSkin:FireServer({ skinId = skinId, target = "tool", toolName = toolName })
@@ -170,7 +151,6 @@ end
 function SkinClient.EquipToCharacter(skinId, attachTo)
 	setupRemoteEvents()
 	if not EquipSkin then
-		warn("[SkinClient] EquipSkin remote not found. Skin could not be applied.")
 		return
 	end
 	EquipSkin:FireServer({ skinId = skinId, target = "character", attachTo = attachTo })
@@ -179,7 +159,6 @@ end
 function SkinClient.EquipToModel(skinId, modelPath)
 	setupRemoteEvents()
 	if not EquipSkin then
-		warn("[SkinClient] EquipSkin remote not found. Skin could not be applied.")
 		return
 	end
 	EquipSkin:FireServer({ skinId = skinId, target = "model", modelPath = modelPath })

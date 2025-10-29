@@ -105,7 +105,6 @@ local function getAuraDecal()
     if decalsFolder then
         local auraDecal = decalsFolder:FindFirstChild("EpicAura")
         if auraDecal then
-            print("EpicAura: Found EpicAura decal with texture:", auraDecal.Texture)
             return auraDecal.Texture
         else
             warn("EpicAura: EpicAura decal not found in Decals folder")
@@ -119,10 +118,6 @@ local function getAuraDecal()
 end
 
 local function createEpicAuraEffect(slot, gridView)
-    print("EPICAURA DEBUG: Creating epic particle aura for slot:", slot.Name)
-    print("EPICAURA DEBUG: Slot size:", slot.Size, "position:", slot.Position)
-    print("EPICAURA DEBUG: GridView:", gridView and gridView.Name or "nil")
-    
     -- Create aura frame same size as mythic/legendary
     local auraFrame = Instance.new("Frame")
     auraFrame.Name = "EpicAura_Frame_" .. slot.Name
@@ -194,11 +189,8 @@ local function createEpicAuraEffect(slot, gridView)
         end
     end)
     
-    print("EPICAURA DEBUG: Created epic aura with advanced particle system")
-    
     -- Cleanup function
     local function cleanup()
-        print("EPICAURA DEBUG: Cleaning up epic aura and particles")
         if pulseTween then
             pulseTween:Cancel()
         end
@@ -225,7 +217,6 @@ function EpicAura.ApplyEpicAuraEffect(slot, gridView)
         existing:Destroy() 
     end
     
-    print("EPICAURA DEBUG: Applying epic aura decal to slot:", slot.Name)
     return createEpicAuraEffect(slot, gridView)
 end
 
