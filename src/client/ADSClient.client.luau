@@ -259,7 +259,7 @@ local function setupTool(tool)
 	end
 	
 	-- Wait for server to finish applying rotations and adjustments (server waits 0.5s)
-	task.wait(0.3)
+	task.wait(2)
 	
 	-- Now capture the hip grip AFTER server has applied all adjustments
 	hipGrip = tool.Grip

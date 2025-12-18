@@ -1,4 +1,6 @@
 -- QuestBounties.client.lua: Find bounties tab and UI
+-- MERGED INTO QUESTCORE.CLIENT.LUA
+return -- Exit immediately
 -- Part 4 of 4 for the Matrix Quest System
 
 -- Wait for QuestCore to initialize
@@ -80,12 +82,15 @@ findLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 -- Create objective bars for bounty UI
-local function addMiniObjectiveBars(row, objectives, progress)
+local function addMiniObjectiveBars(row, objectives, progress, theme)
 	local container = Instance.new("Frame")
 	container.BackgroundTransparency = 1
 	container.Size = UDim2.new(1,-120,0, 22 * #objectives)
 	container.Position = UDim2.new(0,10,1, -(26 + 22*#objectives))
 	container.Parent = row
+
+	local barColor = theme.glow or BRIGHT_GREEN
+	local textColor = theme.glow or DIM_GREEN
 
 	for i,obj in ipairs(objectives) do
 		local line = Instance.new("Frame")
@@ -101,7 +106,7 @@ local function addMiniObjectiveBars(row, objectives, progress)
 		label.Font = FONT_TEXT
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextSize = 12
-		label.TextColor3 = DIM_GREEN
+		label.TextColor3 = textColor
 		label.Text = obj.key
 		label.Parent = line
 
@@ -114,7 +119,7 @@ local function addMiniObjectiveBars(row, objectives, progress)
 
 		local fill = Instance.new("Frame")
 		fill.Size = UDim2.new(0,0,1,0)
-		fill.BackgroundColor3 = BRIGHT_GREEN
+		fill.BackgroundColor3 = barColor
 		fill.Parent = bar
 		Instance.new("UICorner", fill).CornerRadius = UDim.new(0,4)
 
@@ -129,7 +134,7 @@ local function addMiniObjectiveBars(row, objectives, progress)
 		txt.Font = FONT_TEXT
 		txt.TextSize = 12
 		txt.TextXAlignment = Enum.TextXAlignment.Left
-		txt.TextColor3 = BRIGHT_GREEN
+		txt.TextColor3 = barColor
 		txt.Text = string.format("%d/%d", cur, obj.count or 0)
 		txt.Parent = line
 	end
@@ -138,6 +143,8 @@ end
 -- Render available bounties in Find tab
 local function renderFind(state)
 	clearChildren(findListScroll, true)
+	
+	print("QuestBounties: renderFind called. Bounties count: " .. #(state.bounties or {}))
 
 	if #(state.bounties or {}) == 0 then
 		local placeholder = Instance.new("TextLabel")
@@ -155,8 +162,85 @@ local function renderFind(state)
 
 	for _, o in ipairs(state.bounties or {}) do
 		local q = o.quest
-		local row, btn = rowBase(findListScroll, q.name, q.desc, q.rarity, "Accept")
-		addMiniObjectiveBars(row, q.objectives or {}, nil)
+		local rarity = (q.rarity or "common"):lower()
+		local theme = MatrixQuest.bountyTiers[rarity] or MatrixQuest.bountyTiers.common
+		
+		-- Custom Row Creation for Theming
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, -10, 0, 110)
+		row.BackgroundColor3 = theme.strokeAlt and C3(255, 255, 255) or C3(10, 12, 15)
+		row.BorderSizePixel = 0
+		row.Parent = findListScroll
+		Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+
+		-- Stroke & Gradient
+		local stroke = Instance.new("UIStroke", row)
+		stroke.Thickness = 2
+		stroke.Color = theme.glow
+		
+		local strokeGrad = Instance.new("UIGradient")
+		strokeGrad.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, theme.glow),
+			ColorSequenceKeypoint.new(0.5, theme.strokeAlt or theme.color),
+			ColorSequenceKeypoint.new(1, theme.glow)
+		})
+		strokeGrad.Rotation = 45
+		strokeGrad.Parent = stroke
+
+		-- Background Gradient
+		local bgGrad = Instance.new("UIGradient")
+		bgGrad.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, theme.color),
+			ColorSequenceKeypoint.new(1, theme.strokeAlt or C3(10, 12, 15))
+		})
+		bgGrad.Rotation = 45
+		bgGrad.Transparency = NumberSequence.new(0.85)
+		bgGrad.Parent = row
+
+		-- Title
+		local title = Instance.new("TextLabel")
+		title.BackgroundTransparency = 1
+		title.Size = UDim2.new(1, -20, 0, 24)
+		title.Position = UDim2.new(0, 10, 0, 8)
+		title.Font = FONT_HEADING
+		title.TextSize = 18
+		title.TextColor3 = theme.glow
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.Text = string.upper(q.name) .. " [" .. theme.name .. "]"
+		title.Parent = row
+
+		-- Description
+		local desc = Instance.new("TextLabel")
+		desc.BackgroundTransparency = 1
+		desc.Size = UDim2.new(1, -20, 0, 36)
+		desc.Position = UDim2.new(0, 10, 0, 32)
+		desc.Font = FONT_TEXT
+		desc.TextSize = 14
+		desc.TextColor3 = C3(200, 200, 200)
+		desc.TextXAlignment = Enum.TextXAlignment.Left
+		desc.TextYAlignment = Enum.TextYAlignment.Top
+		desc.TextWrapped = true
+		desc.Text = q.desc
+		desc.Parent = row
+
+		-- Accept Button
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.fromOffset(100, 30)
+		btn.Position = UDim2.new(1, -110, 0, 10)
+		btn.BackgroundColor3 = C3(20, 30, 25)
+		btn.Font = FONT_HEADING
+		btn.TextSize = 14
+		btn.TextColor3 = theme.glow
+		btn.Text = "ACCEPT"
+		btn.Parent = row
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+		
+		local btnStroke = Instance.new("UIStroke", btn)
+		btnStroke.Color = theme.glow
+		btnStroke.Thickness = 1.5
+		btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+		addMiniObjectiveBars(row, q.objectives or {}, nil, theme)
 
 		-- Reward chip
 		local reward = q.reward or {}
@@ -172,12 +256,12 @@ local function renderFind(state)
 		rlabel.Font = FONT_HEADING
 		rlabel.TextXAlignment = Enum.TextXAlignment.Right
 		rlabel.TextSize = 12
-		rlabel.TextColor3 = BRIGHT_GREEN
+		rlabel.TextColor3 = theme.glow
 		rlabel.Text = "Reward: "..((#parts>0) and table.concat(parts, " + ") or "None")
 		rlabel.Parent = row
 
 		-- Timer
-		if o.expiresAt and MatrixQuest.serverNowAtRender > 0 then
+		if o.expiresAt and state.now > 0 then
 			local tl = Instance.new("TextLabel")
 			tl.BackgroundTransparency = 1
 			tl.Size = UDim2.new(0,140,0,16)
@@ -185,14 +269,17 @@ local function renderFind(state)
 			tl.Font = FONT_TEXT
 			tl.TextXAlignment = Enum.TextXAlignment.Left
 			tl.TextSize = 12
-			tl.TextColor3 = BRIGHT_GREEN
+			tl.TextColor3 = theme.glow
 			tl.Text = "Offer: --"
 			tl.Parent = row
 			trackCountdown(tl, o.expiresAt, "Offer")
 		end
 
 		btn.MouseButton1Click:Connect(function()
-			tryHookRemotes()
+			-- Force update RF directly to ensure we have it
+			local RS = game:GetService("ReplicatedStorage")
+			RF = RS:FindFirstChild("QuestRF")
+			
 			if RF then
 				local ok, res = pcall(function() 
 					return RF:InvokeServer("accept", {kind="bounty", offerId=o.offerId}) 
@@ -201,7 +288,7 @@ local function renderFind(state)
 					-- Show success feedback
 					local originalColor = btn.BackgroundColor3
 					local originalText = btn.Text
-					btn.BackgroundColor3 = C3(20, 80, 40)
+					btn.BackgroundColor3 = theme.color
 					btn.Text = "ACCEPTED!"
 					task.delay(1, function()
 						if btn and btn.Parent then
@@ -211,7 +298,7 @@ local function renderFind(state)
 					end)
 				end
 			end
-			task.delay(0.2, function()
+			task.delay(0.5, function()
 				if MatrixQuest.render then
 					MatrixQuest.render()
 				end
@@ -249,7 +336,8 @@ end)
 local originalTryHookRemotes = MatrixQuest.tryHookRemotes
 MatrixQuest.tryHookRemotes = function()
 	originalTryHookRemotes()
-	RF = _G.RS and _G.RS:FindFirstChild("QuestRF")
+	local RS = game:GetService("ReplicatedStorage")
+	RF = RS and RS:FindFirstChild("QuestRF")
 end
 
 -- Update the watermark timestamp

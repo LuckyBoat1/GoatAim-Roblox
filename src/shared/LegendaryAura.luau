@@ -154,7 +154,7 @@ function LegendaryAura.ApplyLegendaryAuraEffect(frame, gridView)
     clippingFrame.Position = UDim2.new(0.5, 0, 0.5, 0) -- Center in slot
     clippingFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     clippingFrame.BackgroundTransparency = 1
-    clippingFrame.ZIndex = 20 -- Higher ZIndex to ensure visibility
+    clippingFrame.ZIndex = 500 -- Much higher ZIndex to render above viewports (was 200)
     
     -- Add UICorner to make it circular
     local corner = Instance.new("UICorner")
@@ -173,7 +173,7 @@ function LegendaryAura.ApplyLegendaryAuraEffect(frame, gridView)
     aura.BackgroundTransparency = 1
     aura.ImageColor3 = Color3.fromRGB(255, 220, 0) -- Yellow color for legendary aura decal
     aura.ImageTransparency = 0 -- Always fully visible (no transparency)
-    aura.ZIndex = 15 -- Above everything else
+    aura.ZIndex = 501 -- Above everything else (was 201)
     aura.BorderSizePixel = 0
     
     aura.Parent = clippingFrame -- Parent to clipping frame instead of gridView
@@ -186,7 +186,7 @@ function LegendaryAura.ApplyLegendaryAuraEffect(frame, gridView)
     fireFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     fireFrame.BackgroundTransparency = 1
     fireFrame.ClipsDescendants = true
-    fireFrame.ZIndex = aura.ZIndex + 1 -- Above the aura
+    fireFrame.ZIndex = aura.ZIndex + 1 -- Above the aura (will be 502)
     fireFrame.Parent = clippingFrame
     
     -- Create pulsing sun glow effect behind the weapon

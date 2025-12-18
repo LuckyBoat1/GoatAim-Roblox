@@ -10,11 +10,9 @@ local DEFAULT_ICONS = {
 	M4        = "rbxassetid://6047992706",
 	AK        = "rbxassetid://6048009712",
 	Luger     = "rbxassetid://6764432243",
-	Blaster   = "rbxassetid://6764432243",
-	Amerigun  = "rbxassetid://6764432243",
 	BattleAxe = "rbxassetid://6764432243",
 }
-
+--
 -- Base-weapon ADS defaults
 local DEFAULT_ADS = {
 	FOV = {
@@ -34,363 +32,466 @@ local DEFAULT_ADS = {
 -- Complete list of all 421 skins with correct rarities
 -- weapon, rarity, adsAllowed, adsGrip, adsFov
 local SKINS = {
-	["20MM L39"] = { weapon="Launcher", rarity="common", adsAllowed=true },
-	["357 Magnum"] = { weapon="Revolver", rarity="common", adsAllowed=true },
-	["357 Magnum - Artisan"] = { weapon="Revolver", rarity="common", adsAllowed=true },
-	["357 Magnum - Ice Capped"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["870 Express"] = { weapon="Shotgun", rarity="common", adsAllowed=true },
-	["870 Express - Fort Hope Elite"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },
-	["870 Express - Marine Mag"] = { weapon="Shotgun", rarity="common", adsAllowed=true },
-	["870 Express - Pink Sunset"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },
-	["AA12"] = { weapon="Shotgun", rarity="common", adsAllowed=true },
-	["AA12 - Digicam"] = { weapon="Shotgun", rarity="common", adsAllowed=true },
-	["AA12 - Festive Wrap"] = { weapon="Shotgun", rarity="epic", adsAllowed=true },
-	["AK47"] = { weapon="AK", rarity="common", adsAllowed=true },
-	["AK47 - Gold Lord"] = { weapon="AK", rarity="rare", adsAllowed=true },
-	["AK47 - Tracksuit Life"] = { weapon="AK", rarity="epic", adsAllowed=true },
-	["AK74"] = { weapon="AK", rarity="rare", adsAllowed=true },
-	["AKS-74U"] = { weapon="AK", rarity="common", adsAllowed=true },
-	["AKS-74U (SoC)"] = { weapon="AK", rarity="rare", adsAllowed=true },
-	-- Add missing AK skins from inventory
-	["AK-Chaos"] = { weapon="AK", rarity="mythic", adsAllowed=true },
-	["AK-Ice"] = { weapon="AK", rarity="epic", adsAllowed=true },
-	["AK-Jungle"] = { weapon="AK", rarity="mythic", adsAllowed=true },
-	["Gold"] = { weapon="AK", rarity="legendary", adsAllowed=true },
-		["Money"] = { weapon="Sniper", rarity="legendary", adsAllowed=true },
+	["LMG AE"] = { weapon="Launcher", rarity="common", adsAllowed=true },       -- OLD: ["20MM L39"]
+	["357 Magnum"] = { weapon="Revolver", rarity="common", adsAllowed=true },       -- OLD: ["357 Magnum"]
+	["357 Magnum - Desert"] = { weapon="Revolver", rarity="common", adsAllowed=true },       -- OLD: ["357 Magnum - Artisan"]
+	["357 Magnum - Ice"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["357 Magnum - Ice Capped"]
+	["870 Express"] = { weapon="Shotgun", rarity="common", adsAllowed=true },       -- OLD: ["870 Express"]
+	["870 Express - Carbon"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },       -- OLD: ["870 Express - Fort Hope Elite"]
+	["870 Express - White"] = { weapon="Shotgun", rarity="common", adsAllowed=true },       -- OLD: ["870 Express - Marine Mag"]
+	["870 Express - Sakura"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },       -- OLD: ["870 Express - Pink Sunset"]
+	["AA12"] = { weapon="Shotgun", rarity="common", adsAllowed=true },       -- OLD: ["AA12"]
+	["AA12 - Brown"] = { weapon="Shotgun", rarity="common", adsAllowed=true },       -- OLD: ["AA12 - Digicam"]
+	["AA12 - Amas"] = { weapon="Shotgun", rarity="epic", adsAllowed=true },       -- OLD: ["AA12 - Festive Wrap"]
+	["AK47"] = { weapon="AK", rarity="common", adsAllowed=true },       -- OLD: ["AK47"]
+	["Almost Goldie"] = { weapon="AK", rarity="rare", adsAllowed=true },       -- OLD: ["AK47 - Gold Lord"]
+	["Skeleton"] = { weapon="AK", rarity="epic", adsAllowed=true },       -- OLD: ["AK47 - Tracksuit Life"]
+	["AK74"] = { weapon="AK", rarity="rare", adsAllowed=true },       -- OLD: ["AK74"]
+	["AKS-74U"] = { weapon="AK", rarity="common", adsAllowed=true },       -- OLD: ["AKS-74U"]
+	["AKS-74U (SoC)"] = { weapon="AK", rarity="rare", adsAllowed=true },       -- OLD: ["AKS-74U (SoC)"]
+	["AK-Chaos"] = { weapon="AK", rarity="mythic", adsAllowed=true },       -- OLD: ["AK-Chaos"]
+	["Sea Bone"] = { weapon="AK", rarity="epic", adsAllowed=true },       -- OLD: ["AK-Ice"]
+	["AK-Jungle"] = { weapon="AK", rarity="mythic", adsAllowed=true },       -- OLD: ["AK-Jungle"]
+	["Gold"] = { weapon="AK", rarity="legendary", adsAllowed=true },       -- OLD: ["Gold"]
+	["Money"] = { weapon="Sniper", rarity="legendary", adsAllowed=true },       -- OLD: ["Money"]
+	["AS-VAL"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["AS-VAL"]
+	["Abakan/AC-96"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["Abakan/AC-96"]
+	["Blood&Bones"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },       -- OLD: ["Blood&Bones"]
+	["Cyborg"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },       -- OLD: ["Cyborg"]
+	["Fear"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },       -- OLD: ["Death"]
+	["Leviathan"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },       -- OLD: ["Leviathan"]
+	["Sun"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },       -- OLD: ["Sun"]
+	["Surf"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Ace"]
+	["Fire Touch"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["Adurite Revolver"]
+	["Alpha Sapphire"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["AlphaSapphire Revolver"]
+	["Copper"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["Ambassador Revolver"]
+	["Apple"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },       -- OLD: ["AppleShooter Revolver"]
+	["Bubble"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },       -- OLD: ["Aqua Revolver"]
+	["Barrett M95"] = { weapon="Sniper", rarity="common", adsAllowed=true },       -- OLD: ["Barrett M95"]
+	["Grey"] = { weapon="Sniper", rarity="rare", adsAllowed=true },       -- OLD: ["Barrett M95 - Damascus"]
+	["Barrett M95 - Sand Cannon"] = { weapon="Sniper", rarity="rare", adsAllowed=true },       -- OLD: ["Barrett M95 - Sand Cannon"]
+	["Beretta M9"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["Beretta M9"]
+	["Beretta M9 - Chrome"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["Beretta M9 - Chrome"]
+	["Beretta M9 - Combat Pro"] = { weapon="Pistol", rarity="rare", adsAllowed=true },       -- OLD: ["Beretta M9 - Combat Pro"]
+	["Black kite"] = { weapon="Blade", rarity="common", adsAllowed=false },       -- OLD: ["Black kite"]
+	["BlackIron Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },       -- OLD: ["BlackIron Revolver"]
+	["Blood"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Blood"]
+	["Cheese"] = { weapon="Revolver", rarity="epic", adsAllowed=true, faceLeft=true },       -- OLD: ["Bluesteel Revolver"]
+	["Carbon Ruby"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Carbon"]
+	["Chaser"] = { weapon="Blade", rarity="common", adsAllowed=false },       -- OLD: ["Chaser"]
+	["Zone"] = { weapon="Revolver", rarity="rare", adsAllowed=true, faceLeft=true },       -- OLD: ["ComputerBlaster Revolver"]
+	["Cube Squared"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },       -- OLD: ["CyanMissingTexture Revolver"]
+	["Desert Eagle"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["Desert Eagle"]
+	["Desert Eagle - Bengal Bling"] = { weapon="Pistol", rarity="rare", adsAllowed=true },       -- OLD: ["Desert Eagle - Bengal Bling"]
+	["Desert Eagle - Dead Red"] = { weapon="Pistol", rarity="epic", adsAllowed=true },       -- OLD: ["Desert Eagle - Dead Red"]
+	["Spoon"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },       -- OLD: ["Donkey Revolver"]
+	["Flame"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Flame"]
+	["Heat"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },       -- OLD: ["Heat"]
+	["Black Frost"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Dragon Glass"]
+	["Dreams of Gold"] = { weapon="Revolver", rarity="rare", adsAllowed=true, faceLeft=true },       -- OLD: ["Dreams of Revolvers"]
+	["Just give me my money"] = { weapon="Revolver", rarity="epic", adsAllowed=true },       -- OLD: ["Elite Revolver"]
+	["Illusion"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },       -- OLD: ["Illusion"]
+	["Enfield Bren"] = { weapon="LMG", rarity="common", adsAllowed=true },       -- OLD: ["Enfield Bren"]
+	["Engraved Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },       -- OLD: ["Engraved Revolver"]
+	["FN2000"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["FN2000"]
+	["Drip"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Fabric Storm"]
+	["Fabulous Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true, faceLeft=true },       -- OLD: ["Fabulous Revolver"]
+	["Fort"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["Fort"]
+	["G36"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["G36"]
+	["Neon Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true, faceLeft=true },       -- OLD: ["Galactic Revolver"]
+	["Grill"] = { weapon="Rifle", rarity="epic", adsAllowed=true },       -- OLD: ["Gauss rifle"]
+	["Hot Cheetoz"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Gear"]
+	["Genesis"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Genesis"]
+	["Glock 23"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["Glock 23"]
+	["Glock 23 - Bengal"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["Glock 23 - Bengal"]
+	["Glock 23 - Cake"] = { weapon="Pistol", rarity="rare", adsAllowed=true },       -- OLD: ["Glock 23 - Homeland"]
+	["Glock 23 - FireFly"] = { weapon="Pistol", rarity="epic", adsAllowed=true },       -- OLD: ["Glock 23 - Packin' Heat"]
+	["Gold Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },       -- OLD: ["Gold Revolver"]
+	["Basic Camo"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Grand Prix"]
+	["HyperRed Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },       -- OLD: ["HyperRed Revolver"]
+	["Infiltrator Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true },       -- OLD: ["Infiltrator Revolver"]
+	["Knife"] = { weapon="Blade", rarity="common", adsAllowed=false },       -- OLD: ["Knife"]
+	["Cash"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Kypto"]
+	["Sharp"] = { weapon="Blade", rarity="common", adsAllowed=false },       -- OLD: ["Linked"]
+	["Whity"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Missing"]
+	["Sight"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Vision"]
+	["Jaz"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Rainbow"]
+	["Somber"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Slate"]
+	["Cool"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Sparkles"]
+	["Poison"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Spectum"]
+	["Shade"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Stalker"]
+	["Sugar Swag"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Swag"]
+	["L85"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["L85"]
+	["Lizard"] = { weapon="Rifle", rarity="legendary", adsAllowed=false },       -- OLD: ["Lizard"]
+	["Sky"] = { weapon="Rifle", rarity="legendary", adsAllowed=false },       -- OLD: ["Sky"]
+	["M16"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["M16"]
+	["M16 - Green Envy"] = { weapon="Rifle", rarity="epic", adsAllowed=true },       -- OLD: ["M16 - Green Envy"]
+	["M1911"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["M1911"]
+	["M1911 - Earthy"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["M1911 - Earthy"]
+	["M1911 - Star-Spangled"] = { weapon="Pistol", rarity="epic", adsAllowed=true },       -- OLD: ["M1911 - Star-Spangled"]
+	["M1A"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["M1A"]
+	["M1A - Flammo"] = { weapon="Rifle", rarity="rare", adsAllowed=true },       -- OLD: ["M1A - Flammo"]
+	["M1A - Wood Classic"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["M1A - Wood Classic"]
+	["M249"] = { weapon="LMG", rarity="common", adsAllowed=true },       -- OLD: ["M249"]
+	["M249 - Festive Wrap"] = { weapon="LMG", rarity="epic", adsAllowed=true },       -- OLD: ["M249 - Festive Wrap"]
+	["M249 - Mojave"] = { weapon="LMG", rarity="rare", adsAllowed=true },       -- OLD: ["M249 - Mojave"]
+	["M249 - Plastic"] = { weapon="LMG", rarity="legendary", adsAllowed=true },       -- OLD: ["M249 - Plastic"]
+	["M4 Black"] = { weapon="M4", rarity="epic", adsAllowed=true },       -- OLD: ["M4 Black"]
+	["M4 Carbine"] = { weapon="M4", rarity="common", adsAllowed=true },       -- OLD: ["M4 Carbine"]
+	["M4 Carbine - Bengal"] = { weapon="M4", rarity="epic", adsAllowed=true },       -- OLD: ["M4 Carbine - Bengal"]
+	["M4 Carbine - Fort Hope Elite"] = { weapon="M4", rarity="common", adsAllowed=true },       -- OLD: ["M4 Carbine - Fort Hope Elite"]
+	["M4 Carbine - Golden Death"] = { weapon="M4", rarity="rare", adsAllowed=true },       -- OLD: ["M4 Carbine - Golden Death"]
+	["MP5"] = { weapon="SMG", rarity="common", adsAllowed=true },       -- OLD: ["MP5"]
+	["MP5 - Copperhead"] = { weapon="SMG", rarity="rare", adsAllowed=true },       -- OLD: ["MP5 - Copperhead"]
+	["MP5 - Festive Wrap"] = { weapon="SMG", rarity="epic", adsAllowed=true },       -- OLD: ["MP5 - Festive Wrap"]
+	["MP5 - Purple People Eater"] = { weapon="SMG", rarity="epic", adsAllowed=true },       -- OLD: ["MP5 - Purple People Eater"]
+	["MS Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },       -- OLD: ["MS Revolver"]
+	["Makarov"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["Makarov"]
+	["McDonald Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["McDonald Revolver"]
+	["Dark Cliff"] = { weapon="Spear", rarity="legendary", adsAllowed=false },       -- OLD: ["Meshes/Blackcliff Pole"]
+	["Ribbon Lance"] = { weapon="Spear", rarity="common", adsAllowed=false },       -- OLD: ["Meshes/tassel"]
+	["Dark Ribbon"] = { weapon="Spear", rarity="rare", adsAllowed=false },       -- OLD: ["Meshes/black tassel"]
+	["Mountain Piercer"] = { weapon="Spear", rarity="legendary", adsAllowed=false },       -- OLD: ["Mountain Piercer"]
+	["Damage"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Damage"]
+	["Disaster Strike"] = { weapon="Spear", rarity="legendary", adsAllowed=false },       -- OLD: ["Meshes/calamity queller"]
+	["Moon Pike"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/crescent pike"]
+	["Dragon's Teeth"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Dragon's Teeth"]
+	["Deathmatch"] = { weapon="Spear", rarity="legendary", adsAllowed=false },       -- OLD: ["Deathmatch"]
+	["Mini Dragooon"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Mini Dragooon"]
+	["Dragon's Bane"] = { weapon="Spear", rarity="legendary", adsAllowed=false },       -- OLD: ["Dragon's Bane"]
+	["Hydra"] = { weapon="Spear", rarity="mythic", adsAllowed=false },       -- OLD: ["Hydra"]
+	["Wind Lance"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/favonius lance"]
+	["Knight's Lance"] = { weapon="Spear", rarity="rare", adsAllowed=false },       -- OLD: ["Meshes/lance"]
+	["Battle Pike"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/halberd"]
+	["Blood Iron"] = { weapon="Spear", rarity="legendary", adsAllowed=false },       -- OLD: ["Meshes/iron blood"]
+	["Iron Stick"] = { weapon="Spear", rarity="common", adsAllowed=false },       -- OLD: ["Meshes/iron"]
+	["Sharp Iron"] = { weapon="Spear", rarity="rare", adsAllowed=false },       -- OLD: ["Meshes/iron point"]
+	["Cross Pike"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/kitain cross spear"]
+	["Stone Spear"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/lithic spear"]
+	["Zoro"] = { weapon="Spear", rarity="mythic", adsAllowed=false },       -- OLD: ["Meshes/primordial jade winged-spear"]
+	["Revenge"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/prototype grudge"]
+	["King Slayer"] = { weapon="Spear", rarity="legendary", adsAllowed=false },       -- OLD: ["Meshes/regicide"]
+	["Royal Pike"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/royal spear"]
+	["Blue"] = { weapon="Spear", rarity="legendary", adsAllowed=false },       -- OLD: ["Blue"]
+	["Dragon Spine"] = { weapon="Spear", rarity="mythic", adsAllowed=false },       -- OLD: ["Meshes/dragonspine"]
+	["Lava Flow"] = { weapon="Spear", rarity="mythic", adsAllowed=false },       -- OLD: ["Meshes/magma"]
+	["Sky Piercer"] = { weapon="Spear", rarity="legendary", adsAllowed=false },       -- OLD: ["Meshes/skyward spine"]
+	["Fish Spear"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/the catch"]
+	["Tornado"] = { weapon="Spear", rarity="legendary", adsAllowed=false },       -- OLD: ["Meshes/vortex vanquisher"]
+	["Storm"] = { weapon="Spear", rarity="mythic", adsAllowed=false },       -- OLD: ["Storm"]
+	["Wave Fin"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/wavebreaker's fin"]
+	["Grout"] = { weapon="Axe", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Axe_Nature_01"]
+	["Rune eye"] = { weapon="Axe", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Axe_Rune_01"]
+	["Red Falcon"] = { weapon="Axe", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Crystal_Axe_01"]
+	["Blood Hungry"] = { weapon="Sword", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Crystal_DoubleSword_01"]
+	["Jaw Breaker"] = { weapon="Axe", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Axe_01"]
+	["Saber-Tooth"] = { weapon="Axe", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Axe_Spikes_01"]
+	["Spiked Club"] = { weapon="Club", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Club_01"]
+	["Pokey"] = { weapon="Halberd", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Halberd_01"]
+	["End"] = { weapon="Mace", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Mace_01"]
+	["Shark Eye"] = { weapon="Machete", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Machete_01"]
+	["Hunter's sword"] = { weapon="Machete", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Machete_Spikes_01"]
+	["Boneless"] = { weapon="Shiv", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Shiv_Bone_01"]
+	["Dark Hope"] = { weapon="Staff", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Staff_01"]
+	["Mid"] = { weapon="Greatsword", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Greatsword_Straight_01"]
+	["Halk Smash"] = { weapon="Hammer", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Hammer_Large_Metal_01"]
+	["Skull Disintigrator"] = { weapon="Hammer", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Hammer_Large_Metal_010"]
+	["Stone Hammer"] = { weapon="Hammer", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Hammer_Mace_Stone_01"]
+	["Stone Crusher"] = { weapon="Hammer", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Hammer_Small_02"]
+	["Metal bar"] = { weapon="Handle", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Handle_Metal_01"]
+	["Weak bat"] = { weapon="Handle", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Handle_Wood_01"]
+	["Destroyer"] = { weapon="Mace", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Mace_Blades_01"]
+	["Slicer"] = { weapon="Axe", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Ornate_Axe_02"]
+	["Axe of Wealth "] = { weapon="GreatAxe", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Ornate_GreatAxe_01"]
+	["Wooden Spear"] = { weapon="Spear", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Spear_01"]
+	["Iron Spear"] = { weapon="Spear", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Spear_02"]
+	["Twin Blade Staff"] = { weapon="Staff", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Staff_DoubleBlade_01"]
+	["Gem Staff"] = { weapon="Staff", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Staff_Gem_01"]
+	["Straight Sword"] = { weapon="Sword", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Straightsword_01"]
+	["Helm Axe"] = { weapon="Axe", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Axe_01"]
+	["ToothPick"] = { weapon="Banner", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Banner_01"]
+	["Q Bone"] = { weapon="Bone", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Bone_01"]
+	["Dog Bone"] = { weapon="Bone", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Bone_02"]
+	["Broken Hope"] = { weapon="Sword", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_BrokenSword_01"]
+	["Ruby Halberd"] = { weapon="Halberd", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Crystal_Halberd_01"]
+	["HamAxe"] = { weapon="Axe", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Crystal_Axe_Large_01"]
+	["Bitter Sweet"] = { weapon="Sword", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Crystal_Ornate_Straightsword_01"]
+	["Dagestan"] = { weapon="Cutlass", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Cutlass_01"]
+	["Skull Collector"] = { weapon="Axe", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Axe_Large_01"]
+	["Anarchy"] = { weapon="Axe", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Bone_Axe_01"]
+	["Gem Hammer"] = { weapon="Hammer", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Gem_Hammer_01"]
+	["Bone arrow"] = { weapon="Shiv", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Shiv_Stone_01"]
+	["Sharp Stick"] = { weapon="Spear", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Goblin_Spear_01"]
+	["GreatSword"] = { weapon="Greatsword", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_GreatSword_01"]
+	["Huge Spoon"] = { weapon="Greatsword", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Greatsword_Round_01"]
+	["Good boy"] = { weapon="Halberd", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Halberd_06"]
+	["Stone Edge"] = { weapon="Hammer", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Hammer_Large_Stone_01"]
+	["The Log"] = { weapon="Hammer", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Hammer_Large_Wood_01"]
+	["Rock Head"] = { weapon="Hammer", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Hammer_Mace_Sphere_01"]
+	["Spiky"] = { weapon="Hammer", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Hammer_Mace_Spikes_01"]
+	["Small Hammer"] = { weapon="Hammer", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Hammer_Small_01"]
+	["Small axe"] = { weapon="HandAxe", rarity="common", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_HandAxe_01"]
+	["ThornPiercer"] = { weapon="Spear", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Ornate_Spear_01"]
+	["Impulse"] = { weapon="Spikes", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Ornate_Spikes_01"]
+	["Venom Spikes"] = { weapon="Spikes", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Ornate_Spikes_Long_01"]
+	["Royal Edge"] = { weapon="Sword", rarity="epic", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Ornate_Sword_01"]
+	["Noble Strike"] = { weapon="Sword", rarity="rare", adsAllowed=false, isGoblin=true },       -- OLD: ["Goblin_Ornate_Sword_02"]
+	["Cloud Piercer"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/white tassel"]
+	["Golden Lnace"] = { weapon="Spear", rarity="epic", adsAllowed=false },       -- OLD: ["Meshes/gold tassel"]
+	["Atomic Shot"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["Molecular Revolver"]
+	["Monster"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Monster"]
+	["Pirate's Curse"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Morgan"]
+	["Microchip"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Nano"]
+	["Death"] = { weapon="Rifle", rarity="mythic", adsAllowed=false },       -- OLD: ["Necromancer"]
+	["Moon Hunter"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["NightStalker Revolver"]
+	["First Shot"] = { weapon="Revolver", rarity="common", adsAllowed=true },       -- OLD: ["Original Revolver"]
+	["All Seeing"] = { weapon="Revolver", rarity="legendary", adsAllowed=true },       -- OLD: ["Overseer Revolver"]
+	["Compact Nine"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["P99"]
+	["Pocket Blast"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["PB"]
+	["Heavy Storm"] = { weapon="LMG", rarity="common", adsAllowed=true },       -- OLD: ["PKM"]
+	["Pocket Mag"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["PM"]
+	["Firebird"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Phoenix"]
+	["Warp Shot"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["Portal Revolver"]
+	["Apex"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Predator"]
+	["Champion"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Pro"]
+	["Rocket Rain"] = { weapon="Launcher", rarity="rare", adsAllowed=true },       -- OLD: ["RPG-7"]
+	["Support Fire"] = { weapon="LMG", rarity="common", adsAllowed=true },       -- OLD: ["RPK"]
+	["Elite Support"] = { weapon="LMG", rarity="rare", adsAllowed=true },       -- OLD: ["RPK - Fort Hope Elite"]
+	["Frost Support"] = { weapon="LMG", rarity="rare", adsAllowed=true },       -- OLD: ["RPK - Winter Warfare"]
+	["Spectrum Six"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["Rainbow Revolver"]
+	["Cowboy"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["Ranch Rifle"]
+	["Cowboy Elite"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["Ranch Rifle - Laminated"]
+	["Crimson Drake"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Red Dragon"]
+	["Fate Shot"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["Revolver of Destiny"]
+	["Thorn Blossom"] = { weapon="Revolver", rarity="epic", adsAllowed=true },       -- OLD: ["Rose Revolver"]
+	["Liberty"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["Ruger American"]
+	["Heritage"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["Ruger American - Heirloom"]
+	["Battle Rifle"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["SCAR"]
+	["Tiger Strike"] = { weapon="Rifle", rarity="rare", adsAllowed=true },       -- OLD: ["SCAR - Bengal"]
+	["Sand Strike"] = { weapon="Rifle", rarity="rare", adsAllowed=true },       -- OLD: ["SCAR - Desert Classic"]
+	["Camo King"] = { weapon="Rifle", rarity="epic", adsAllowed=true },       -- OLD: ["SCAR - Fancicam"]
+	["Tactical Boom"] = { weapon="Shotgun", rarity="common", adsAllowed=true },       -- OLD: ["SPAS"]
+	["Marksman"] = { weapon="Sniper", rarity="common", adsAllowed=true },       -- OLD: ["SVD"]
+	["Elite Marksman"] = { weapon="Sniper", rarity="rare", adsAllowed=true },       -- OLD: ["SVU"]
+	["Shogun"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Samurai"]
+	["Desert Wind"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["Sand Revolver"]
+	["Claw Strike"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Scratch"]
+	["Swiss Guard"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["SiG550"]
+	["Alpine"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["Sig220"]
+	["Glitter Blast"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["SparkleTime Revolver"]
+	["Lightning Rush"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Speed"]
+	["Double Tap"] = { weapon="Revolver", rarity="epic", adsAllowed=true },       -- OLD: ["Splitfire Revolver"]
+	["Arena Star"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Sport"]
+	["Arena Legend"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Sport V2"]
+	["MVP"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["StarPlayer Revolver"]
+	["Close Range"] = { weapon="Shotgun", rarity="common", adsAllowed=true },       -- OLD: ["Super 90"]
+	["Holiday Blast"] = { weapon="Shotgun", rarity="epic", adsAllowed=true },       -- OLD: ["Super 90 - Festive Wrap"]
+	["Cursed Blast"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },       -- OLD: ["Super 90 - Hexed"]
+	["Shorty"] = { weapon="Shotgun", rarity="common", adsAllowed=true },       -- OLD: ["TAC14"]
+	["Tiger Shorty"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },       -- OLD: ["TAC14 - Bengal"]
+	["Forest Shorty"] = { weapon="Shotgun", rarity="common", adsAllowed=true },       -- OLD: ["TAC14 - ODG"]
+	["Undead Hunter"] = { weapon="Shotgun", rarity="epic", adsAllowed=true },       -- OLD: ["TAC14 - Zombie Slayer"]
+	["Street Spray"] = { weapon="SMG", rarity="common", adsAllowed=true },       -- OLD: ["TEC-9"]
+	["Tiger Spray"] = { weapon="SMG", rarity="rare", adsAllowed=true },       -- OLD: ["TEC-9 - Bengal"]
+	["Silent Death"] = { weapon="SMG", rarity="rare", adsAllowed=true },       -- OLD: ["TEC-9 - Killing You Softly"]
+	["Soviet Classic"] = { weapon="Rifle", rarity="rare", adsAllowed=true },       -- OLD: ["TOZ"]
+	["Tactical Three"] = { weapon="Rifle", rarity="rare", adsAllowed=true },       -- OLD: ["TRS-301"]
+	["Double Trouble"] = { weapon="Shotgun", rarity="common", adsAllowed=true },       -- OLD: ["The Belgian"]
+	["Elegant Double"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },       -- OLD: ["The Belgian - First Class"]
+	["Laser Beam"] = { weapon="Revolver", rarity="epic", adsAllowed=true },       -- OLD: ["TheHyperLaser Revolver"]
+	["Storm Strike"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Thunder"]
+	["Striped Fury"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Tiger"]
+	["Gold Digger"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Treasure Hunter"]
+	["Thunder Bolt"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["Tunder S14"]
+	["Tactical Sub"] = { weapon="SMG", rarity="common", adsAllowed=true },       -- OLD: ["UMP-45"]
+	["Holiday Sub"] = { weapon="SMG", rarity="epic", adsAllowed=true },       -- OLD: ["UMP-45 - Festive Wrap"]
+	["Magma Flow"] = { weapon="SMG", rarity="epic", adsAllowed=true },       -- OLD: ["UMP-45 - Lava Lamp"]
+	["Liberty Six"] = { weapon="Revolver", rarity="epic", adsAllowed=true },       -- OLD: ["United States Revolver"]
+	["Rapid Fire"] = { weapon="SMG", rarity="common", adsAllowed=true },       -- OLD: ["Uzi"]
+	["Elite Rapid"] = { weapon="SMG", rarity="common", adsAllowed=true },       -- OLD: ["Uzi - Fort Hope Elite"]
+	["China Fury"] = { weapon="SMG", rarity="epic", adsAllowed=true },       -- OLD: ["Uzi - Porcelain Vengeance"]
+	["Vector"] = { weapon="SMG", rarity="common", adsAllowed=true },       -- OLD: ["Vector"]
+	["Zap"] = { weapon="SMG", rarity="rare", adsAllowed=true },       -- OLD: ["Vector - Bengal"]
+	["Electric Shock"] = { weapon="SMG", rarity="epic", adsAllowed=true },       -- OLD: ["Vector - Circuit Breaker"]
+	["Whisper"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["Vintorez"]
+	["Serpent"] = { weapon="SMG", rarity="common", adsAllowed=true },       -- OLD: ["Viper/Mp5"]
+	["Victory"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Winner"]
+	["Blizzard"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Blizzard"]
+	["Frost Champion"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Winter Sport"]
+	["Flash"] = { weapon="Rifle", rarity="mythic", adsAllowed=true },       -- OLD: ["Zeus"]
+	["Crawler"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Worm"]
+	["Power"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Power"]
+	["Ego"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Ego"]
+	["Prototype X"] = { weapon="Rifle", rarity="rare", adsAllowed=true },       -- OLD: ["XM24A3"]
+	["Speed Blur"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Zoom"]
+	["Diplomat"] = { weapon="Sniper", rarity="common", adsAllowed=true },       -- OLD: ["ambassador"]
+	["Med Saw"] = { weapon="Misc", rarity="rare", adsAllowed=false },       -- OLD: ["amp"]
+	["Pyranna"] = { weapon="Flamethrower", rarity="rare", adsAllowed=false },       -- OLD: ["backburner"]
+	["Fishing Rod"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["bazaar"]
+	["Starter Guard"] = { weapon="Shield", rarity="common", adsAllowed=false },       -- OLD: ["beginner's protector"]
+	["Desert Guard"] = { weapon="Shield", rarity="common", adsAllowed=false },       -- OLD: ["beginner's protector 2"]
+	["Light Rifle"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["carbine"]
+	["Hardscope"] = { weapon="Rifle", rarity="rare", adsAllowed=true },       -- OLD: ["classic"]
+	["Arrow Launcher"] = { weapon="Crossbow", rarity="common", adsAllowed=true },       -- OLD: ["crossbow"]
+	["Diamond Six"] = { weapon="Revolver", rarity="epic", adsAllowed=true },       -- OLD: ["diamondback"]
+	["Law Bringer"] = { weapon="Pistol", rarity="rare", adsAllowed=true },       -- OLD: ["enforcer"]
+	["Signal Blast"] = { weapon="Flaregun", rarity="epic", adsAllowed=true },       -- OLD: ["flaregun"]
+	["Wild West"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["frontier"]
+	["Hot Shot"] = { weapon="Sniper", rarity="common", adsAllowed=true },       -- OLD: ["heatmaker"]
+	["Tech Six"] = { weapon="Revolver", rarity="rare", adsAllowed=true },       -- OLD: ["iRevolver"]
+	["Stranger"] = { weapon="Revolver", rarity="common", adsAllowed=true },       -- OLD: ["le'tranger"]
+	["Life Drain"] = { weapon="Medigun", rarity="common", adsAllowed=false },       -- OLD: ["leechgun"]
+	["Machine Snipe"] = { weapon="Sniper", rarity="common", adsAllowed=true },       -- OLD: ["machina"]
+	["Heavy Spin"] = { weapon="Minigun", rarity="epic", adsAllowed=false },       -- OLD: ["natach"]
+	["Overheater"] = { weapon="Minigun", rarity="rare", adsAllowed=false },       -- OLD: ["overuse"]
+	["Fast Heal"] = { weapon="Medigun", rarity="rare", adsAllowed=false },       -- OLD: ["quickfix"]
+	["Short Barrel"] = { weapon="Shotgun", rarity="common", adsAllowed=true },       -- OLD: ["sawn-off"]
+	["Sharp Point"] = { weapon="Blade", rarity="common", adsAllowed=false },       -- OLD: ["shiv"]
+	["Classic Shot"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["shna"]
+	["Silent Scope"] = { weapon="Sniper", rarity="common", adsAllowed=true },       -- OLD: ["sleeper"]
+	["Gangster"] = { weapon="SMG", rarity="common", adsAllowed=true },       -- OLD: ["tommy gun"]
+	["Imperial"] = { weapon="Rifle", rarity="rare", adsAllowed=true },       -- OLD: ["type 99"]
+	["Super Saw"] = { weapon="Melee", rarity="common", adsAllowed=false },       -- OLD: ["ubersaw"]
+	["Vacuum"] = { weapon="Medigun", rarity="common", adsAllowed=false },       -- OLD: ["vac"]
+	["Stinger"] = { weapon="Medigun", rarity="common", adsAllowed=false },       -- OLD: ["vita"]
+	["Rapid Shot"] = { weapon="Rifle", rarity="common", adsAllowed=true },       -- OLD: ["waka"]
 
-	["AS-VAL"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["Abakan/AC-96"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	-- Add missing rifle skins with specified rarities
-	["Blood&Bones"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },
-	["Cyborg"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },
-	["Death"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },
-	["Leviathan"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },
-	["Sun"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },
-	["Ace"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-		["Adurite Revolver"] = {
-		weapon = "Revolver",
-		rarity = "rare",
-		adsAllowed = true,
-	},
-		["AlphaSapphire Revolver"] = {
-		weapon = "Revolver",
-		rarity = "rare",
-		adsAllowed = true,
-	},
-		["Ambassador Revolver"] = {
-		weapon = "Revolver",
-		rarity = "rare",
-		adsAllowed = true,
-	},
-	["AppleShooter Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },
-	["Aqua Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },
-	["Barrett M95"] = { weapon="Sniper", rarity="common", adsAllowed=true },
-	["Barrett M95 - Damascus"] = { weapon="Sniper", rarity="rare", adsAllowed=true },
-	["Barrett M95 - Sand Cannon"] = { weapon="Sniper", rarity="rare", adsAllowed=true },
-	["Beretta M9"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["Beretta M9 - Chrome"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["Beretta M9 - Combat Pro"] = { weapon="Pistol", rarity="rare", adsAllowed=true },
-	["Black kite"] = { weapon="Blade", rarity="common", adsAllowed=false },
-	["BlackIron Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },
-	["Blood"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Bluesteel Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true, faceLeft=true },
-	["Carbon"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-	["Chaser"] = { weapon="Blade", rarity="common", adsAllowed=false },
-	["ComputerBlaster Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true, faceLeft=true },
-	["CyanMissingTexture Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },
-	["Desert Eagle"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["Desert Eagle - Bengal Bling"] = { weapon="Pistol", rarity="rare", adsAllowed=true },
-	["Desert Eagle - Dead Red"] = { weapon="Pistol", rarity="epic", adsAllowed=true },
-	["Donkey Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },
-	["Flame"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Heat"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },
-	["Dragon Glass"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Dreams of Revolvers"] = { weapon="Revolver", rarity="rare", adsAllowed=true, faceLeft=true },
-	["Elite Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
-	["Illusion"] = { weapon="Rifle", rarity="legendary", adsAllowed=true },
-	["Enfield Bren"] = { weapon="LMG", rarity="common", adsAllowed=true },
-	["Engraved Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true, faceLeft=true },
-	["FN2000"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["Fabric Storm"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-	["Fabulous Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true, faceLeft=true },
-	["Fort"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["G36"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["Galactic Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true, faceLeft=true },
-	["Gauss rifle"] = { weapon="Rifle", rarity="epic", adsAllowed=true },
-	["Gear"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-	["Genesis"] = { weapon="Blade", rarity="mythic", adsAllowed=false },
-	["Glock 23"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["Glock 23 - Bengal"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["Glock 23 - Homeland"] = { weapon="Pistol", rarity="rare", adsAllowed=true },
-	["Glock 23 - Packin' Heat"] = { weapon="Pistol", rarity="epic", adsAllowed=true },
-	["Gold Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
-	["Grand Prix"] = { weapon="Blade", rarity="rare", adsAllowed=false },
-	["HyperRed Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
-	["Infiltrator Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true },
-	["Knife"] = { weapon="Blade", rarity="common", adsAllowed=false },
-	-- Additional blade weapons
-	["8Bit"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-	["Ball"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-	["Borders"] = { weapon="Blade", rarity="rare", adsAllowed=false },
-	["Caution"] = { weapon="Blade", rarity="rare", adsAllowed=false },
-	["Cheesy"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-	["Chroma Fang"] = { weapon="Blade", rarity="mythic", adsAllowed=false },
-	["Crystal"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Fang"] = { weapon="Blade", rarity="mythic", adsAllowed=false },
-	["Kypto"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Linked"] = { weapon="Blade", rarity="common", adsAllowed=false },
-	["Missing"] = { weapon="Blade", rarity="rare", adsAllowed=false },
-	["Vision"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Rainbow"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-	["Slate"] = { weapon="Blade", rarity="rare", adsAllowed=false },
-	["Sparkles"] = { weapon="Blade", rarity="rare", adsAllowed=false },
-	["Spectum"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-	["Stalker"] = { weapon="Blade", rarity="rare", adsAllowed=false },
-	["Swag"] = { weapon="Blade", rarity="rare", adsAllowed=false },
-	["L85"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["Lizard"] = { weapon="Rifle", rarity="legendary", adsAllowed=false },
-	["Sky"] = { weapon="Rifle", rarity="legendary", adsAllowed=false },
-	["M16"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["M16 - Green Envy"] = { weapon="Rifle", rarity="epic", adsAllowed=true },
-	["M1911"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["M1911 - Earthy"] = { weapFm1on="Pistol", rarity="common", adsAllowed=true },
-	["M1911 - Star-Spangled"] = { weapon="Pistol", rarity="epic", adsAllowed=true },
-	["M1A"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["M1A - Flammo"] = { weapon="Rifle", rarity="rare", adsAllowed=true },
-	["M1A - Wood Classic"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["M249"] = { weapon="LMG", rarity="common", adsAllowed=true },
-	["M249 - Festive Wrap"] = { weapon="LMG", rarity="epic", adsAllowed=true },
-	["M249 - Mojave"] = { weapon="LMG", rarity="rare", adsAllowed=true },
-	["M249 - Plastic"] = { weapon="LMG", rarity="legendary", adsAllowed=true },
-	-- Add missing M4 variants
-	["M4 Black"] = { weapon="M4", rarity="epic", adsAllowed=true },
-	["M4 Carbine"] = { weapon="M4", rarity="common", adsAllowed=true },
-	["M4 Carbine - Bengal"] = { weapon="M4", rarity="epic", adsAllowed=true },
-	["M4 Carbine - Fort Hope Elite"] = { weapon="M4", rarity="common", adsAllowed=true },
-	["M4 Carbine - Golden Death"] = { weapon="M4", rarity="rare", adsAllowed=true },
-	["MP5"] = { weapon="SMG", rarity="common", adsAllowed=true },
-	["MP5 - Copperhead"] = { weapon="SMG", rarity="rare", adsAllowed=true },
-	["MP5 - Festive Wrap"] = { weapon="SMG", rarity="epic", adsAllowed=true },
-	["MP5 - Purple People Eater"] = { weapon="SMG", rarity="epic", adsAllowed=true },
-	["MS Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
-	["Makarov"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["McDonald Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["Meshes/Blackcliff Pole"] = { weapon="Spear", rarity="legendary", adsAllowed=false },
-	["Meshes/tassel"] = { weapon="Spear", rarity="common", adsAllowed=false },
-	["Meshes/black tassel"] = { weapon="Spear", rarity="rare", adsAllowed=false },
-	["Meshes/Mountain Piercer"] = { weapon="Spear", rarity="legendary", adsAllowed=false },
-	["Meshes/damage"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/calamity queller"] = { weapon="Spear", rarity="legendary", adsAllowed=false },
-	["Meshes/crescent pike"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/dragon's teeth"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/deathmatch"] = { weapon="Spear", rarity="legendary", adsAllowed=false },
-	["Meshes/mini dragooon"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/dragon's bane"] = { weapon="Spear", rarity="legendary", adsAllowed=false },
-	["Meshes/hydra"] = { weapon="Spear", rarity="mythic", adsAllowed=false },
-	["Meshes/favonius lance"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/lance"] = { weapon="Spear", rarity="rare", adsAllowed=false },
-	["Meshes/halberd"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/iron blood"] = { weapon="Spear", rarity="legendary", adsAllowed=false },
-	["Meshes/iron"] = { weapon="Spear", rarity="common", adsAllowed=false },
-	["Meshes/iron point"] = { weapon="Spear", rarity="rare", adsAllowed=false },
-	["Meshes/kitain cross spear"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/lithic spear"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/primordial jade winged-spear"] = { weapon="Spear", rarity="mythic", adsAllowed=false },
-	["Meshes/prototype grudge"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/regicide"] = { weapon="Spear", rarity="legendary", adsAllowed=false },
-	["Meshes/royal spear"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/blue"] = { weapon="Spear", rarity="legendary", adsAllowed=false },
-	["Meshes/dragonspine"] = { weapon="Spear", rarity="mythic", adsAllowed=false },
-    ["Meshes/magma"] = { weapon="Spear", rarity="mythic", adsAllowed=false },
-	["Meshes/skyward spine"] = { weapon="Spear", rarity="legendary", adsAllowed=false },
-	["Meshes/the catch"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/vortex vanquisher"] = { weapon="Spear", rarity="legendary", adsAllowed=false },
-	["Meshes/storm"] = { weapon="Spear", rarity="mythic", adsAllowed=false },
-	["Meshes/wavebreaker's fin"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Goblin_Axe_Nature_01"] = { weapon="Axe", rarity="rare", adsAllowed=false },
-	["Goblin_Axe_Rune_01"] = { weapon="Axe", rarity="rare", adsAllowed=false },
-	["Goblin_Crystal_Axe_01"] = { weapon="Axe", rarity="epic", adsAllowed=false },
-	["Goblin_Crystal_DoubleSword_01"] = { weapon="Sword", rarity="epic", adsAllowed=false },
-	["Goblin_Goblin_Axe_01"] = { weapon="Axe", rarity="rare", adsAllowed=false },
-	["Goblin_Goblin_Axe_Spikes_01"] = { weapon="Axe", rarity="rare", adsAllowed=false },
-	["Goblin_Goblin_Club_01"] = { weapon="Club", rarity="rare", adsAllowed=false },
-	["Goblin_Goblin_Halberd_01"] = { weapon="Halberd", rarity="rare", adsAllowed=false },
-	["Goblin_Goblin_Mace_01"] = { weapon="Mace", rarity="epic", adsAllowed=false },
-	["Goblin_Goblin_Machete_01"] = { weapon="Machete", rarity="rare", adsAllowed=false },
-	["Goblin_Goblin_Machete_Spikes_01"] = { weapon="Machete", rarity="rare", adsAllowed=false },
-	["Goblin_Goblin_Shiv_Bone_01"] = { weapon="Shiv", rarity="rare", adsAllowed=false },
-	["Goblin_Goblin_Staff_01"] = { weapon="Staff", rarity="epic", adsAllowed=false },
-	["Goblin_Greatsword_Straight_01"] = { weapon="Greatsword", rarity="rare", adsAllowed=false },
-	["Goblin_Hammer_Large_Metal_01"] = { weapon="Hammer", rarity="rare", adsAllowed=false },
-	["Goblin_Hammer_Large_Metal_010"] = { weapon="Hammer", rarity="epic", adsAllowed=false },
-	["Goblin_Hammer_Mace_Stone_01"] = { weapon="Hammer", rarity="epic", adsAllowed=false },
-	["Goblin_Hammer_Small_02"] = { weapon="Hammer", rarity="rare", adsAllowed=false },
-	["Goblin_Handle_Metal_01"] = { weapon="Handle", rarity="common", adsAllowed=false },
-	["Goblin_Handle_Wood_01"] = { weapon="Handle", rarity="common", adsAllowed=false },
-	["Goblin_Mace_Blades_01"] = { weapon="Mace", rarity="epic", adsAllowed=false },
-	["Goblin_Ornate_Axe_02"] = { weapon="Axe", rarity="rare", adsAllowed=false },
-	["Goblin_Ornate_GreatAxe_01"] = { weapon="GreatAxe", rarity="epic", adsAllowed=false },
-	["Goblin_Spear_01"] = { weapon="Spear", rarity="common", adsAllowed=false },
-	["Goblin_Spear_02"] = { weapon="Spear", rarity="common", adsAllowed=false },
-	["Goblin_Staff_DoubleBlade_01"] = { weapon="Staff", rarity="common", adsAllowed=false },
-	["Goblin_Staff_Gem_01"] = { weapon="Staff", rarity="rare", adsAllowed=false },
-	["Goblin_Straightsword_01"] = { weapon="Sword", rarity="rare", adsAllowed=false },
-	["Goblin_Axe_01"] = { weapon="Axe", rarity="epic", adsAllowed=false },
-	["Goblin_Banner_01"] = { weapon="Banner", rarity="rare", adsAllowed=false },
-	["Goblin_Bone_01"] = { weapon="Bone", rarity="common", adsAllowed=false },
-	["Goblin_Bone_02"] = { weapon="Bone", rarity="common", adsAllowed=false },
-	["Goblin_BrokenSword_01"] = { weapon="Sword", rarity="common", adsAllowed=false },
-	["Goblin_Crystal_Halberd_01"] = { weapon="Halberd", rarity="epic", adsAllowed=false },
-	["Goblin_Crystal_Axe_Large_01"] = { weapon="Axe", rarity="epic", adsAllowed=false },
-	["Goblin_Crystal_Ornate_Straightsword_01"] = { weapon="Sword", rarity="rare", adsAllowed=false },
-	["Goblin_Cutlass_01"] = { weapon="Cutlass", rarity="rare", adsAllowed=false },
-	["Goblin_Goblin_Axe_Large_01"] = { weapon="Axe", rarity="epic", adsAllowed=false },
-	["Goblin_Goblin_Bone_Axe_01"] = { weapon="Axe", rarity="epic", adsAllowed=false },
-	["Goblin_Goblin_Gem_Hammer_01"] = { weapon="Hammer", rarity="epic", adsAllowed=false },
-	["Goblin_Goblin_Shiv_Stone_01"] = { weapon="Shiv", rarity="common", adsAllowed=false },
-	["Goblin_Goblin_Spear_01"] = { weapon="Spear", rarity="common", adsAllowed=false },
-	["Goblin_GreatSword_01"] = { weapon="Greatsword", rarity="epic", adsAllowed=false },
-	["Goblin_Greatsword_Round_01"] = { weapon="Greatsword", rarity="epic", adsAllowed=false },
-	["Goblin_Halberd_06"] = { weapon="Halberd", rarity="rare", adsAllowed=false },
-	["Goblin_Hammer_Large_Stone_01"] = { weapon="Hammer", rarity="epic", adsAllowed=false },
-	["Goblin_Hammer_Large_Wood_01"] = { weapon="Hammer", rarity="epic", adsAllowed=false },
-	["Goblin_Hammer_Mace_Sphere_01"] = { weapon="Hammer", rarity="rare", adsAllowed=false },
-	["Goblin_Hammer_Mace_Spikes_01"] = { weapon="Hammer", rarity="epic", adsAllowed=false },
-	["Goblin_Hammer_Small_01"] = { weapon="Hammer", rarity="rare", adsAllowed=false },
-	["Goblin_HandAxe_01"] = { weapon="HandAxe", rarity="rare", adsAllowed=false },
-	["Goblin_Ornate_Spear_01"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Goblin_Ornate_Spikes_01"] = { weapon="Spikes", rarity="rare", adsAllowed=false },
-	["Goblin_Ornate_Spikes_Long_01"] = { weapon="Spikes", rarity="epic", adsAllowed=false },
-	["Goblin_Ornate_Sword_01"] = { weapon="Sword", rarity="epic", adsAllowed=false },
-	["Goblin_Ornate_Sword_02"] = { weapon="Sword", rarity="rare", adsAllowed=false },
-	["Meshes/white tassel"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Meshes/gold tassel"] = { weapon="Spear", rarity="epic", adsAllowed=false },
-	["Molecular Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["Monster"] = { weapon="Blade", rarity="mythic", adsAllowed=false },
-	["Morgan"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-	["Nano"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Necromancer"] = { weapon="Blade", rarity="mythic", adsAllowed=false },
-	["NightStalker Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["Original Revolver"] = { weapon="Revolver", rarity="common", adsAllowed=true },
-	["Overseer Revolver"] = { weapon="Revolver", rarity="legendary", adsAllowed=true },
-	["P99"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["PB"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["PKM"] = { weapon="LMG", rarity="common", adsAllowed=true },
-	["PM"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["Phoenix"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Portal Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["Predator"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Pro"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["RPG-7"] = { weapon="Launcher", rarity="rare", adsAllowed=true },
-	["RPK"] = { weapon="LMG", rarity="common", adsAllowed=true },
-	["RPK - Fort Hope Elite"] = { weapon="LMG", rarity="rare", adsAllowed=true },
-	["RPK - Winter Warfare"] = { weapon="LMG", rarity="rare", adsAllowed=true },
-	["Rainbow Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["Ranch Rifle"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["Ranch Rifle - Laminated"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["Red Dragon"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Revolver of Destiny"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["Rose Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
-	["Ruger American"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["Ruger American - Heirloom"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["SCAR"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["SCAR - Bengal"] = { weapon="Rifle", rarity="rare", adsAllowed=true },
-	["SCAR - Desert Classic"] = { weapon="Rifle", rarity="rare", adsAllowed=true },
-	["SCAR - Fancicam"] = { weapon="Rifle", rarity="epic", adsAllowed=true },
-	--["SKS Wood Large"] = { weapon="Rifle", rarity="rare", adsAllowed=true },
-	--["SKS Wood"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	--["SKS Camo"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	--["SKS Dark Wood"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	--["SKS Camo Large"] = { weapon="Rifle", rarity="rare", adsAllowed=true },
-	["SPAS"] = { weapon="Shotgun", rarity="common", adsAllowed=true },
-	["SVD"] = { weapon="Sniper", rarity="common", adsAllowed=true },
-	["SVU"] = { weapon="Sniper", rarity="rare", adsAllowed=true },
-	["Samurai"] = { weapon="Blade", rarity="mythic", adsAllowed=false },
-	["Sand Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["Scratch"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["SiG550"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["Sig220"] = { weapon="Pistol", rarity="common", adsAllowed=true },
-	["SparkleTime Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["Speed"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Splitfire Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
-	["Sport"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Sport V2"] = { weapon="Blade", rarity="mythic", adsAllowed=false },
-	["StarPlayer Revolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["Super 90"] = { weapon="Shotgun", rarity="common", adsAllowed=true },
-	["Super 90 - Festive Wrap"] = { weapon="Shotgun", rarity="epic", adsAllowed=true },
-	["Super 90 - Hexed"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },
-	["TAC14"] = { weapon="Shotgun", rarity="common", adsAllowed=true },
-	["TAC14 - Bengal"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },
-	["TAC14 - ODG"] = { weapon="Shotgun", rarity="common", adsAllowed=true },
-	["TAC14 - Zombie Slayer"] = { weapon="Shotgun", rarity="epic", adsAllowed=true },
-	["TEC-9"] = { weapon="SMG", rarity="common", adsAllowed=true },
-	["TEC-9 - Bengal"] = { weapon="SMG", rarity="rare", adsAllowed=true },
-	["TEC-9 - Killing You Softly"] = { weapon="SMG", rarity="rare", adsAllowed=true },
-	["TOZ"] = { weapon="Rifle", rarity="rare", adsAllowed=true },
-	["TRS-301"] = { weapon="Rifle", rarity="rare", adsAllowed=true },
-	["The Belgian"] = { weapon="Shotgun", rarity="common", adsAllowed=true },
-	["The Belgian - First Class"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },
-	["TheHyperLaser Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
-	["Thunder"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Tiger"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Treasure Hunter"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Tunder S14"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["UMP-45"] = { weapon="SMG", rarity="common", adsAllowed=true },
-	["UMP-45 - Festive Wrap"] = { weapon="SMG", rarity="epic", adsAllowed=true },
-	["UMP-45 - Lava Lamp"] = { weapon="SMG", rarity="epic", adsAllowed=true },
-	["United States Revolver"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
-	["Uzi"] = { weapon="SMG", rarity="common", adsAllowed=true },
-	["Uzi - Fort Hope Elite"] = { weapon="SMG", rarity="common", adsAllowed=true },
-	["Uzi - Porcelain Vengeance"] = { weapon="SMG", rarity="epic", adsAllowed=true },
-	["Vector"] = { weapon="SMG", rarity="common", adsAllowed=true },
-	["Vector - Bengal"] = { weapon="SMG", rarity="rare", adsAllowed=true },
-	["Vector - Circuit Breaker"] = { weapon="SMG", rarity="epic", adsAllowed=true },
-	["Vintorez"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["Viper/Mp5"] = { weapon="SMG", rarity="common", adsAllowed=true },
-	["Winner"] = { weapon="Blade", rarity="epic", adsAllowed=false },
-	["Blizzard"] = { weapon="Blade", rarity="mythic", adsAllowed=false },
-	["Winter Sport"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Wolf"] = { weapon="Blade", rarity="mythic", adsAllowed=false },
-	["Worm"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["Power"] = { weapon="Blade", rarity="mythic", adsAllowed=false },
-	["Ego"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["XM24A3"] = { weapon="Rifle", rarity="rare", adsAllowed=true },
-	["Zoom"] = { weapon="Blade", rarity="legendary", adsAllowed=false },
-	["ambassador"] = { weapon="Sniper", rarity="common", adsAllowed=true },
-	["amp"] = { weapon="Misc", rarity="rare", adsAllowed=false },
-	["backburner"] = { weapon="Flamethrower", rarity="rare", adsAllowed=false },
-	["bazaar"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["beginner's protector"] = { weapon="Shield", rarity="common", adsAllowed=false },
-	["beginner's protector 2"] = { weapon="Shield", rarity="common", adsAllowed=false },
-	["carbine"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["classic"] = { weapon="Rifle", rarity="rare", adsAllowed=true },
-	["crossbow"] = { weapon="Crossbow", rarity="common", adsAllowed=true },
-	["diamondback"] = { weapon="Revolver", rarity="epic", adsAllowed=true },
-	["enforcer"] = { weapon="Pistol", rarity="rare", adsAllowed=true },
-	["flaregun"] = { weapon="Flaregun", rarity="epic", adsAllowed=true },
-	["frontier"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["heatmaker"] = { weapon="Sniper", rarity="common", adsAllowed=true },
-	["iRevolver"] = { weapon="Revolver", rarity="rare", adsAllowed=true },
-	["le'tranger"] = { weapon="Revolver", rarity="common", adsAllowed=true },
-	["leechgun"] = { weapon="Medigun", rarity="common", adsAllowed=false },
-	["machina"] = { weapon="Sniper", rarity="common", adsAllowed=true },
-	["natach"] = { weapon="Minigun", rarity="epic", adsAllowed=false },
-	["overuse"] = { weapon="Minigun", rarity="rare", adsAllowed=false },
-	["quickfix"] = { weapon="Medigun", rarity="rare", adsAllowed=false },
-	["sawn-off"] = { weapon="Shotgun", rarity="common", adsAllowed=true },
-	["shiv"] = { weapon="Blade", rarity="common", adsAllowed=false },
-	["shna"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["sleeper"] = { weapon="Sniper", rarity="common", adsAllowed=true },
-	["tommy gun"] = { weapon="SMG", rarity="common", adsAllowed=true },
-	["type 99"] = { weapon="Rifle", rarity="rare", adsAllowed=true },
-	["ubersaw"] = { weapon="Melee", rarity="common", adsAllowed=false },
-	["vac"] = { weapon="Medigun", rarity="common", adsAllowed=false },
-	["vita"] = { weapon="Medigun", rarity="common", adsAllowed=false },
-	["waka"] = { weapon="Rifle", rarity="common", adsAllowed=true },
-	["wrangler"] = { weapon="Misc", rarity="common", adsAllowed=false },
+	["Retro Pixel"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["8Bit"]
+["UltraZooka"] = { weapon="Launcher", rarity="epic", adsAllowed=true },       -- OLD: ["airstrike"]
+["Rocket Launcher"] = { weapon="Launcher", rarity="common", adsAllowed=true },       -- OLD: ["sc"]
+["Hotdog"] = { weapon="Flamethrower", rarity="rare", adsAllowed=false },       -- OLD: ["atomizor"]
+["Pow"] = { weapon="SMG", rarity="rare", adsAllowed=true },       -- OLD: ["babyface"]
+["casoh"] = { weapon="Launcher", rarity="epic", adsAllowed=true },       -- OLD: ["backbox"]
+["Back Blast"] = { weapon="Shotgun", rarity="rare", adsAllowed=true },       -- OLD: ["backscatter"]
+["Sphere Strike"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Ball"]
+["Skull Basher"] = { weapon="Melee", rarity="common", adsAllowed=false },       -- OLD: ["basher"]
+["Bye"] = { weapon="Launcher", rarity="epic", adsAllowed=true },       -- OLD: ["beggers"]
+["Blood Rush"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Bleed"]
+["Default"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Borders"]
+["Piano"] = { weapon="Misc", rarity="common", adsAllowed=false },       -- OLD: ["bugle"]
+["Caveman"] = { weapon="Melee", rarity="epic", adsAllowed=false },       -- OLD: ["caber"]
+["Caveman Gone Wrong"] = { weapon="Melee", rarity="common", adsAllowed=false },       -- OLD: ["caberboom"]
+["Walking Stick"] = { weapon="Melee", rarity="common", adsAllowed=false },       -- OLD: ["cane"]
+["Warning Strike"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Caution"]
+["Bull Rush"] = { weapon="Melee", rarity="rare", adsAllowed=false },       -- OLD: ["chargin"]
+["Mac Attack"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Cheesy"]
+["Rainbow Bite"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Chroma Fang"]
+["Highland"] = { weapon="Melee", rarity="rare", adsAllowed=false },       -- OLD: ["claid"]
+["Handgun"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Pistol"]
+["Vintage AK"] = { weapon="AK", rarity="epic", adsAllowed=true },       -- OLD: ["Classic Ak"]
+["Butcher"] = { weapon="Melee", rarity="common", adsAllowed=false },       -- OLD: ["cleaver"]
+["Astroid"] = { weapon="Launcher", rarity="epic", adsAllowed=true },       -- OLD: ["cowmangler"]
+["Prism Edge"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Crystal"]
+["Demon"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Demon"]
+["Biggie"] = { weapon="Launcher", rarity="epic", adsAllowed=true },       -- OLD: ["directhit"]
+["Doom"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Doom"]
+["Twin Boom"] = { weapon="Shotgun", rarity="epic", adsAllowed=true },       -- OLD: ["DoubleTrouble"]
+["Balanced"] = { weapon="Melee", rarity="common", adsAllowed=false },       -- OLD: ["equil"]
+["Quick Exit"] = { weapon="Launcher", rarity="rare", adsAllowed=true },       -- OLD: ["escape"]
+["Medievel Sword"] = { weapon="Melee", rarity="epic", adsAllowed=false },       -- OLD: ["eyelander"]
+["Bulky"] = { weapon="Melee", rarity="common", adsAllowed=false },       -- OLD: ["fan"]
+["Viper Tooth"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Fang"]
+["Shovel"] = { weapon="Melee", rarity="common", adsAllowed=false },       -- OLD: ["gardener"]
+["Amethyst"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Gemstone"]
+["Hook"] = { weapon="Greatsword", rarity="epic", adsAllowed=false },       -- OLD: ["Goblin_Greatsword_Curved_01"]
+["Mini Axe"] = { weapon="Axe", rarity="rare", adsAllowed=false },       -- OLD: ["Goblin_Ornate_Axe_01"]
+["Titan Smash"] = { weapon="Hammer", rarity="epic", adsAllowed=false },       -- OLD: ["Hammer"]
+["Wolf Cry"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Howl"]
+["Tracker"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Hunt"]
+["Archer"] = { weapon="Bow", rarity="common", adsAllowed=true },       -- OLD: ["huntsman"]
+["Grenade"] = { weapon="Launcher", rarity="rare", adsAllowed=true },       -- OLD: ["ironbomb"]
+["Sky Rocket"] = { weapon="Launcher", rarity="epic", adsAllowed=true },       -- OLD: ["jumpernew"]
+["Classic Jumper"] = { weapon="Launcher", rarity="rare", adsAllowed=true },       -- OLD: ["jumperold"]
+["Freedom"] = { weapon="Launcher", rarity="epic", adsAllowed=true },       -- OLD: ["liberty"]
+["Bolt Strike"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Lightning"]
+["Cannon Ball"] = { weapon="Launcher", rarity="epic", adsAllowed=true },       -- OLD: ["lochnload"]
+["Wild Shot"] = { weapon="Launcher", rarity="rare", adsAllowed=true },       -- OLD: ["loosecannon"]
+["Medium Edge"] = { weapon="Sword", rarity="epic", adsAllowed=false },       -- OLD: ["Mid Sword"]
+["Omega"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Omega"]
+["Classic Rocket"] = { weapon="Launcher", rarity="rare", adsAllowed=true },       -- OLD: ["original"]
+["Panic Button"] = { weapon="Misc", rarity="rare", adsAllowed=false },       -- OLD: ["panic"]
+["Royal Guard"] = { weapon="Melee", rarity="epic", adsAllowed=false },       -- OLD: ["persian"]
+["Pop Shot"] = { weapon="SMG", rarity="rare", adsAllowed=true },       -- OLD: ["popper"]
+["Pretty Gun"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["prettyboys"]
+["Backup"] = { weapon="Minigun", rarity="common", adsAllowed=false },       -- OLD: ["reserve"]
+["Red Jewel"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Ruby"]
+["Desert Fury"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Sandstorm"]
+["Razor Edge"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Sharpness"]
+["Guard"] = { weapon="Shield", rarity="common", adsAllowed=false },       -- OLD: ["shield"]
+["Quick Shot"] = { weapon="Rifle", rarity="rare", adsAllowed=true },       -- OLD: ["shortstop"]
+["Bone Slicer"] = { weapon="Melee", rarity="rare", adsAllowed=false },       -- OLD: ["skullcutter"]
+["Holy Fire"] = { weapon="Flamethrower", rarity="epic", adsAllowed=false },       -- OLD: ["solemn"]
+["Grand Strike"] = { weapon="Melee", rarity="rare", adsAllowed=false },       -- OLD: ["splended"]
+["Solar Staff"] = { weapon="Melee", rarity="rare", adsAllowed=false },       -- OLD: ["sunstick"]
+["Wave Changer"] = { weapon="Melee", rarity="rare", adsAllowed=false },       -- OLD: ["tideturn"]
+["Volcano"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Volcan"]
+["War"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["War"]
+["Lash"] = { weapon="Melee", rarity="rare", adsAllowed=false },       -- OLD: ["whip"]
+["Side Arm"] = { weapon="Pistol", rarity="rare", adsAllowed=true },       -- OLD: ["winger"]
+["Burner"] = { weapon="Flamethrower", rarity="common", adsAllowed=false },       -- OLD: ["wrap"]
+["Controller"] = { weapon="Misc", rarity="common", adsAllowed=false },       -- OLD: ["wrangler"]
+["Dark Samurai"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Zamatsu"]
+["Shadow Strike"] = { weapon="Melee", rarity="rare", adsAllowed=false },       -- OLD: ["zato"]
+
+-- ========================================
+-- ADDITIONAL ITEMS FROM SKINLIBRARY (111 PREFIX)
+-- These items exist in-game but haven't been fully configured yet
+-- Default rarity is "common" - update as needed
+-- ========================================
+["trump"] = { weapon="Pistol", rarity="epic", adsAllowed=true },       -- OLD: ["Amerigun"]
+["Raven"] = { weapon="Axe", rarity="epic", adsAllowed=false },       -- OLD: ["BattleAxeII"]
+["Power Shot"] = { weapon="Pistol", rarity="epic", adsAllowed=true },       -- OLD: ["Blaster"]
+["Cyan"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Blue Candy"]
+["Blueberry"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Blue Seer"]
+["Snow Blaster!"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Blue Sugar"]
+["Shark Bite"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Boneblade"]
+["Sweet Strike"] = { weapon="Blade", rarity="common", adsAllowed=false },       -- OLD: ["Candy"]
+["Frozen Touch"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Chill"]
+["Black Matter"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Chroma Boneblade"]
+["Happy Hour"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Chroma Gingerblade"]
+["Work"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Clockwork"]
+["Pointy"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Deathshard"]
+["Forever Edge"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Eternal"]
+["Infinite Power"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Eternal II"]
+["Crystal Cold"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Frostsaber"]
+["Ginger Man"] = { weapon="Pistol", rarity="epic", adsAllowed=true },       -- OLD: ["Ginger Luger"]
+["Cookie Cutter"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Gingerblade"]
+["Golden Sweet"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Gold Sugar"]
+["Lime Shot"] = { weapon="Pistol", rarity="common", adsAllowed=true },       -- OLD: ["Green Luger"]
+["Spooky Edge"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Hallow's Blade"]
+["Ghost Blade"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Hallow's Edge"]
+["Carpenter"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Hand Saw"]
+["Frost Fury"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Ice Dragon"]
+["Frozen Fang"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Ice Shard"]
+["Light Beam"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Laser"]
+["Classic Gun"] = { weapon="Pistol", rarity="rare", adsAllowed=true },       -- OLD: ["Luger"]
+["Midnight"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Nightblade"]
+["Patriot"] = { weapon="Blade", rarity="rare", adsAllowed=false },       -- OLD: ["Old Glory"]
+["Sunset Vision"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Orange Seer"]
+["Pixel"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Pixel"]
+["Halloween King"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Pumpking"]
+["Mystic Vision"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Purple Seer"]
+["Crimson Ghost"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Red Hallow "]
+["Scarlet Shot"] = { weapon="Pistol", rarity="rare", adsAllowed=true },       -- OLD: ["Red Luger"]
+["Blood Vision"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Red Seer"]
+["Buzz Cut"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Saw"]
+["Vision Blade"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Seer"]
+["Ocean Hunter"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Shark"]
+["Horror"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Slasher"]
+["Winter Crystal"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Snowflake"]
+["Web Weaver"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Spider"]
+["Sweet Tooth"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Sugar"]
+["Ocean Wave"] = { weapon="Blade", rarity="legendary", adsAllowed=false },       -- OLD: ["Tides"]
+["Cyber Strike"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Virtual"]
+["Ultimate Frost"] = { weapon="Blade", rarity="mythic", adsAllowed=false },       -- OLD: ["Winter's Edge"]
+["Holiday Cheer"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Xmas"]
+["Golden Vision"] = { weapon="Blade", rarity="epic", adsAllowed=false },       -- OLD: ["Yellow Seer"]
+["Quick Escape"] = { weapon="Launcher", rarity="common", adsAllowed=true },       -- OLD: ["escape"]
 }
 
 -- SkinLibrary scanning functionality
+	-- SkinLibrary scanning functionality
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local _scanned = false
 
@@ -398,15 +499,25 @@ local _scanned = false
 local function extractTextureId(model)
 	if not model then return nil end
 	
-	-- Method 1: Check if model is a MeshPart with TextureId
-	if model:IsA("MeshPart") and model.TextureId and model.TextureId ~= "" then
-		return model.TextureId
+	-- Method 1: Check if model is a MeshPart with TextureId (safe check)
+	if model:IsA("MeshPart") then
+		local success, textureId = pcall(function()
+			return model.TextureId
+		end)
+		if success and textureId and textureId ~= "" then
+			return textureId
+		end
 	end
 	
 	-- Method 2: Look for MeshPart children with TextureId
 	for _, child in ipairs(model:GetChildren()) do
-		if child:IsA("MeshPart") and child.TextureId and child.TextureId ~= "" then
-			return child.TextureId
+		if child:IsA("MeshPart") then
+			local success, textureId = pcall(function()
+				return child.TextureId
+			end)
+			if success and textureId and textureId ~= "" then
+				return textureId
+			end
 		end
 	end
 	
@@ -414,19 +525,32 @@ local function extractTextureId(model)
 	for _, child in ipairs(model:GetChildren()) do
 		if child:IsA("BasePart") then
 			local mesh = child:FindFirstChildOfClass("SpecialMesh") or child:FindFirstChildOfClass("Mesh")
-			if mesh and mesh.TextureId and mesh.TextureId ~= "" then
-				return mesh.TextureId
+			if mesh then
+				local success, textureId = pcall(function()
+					return mesh.TextureId
+				end)
+				if success and textureId and textureId ~= "" then
+					return textureId
+				end
 			end
 		end
 	end
 	
 	-- Method 4: Recursive search through all descendants
 	for _, descendant in ipairs(model:GetDescendants()) do
-		if descendant:IsA("MeshPart") and descendant.TextureId and descendant.TextureId ~= "" then
-			return descendant.TextureId
-		elseif descendant:IsA("SpecialMesh") or descendant:IsA("Mesh") then
-			if descendant.TextureId and descendant.TextureId ~= "" then
+		if descendant:IsA("MeshPart") then
+			local success, textureId = pcall(function()
 				return descendant.TextureId
+			end)
+			if success and textureId and textureId ~= "" then
+				return textureId
+			end
+		elseif descendant:IsA("SpecialMesh") or descendant:IsA("Mesh") then
+			local success, textureId = pcall(function()
+				return descendant.TextureId
+			end)
+			if success and textureId and textureId ~= "" then
+				return textureId
 			end
 		end
 	end
@@ -443,10 +567,6 @@ local function getWeaponFromName(skinName)
 		return "AK"
 	elseif name:find("LUGER") or name:find("PISTOL") then
 		return "Luger"
-	elseif name:find("BLASTER") then
-		return "Blaster"
-	elseif name:find("AMERI") then
-		return "Amerigun"
 	elseif name:find("AXE") or name:find("BATTLE") then
 		return "BattleAxe"
 	else
@@ -507,22 +627,15 @@ local function scanSkinLibrary()
 	for _, model in ipairs(skinLibrary:GetChildren()) do
 		if model:IsA("Model") or model:IsA("MeshPart") or model:IsA("BasePart") then
 			local skinId = model.Name
-			
-			-- Skip if already exists in SKINS
-			if not SKINS[skinId] then
-				local textureId = extractTextureId(model)
-				local weapon = getWeaponFromName(skinId)
-				local rarity = guessRarity(skinId)
-				
-				SKINS[skinId] = {
-					weapon = weapon,
-					rarity = rarity,
-					icon = textureId or DEFAULT_ICONS[weapon] or "rbxassetid://6764432243",
-					textureId = textureId or DEFAULT_ICONS[weapon] or "rbxassetid://6764432243",
-					adsAllowed = true, -- Default to true
-				}
-				
-				newSkinsCount = newSkinsCount + 1
+			-- Only update metadata for skins that are explicitly declared in the SKINS table.
+			-- This prevents models present in ReplicatedStorage.SkinLibrary from being
+			-- automatically added to the configured SKINS list. If a skin is already
+			-- declared in SKINS we will fill in any missing icon/texture metadata.
+			local textureId = extractTextureId(model)
+			if SKINS[skinId] then
+				local meta = SKINS[skinId]
+				meta.icon = meta.icon or textureId or DEFAULT_ICONS[meta.weapon] or "rbxassetid://6764432243"
+				meta.textureId = meta.textureId or textureId or meta.icon
 			end
 		end
 	end
@@ -709,3 +822,5 @@ function SkinConfig.GetStats()
 end
 
 return SkinConfig
+
+

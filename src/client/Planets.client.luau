@@ -33,28 +33,29 @@ local CONFIG = {
 -- Planet data with sizes doubled
 local planets = {
 	-- Right-side binary pair: start vertically separated and pushed to the far right
-		{ id="annihilator", name="ANNIHILATOR", baseColor=C3(120,110,100), glow=C3(190,180,160), emoji="💀", modelName="1", orbit=0.16, size=135, speed=1.00, status="active", orbitTilt=0.05, extraLighting=true, cluster="right", clusterCenter=0.88, clusterOrbit=0.03, binary=true, clusterPhase=math.pi/2, orbitSpeedMul=1.10,
+		{ id="annihilator", name="ANNIHILATOR", baseColor=C3(255,20,147), glow=C3(255,20,147), strokeAlt=C3(255,255,255), emoji="💀", modelName="1", orbit=0.16, size=135, speed=1.00, status="active", orbitTilt=0.05, extraLighting=true, cluster="right", clusterCenter=0.88, clusterOrbit=0.03, binary=true, clusterPhase=math.pi/2, orbitSpeedMul=1.10,
 			rightEdgeMotion = "verticalOsc", verticalRange = {0, 1}, verticalPhase = math.pi/2 }, -- top right to middle right oscillation
-	{ id="rambo", name="RAMBO", baseColor=C3(180,160,120), glow=C3(255,220,180), emoji="🔫", modelName="4", orbit=0.33, size=148, speed=0.81, status="active", orbitTilt=-0.08, extraLighting=true }, -- base orbit speed
-	{ id="mayhem", name="MAYHEM", baseColor=C3(80,120,180), glow=C3(120,180,255), emoji="🌍", modelName="6", orbit=0.36, size=161, speed=0.67, status="active", orbitTilt=0.03 }, -- same orbit speed as others
-	{ id="warlord", name="WARLORD", baseColor=C3(140,80,60), glow=C3(200,120,100), emoji="⚔️", modelName="2", orbit=0.34, size=142, speed=0.58, status="active", orbitTilt=-0.04 }, -- slightly smaller
-	{ id="marksman", name="MARKSMAN", baseColor=C3(180,150,120), glow=C3(255,200,150), emoji="🎯", modelName="Planet_Earth", orbit=0.38, size=167, speed=0.34, status="active", orbitTilt=0.07 }, -- a little closer to Nova
-		{ id="inferno", name="INFERNO", baseColor=C3(200,180,140), glow=C3(255,230,180), emoji="🔥", modelName="5", orbit=0.52, size=310, speed=0.22, status="active", orbitTilt=-0.06, extraLighting=true, cluster="right", clusterCenter=0.88, clusterOrbit=0.03, binary=true, clusterPhase=-math.pi/2, orbitSpeedMul=1.10,
+	{ id="rambo", name="RAMBO", baseColor=C3(240,240,240), glow=C3(255,255,255), icon="rbxthumb://type=Asset&id=81987689792088&w=420&h=420", modelName="4", orbit=0.33, size=148, speed=0.81, status="active", orbitTilt=-0.08, extraLighting=true }, -- assault rifle icon
+	{ id="mayhem", name="MAYHEM", baseColor=C3(40,20,80), glow=C3(100,50,255), emoji="🌍", modelName="6", orbit=0.36, size=161, speed=0.67, status="active", orbitTilt=0.03 }, -- same orbit speed as others
+	{ id="warlord", name="WARLORD", baseColor=C3(20,10,10), glow=C3(255,50,50), icon="rbxthumb://type=Asset&id=104494945256349&w=420&h=420", iconRotation=0, modelName="2", orbit=0.34, size=142, speed=0.58, status="active", orbitTilt=-0.04 }, -- crossed swords upright
+	{ id="marksman", name="MARKSMAN", baseColor=C3(0,50,100), glow=C3(0,255,100), icon="rbxthumb://type=Asset&id=126671345476601&w=420&h=420", iconSize=97, modelName="Planet_Earth", orbit=0.38, size=167, speed=0.34, status="active", orbitTilt=0.07 }, -- crosshair/scope icon
+		{ id="inferno", name="INFERNO", baseColor=C3(100,20,0), glow=C3(255,100,0), icon="rbxthumb://type=Asset&id=120927263606670&w=420&h=420", modelName="5", orbit=0.52, size=310, speed=0.22, status="active", orbitTilt=-0.06, extraLighting=true, cluster="right", clusterCenter=0.88, clusterOrbit=0.03, binary=true, clusterPhase=-math.pi/2, orbitSpeedMul=1.10,
 			rightEdgeMotion = "verticalOsc", verticalRange = {-1, 1}, verticalPhase = -math.pi/2 }, -- bottom → middle → top oscillation
-	{ id="apocalypse", name="APOCALYPSE", baseColor=C3(100,150,160), glow=C3(140,200,255), emoji="☄️", modelName="7", orbit=0.40, size=150, speed=0.17, status="active", orbitTilt=0.02 }, -- bigger container
-	{ id="vendetta", name="VENDETTA", baseColor=C3(60,80,160), glow=C3(100,140,255), emoji="⚡", modelName="3", orbit=0.37, size=160, speed=0.14, status="active", orbitTilt=-0.05 }, -- closer than Apocalypse
+	{ id="apocalypse", name="APOCALYPSE", baseColor=C3(10,10,10), glow=C3(100,100,100), emoji="☄️", modelName="7", orbit=0.40, size=150, speed=0.17, status="active", orbitTilt=0.02 }, -- bigger container
+	{ id="vendetta", name="VENDETTA", baseColor=C3(20,20,20), glow=C3(255,215,0), icon="rbxthumb://type=Asset&id=131507541415396&w=420&h=420", modelName="3", orbit=0.37, size=160, speed=0.14, status="active", orbitTilt=-0.05 }, -- closer than Apocalypse
 }
 
 -- Mission data
 local missionsById = {
-	annihilator = { title="ANNIHILATOR Challenges", desc="Prove your destructive capabilities in the ultimate combat trials." },
-	rambo = { title="RAMBO Operations", desc="Execute high-intensity warfare scenarios with precision and brutality." },
-	mayhem = { title="MAYHEM Protocol", desc="Unleash chaos and destruction across multiple combat zones." },
-	warlord = { title="WARLORD Command", desc="Lead devastating assault operations and dominate the battlefield." },
-	marksman = { title="MARKSMAN Trials", desc="Demonstrate elite precision and accuracy in long-range engagements." },
-	inferno = { title="INFERNO Protocol", desc="Bring fire and destruction to enemy positions with explosive force." },
-	apocalypse = { title="APOCALYPSE Event", desc="Participate in world-ending scenarios and survive the ultimate test." },
-	vendetta = { title="VENDETTA Campaign", desc="Execute personal vengeance missions against high-value targets." },
+	annihilator = { title="ANNIHILATOR Challenges", desc="Eliminate enemies within the Abyss." },
+	rambo = { title="RAMBO Operations", desc="Score headshots to show your brutality." },
+	mayhem = { title="MAYHEM Protocol", desc="Fire shots to unleash chaos." },
+	warlord = { title="WARLORD Command", desc="Engage in PvP fights to dominate the battlefield." },
+	marksman = { title="MARKSMAN Trials", desc="Land shots on enemies to prove your precision." },
+	inferno = { title="INFERNO Protocol", desc="Eliminate enemies to fuel the fire." },
+	apocalypse = { title="APOCALYPSE Event", desc="Acquire Loot Boxes from the Abyss." },
+	vendetta = { title="VENDETTA Campaign", desc="Spend time in PvE to exact your revenge." },
+	the_void = { title="THE VOID", desc="Survive and spend time in the Abyss." },
 }
 
 -- Clear previous UI and set up helper functions
@@ -424,6 +425,523 @@ tooltipDesc.TextColor3, tooltipDesc.TextWrapped = C3(170,200,230), true
 tooltipDesc.TextXAlignment, tooltipDesc.TextYAlignment = Enum.TextXAlignment.Left, Enum.TextYAlignment.Top
 tooltipDesc.ZIndex, tooltipDesc.Text, tooltipDesc.Parent = 201, "", tooltip
 
+-- Mission List Container
+local missionContainer = Instance.new("Frame")
+missionContainer.Name = "MissionContainer"
+missionContainer.Size = UDim2.fromScale(1, 1)
+missionContainer.BackgroundTransparency = 1
+missionContainer.Visible = false
+missionContainer.Parent = rootBg
+
+local missionList = Instance.new("ScrollingFrame")
+missionList.Name = "List"
+missionList.Size = UDim2.new(1, -40, 1, -80)
+missionList.Position = UDim2.new(0, 20, 0, 70)
+missionList.BackgroundTransparency = 1
+missionList.BorderSizePixel = 0
+missionList.ScrollBarThickness = 4
+missionList.ScrollBarImageColor3 = C3(80, 255, 180)
+missionList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+missionList.CanvasSize = UDim2.new(0,0,0,0)
+missionList.Parent = missionContainer
+
+-- Add padding to prevent stroke clipping
+local listPadding = Instance.new("UIPadding")
+listPadding.PaddingTop = UDim.new(0, 7)
+listPadding.PaddingBottom = UDim.new(0, 7)
+listPadding.PaddingLeft = UDim.new(0, 7)
+listPadding.PaddingRight = UDim.new(0, 7)
+listPadding.Parent = missionList
+
+local missionLayout = Instance.new("UIListLayout")
+missionLayout.Padding = UDim.new(0, 25) -- Increased spacing between cards
+missionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+missionLayout.Parent = missionList
+
+local backBtn = Instance.new("TextButton")
+backBtn.Name = "BackBtn"
+backBtn.Size = UDim2.fromOffset(100, 36)
+backBtn.Position = UDim2.new(0, 20, 0, 20)
+backBtn.BackgroundColor3 = C3(20, 30, 25)
+backBtn.Text = "< BACK"
+backBtn.Font = FONT_HEADING
+backBtn.TextSize = 16
+backBtn.TextColor3 = C3(200, 255, 220)
+backBtn.Parent = missionContainer
+Instance.new("UICorner", backBtn).CornerRadius = UDim.new(0, 8)
+local backStroke = Instance.new("UIStroke", backBtn)
+backStroke.Color = C3(80, 255, 180)
+backStroke.Transparency = 0.5
+backStroke.Thickness = 2
+
+backBtn.MouseButton1Click:Connect(function()
+	missionContainer.Visible = false
+	area.Visible = true
+end)
+
+local missionTitle = Instance.new("TextLabel")
+missionTitle.Name = "Title"
+missionTitle.Size = UDim2.new(1, -150, 0, 40)
+missionTitle.Position = UDim2.new(0, 140, 0, 18)
+missionTitle.BackgroundTransparency = 1
+missionTitle.Font = FONT_HEADING
+missionTitle.TextSize = 24
+missionTitle.TextColor3 = C3(255, 255, 255)
+missionTitle.TextXAlignment = Enum.TextXAlignment.Left
+missionTitle.Text = "MISSIONS"
+missionTitle.Parent = missionContainer
+
+local lastQuestState = nil
+local selectedPlanetId = nil
+
+local function renderMissionsList()
+	if not selectedPlanetId then return end
+	clearChildren(missionList, true)
+	
+	local planetInfo = nil
+	for _, p in ipairs(planets) do if p.id == selectedPlanetId then planetInfo = p break end end
+	
+	if planetInfo then
+		missionTitle.Text = string.upper(planetInfo.name) .. " MISSIONS"
+		missionTitle.TextColor3 = planetInfo.glow
+		
+		-- Update whole menu theme
+		local MQ = _G.MatrixQuest
+		if MQ and MQ.main then
+			local mainStroke = MQ.main:FindFirstChild("UIStroke")
+			if mainStroke then mainStroke.Color = planetInfo.glow end
+			
+			-- Update header gradient if possible
+			local header = MQ.main:FindFirstChild("Frame") -- Header is first frame
+			if header then
+				local grad = header:FindFirstChild("UIGradient")
+				if grad then
+					grad.Color = ColorSequence.new({
+						ColorSequenceKeypoint.new(0, planetInfo.baseColor or C3(18,28,22)),
+						ColorSequenceKeypoint.new(1, C3(10,15,12))
+					})
+				end
+				local title = header:FindFirstChild("TextLabel")
+				if title then title.TextColor3 = planetInfo.glow end
+			end
+		end
+	end
+
+	local missions = (lastQuestState and lastQuestState.missions) or {}
+	local found = false
+
+	-- Sort missions by goal to show progression
+	table.sort(missions, function(a,b) 
+		return (a.def.goal or 0) < (b.def.goal or 0) 
+	end)
+
+	for _, m in ipairs(missions) do
+		if m.def.category == selectedPlanetId then
+			found = true
+			
+			-- Calculate Progress & Status
+			local progress = 0
+			if lastQuestState and lastQuestState.active and lastQuestState.active[m.id] then
+				progress = lastQuestState.active[m.id].progress or 0
+			end
+			local goal = m.def.goal or 1
+			
+			local status = "active"
+			if progress >= goal then
+				status = "completed"
+			end
+			if m.status == "claimed" then status = "claimed" end
+			
+			-- Card Container
+			local row = Instance.new("Frame")
+			row.Size = UDim2.new(1, -30, 0, 110) -- Full width minus padding
+			row.BackgroundColor3 = planetInfo.strokeAlt and C3(255, 255, 255) or C3(10, 12, 15)
+			row.BorderSizePixel = 0
+			row.Parent = missionList
+			
+			Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+			
+			-- Glow Effect (Behind)
+			local rowGlow = Instance.new("ImageLabel")
+			rowGlow.Size = UDim2.new(1, 40, 1, 40)
+			rowGlow.Position = UDim2.new(0, -20, 0, -20)
+			rowGlow.BackgroundTransparency = 1
+			rowGlow.Image = "rbxassetid://1316045217" -- Radial soft glow
+			rowGlow.ImageColor3 = planetInfo.glow or C3(255, 255, 255)
+			rowGlow.ImageTransparency = 1 -- Hidden by default
+			rowGlow.ZIndex = 0
+			rowGlow.Parent = row
+
+			-- Tech Pattern (Inside)
+			local rowPattern = Instance.new("ImageLabel")
+			rowPattern.Size = UDim2.fromScale(1, 1)
+			rowPattern.BackgroundTransparency = 1
+			rowPattern.Image = "rbxassetid://6104864792" -- Scanlines
+			rowPattern.ImageColor3 = planetInfo.glow or C3(255, 255, 255)
+			rowPattern.ImageTransparency = 0.96
+			rowPattern.ScaleType = Enum.ScaleType.Tile
+			rowPattern.TileSize = UDim2.new(0, 100, 0, 100)
+			rowPattern.Parent = row
+			Instance.new("UICorner", rowPattern).CornerRadius = UDim.new(0, 12)
+
+			local stroke = Instance.new("UIStroke", row)
+			stroke.Thickness = 10 -- 10px stroke
+			stroke.Transparency = 0
+			
+			-- Theme colors based on status
+			local themeColor = planetInfo.glow or C3(255, 255, 255)
+			local secondaryColor = planetInfo.baseColor or C3(100, 100, 100)
+			
+			if status == "active" then
+				-- Use planet theme for active missions (no blue override)
+				-- themeColor = themeColor
+				-- secondaryColor = secondaryColor
+			elseif status == "completed" then
+				themeColor = C3(80, 255, 120)
+				secondaryColor = C3(20, 60, 30)
+			end
+			
+			stroke.Color = themeColor -- Base color, overridden by gradient
+			
+			-- Stroke Gradient
+			local strokeGrad = Instance.new("UIGradient")
+			strokeGrad.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, themeColor),
+				ColorSequenceKeypoint.new(0.5, planetInfo.strokeAlt or secondaryColor),
+				ColorSequenceKeypoint.new(1, themeColor)
+			})
+			strokeGrad.Rotation = 45
+			strokeGrad.Parent = stroke
+
+			-- Interactive Hover Effect
+			local isHovered = false
+			row.MouseEnter:Connect(function()
+				isHovered = true
+				tween(row, TweenInfo.new(0.2), {BackgroundColor3 = secondaryColor:lerp(C3(255,255,255), 0.05)})
+				tween(stroke, TweenInfo.new(0.2), {Transparency = 0, Thickness = 12})
+				tween(rowGlow, TweenInfo.new(0.3), {ImageTransparency = 0.6})
+				tween(rowPattern, TweenInfo.new(0.3), {ImageTransparency = 0.92})
+			end)
+			row.MouseLeave:Connect(function()
+				isHovered = false
+				tween(row, TweenInfo.new(0.3), {BackgroundColor3 = planetInfo.strokeAlt and C3(255, 255, 255) or C3(10, 12, 15)})
+				tween(stroke, TweenInfo.new(0.3), {Transparency = 0.5, Thickness = 10})
+				tween(rowGlow, TweenInfo.new(0.3), {ImageTransparency = 1})
+				tween(rowPattern, TweenInfo.new(0.3), {ImageTransparency = 0.96})
+			end)
+
+			-- Gradient Background
+			local grad = Instance.new("UIGradient")
+			grad.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, secondaryColor),
+				ColorSequenceKeypoint.new(1, planetInfo.strokeAlt or C3(10, 12, 15))
+			})
+			grad.Rotation = 45
+			grad.Transparency = NumberSequence.new(0.6) -- Subtle tint
+			grad.Parent = row
+
+			-- Watermark Icon (use ImageLabel for icon assets, TextLabel for emoji fallback)
+			if planetInfo.icon then
+				local watermark = Instance.new("ImageLabel")
+				watermark.Image = planetInfo.icon
+				local iconSize = planetInfo.iconSize or 120
+				watermark.Size = UDim2.fromOffset(iconSize, iconSize)
+				watermark.Position = UDim2.new(1, -40, 0.5, 0)
+				watermark.AnchorPoint = Vector2.new(0.5, 0.5)
+				watermark.BackgroundTransparency = 1
+				watermark.ImageTransparency = 0
+				watermark.ImageColor3 = Color3.new(1, 1, 1)
+				watermark.Rotation = planetInfo.iconRotation or 0
+				watermark.ScaleType = Enum.ScaleType.Fit
+				watermark.ResampleMode = Enum.ResamplerMode.Pixelated
+				watermark.Parent = row
+			else
+				local watermark = Instance.new("TextLabel")
+				watermark.Text = planetInfo.emoji or ""
+				watermark.Size = UDim2.fromOffset(80, 80)
+				watermark.Position = UDim2.new(1, -40, 0, -10)
+				watermark.BackgroundTransparency = 1
+				watermark.TextSize = 80
+				-- Apocalypse gets 0.2, others get 0
+				watermark.TextTransparency = (planetInfo.id == "apocalypse") and 0.2 or 0
+				watermark.Rotation = 15
+				watermark.Parent = row
+			end
+
+			-- Tier Badge (Extract from ID, e.g. warlord_1 -> I)
+			local tierNum = tonumber(m.id:match("_([%d]+)$")) or 1
+			local roman = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"}
+			local tier = roman[tierNum] or tostring(tierNum)
+			
+			local tierFrame = Instance.new("Frame")
+			tierFrame.Size = UDim2.fromOffset(30, 30)
+			tierFrame.Position = UDim2.new(0, 12, 0, 12)
+			tierFrame.BackgroundColor3 = themeColor
+			tierFrame.BackgroundTransparency = 0.85
+			tierFrame.Parent = row
+			Instance.new("UICorner", tierFrame).CornerRadius = UDim.new(0, 8)
+			local tierStroke = Instance.new("UIStroke", tierFrame)
+			tierStroke.Color = themeColor
+			tierStroke.Transparency = 0.5
+			tierStroke.Thickness = 1.5
+			
+			local tierLabel = Instance.new("TextLabel")
+			tierLabel.Size = UDim2.fromScale(1,1)
+			tierLabel.BackgroundTransparency = 1
+			tierLabel.Text = tier
+			tierLabel.Font = FONT_HEADING
+			tierLabel.TextSize = 16
+			tierLabel.TextColor3 = themeColor
+			tierLabel.Parent = tierFrame
+
+			-- Mission Name
+			local nameLabel = Instance.new("TextLabel")
+			nameLabel.Size = UDim2.new(1, -160, 0, 25)
+			nameLabel.Position = UDim2.new(0, 54, 0, 8)
+			nameLabel.BackgroundTransparency = 1
+			nameLabel.Font = FONT_HEADING
+			nameLabel.TextSize = 22
+			nameLabel.TextColor3 = themeColor
+			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+			nameLabel.Text = string.upper(m.def.name)
+			nameLabel.Parent = row
+			
+			-- Description
+			local descLabel = Instance.new("TextLabel")
+			descLabel.Size = UDim2.new(1, -160, 0, 40)
+			descLabel.Position = UDim2.new(0, 54, 0, 32)
+			descLabel.BackgroundTransparency = 1
+			descLabel.Font = FONT_TEXT
+			descLabel.TextSize = 14
+			descLabel.TextColor3 = C3(200, 200, 200)
+			descLabel.TextXAlignment = Enum.TextXAlignment.Left
+			descLabel.TextWrapped = true
+			descLabel.TextYAlignment = Enum.TextYAlignment.Top
+			descLabel.Text = m.def.desc
+			descLabel.Parent = row
+
+			-- Rewards Container (Pills)
+			local rewardCont = Instance.new("Frame")
+			rewardCont.Size = UDim2.new(0, 200, 0, 24)
+			rewardCont.Position = UDim2.new(0, 54, 1, -36)
+			rewardCont.BackgroundTransparency = 1
+			rewardCont.Parent = row
+			
+			local rLayout = Instance.new("UIListLayout")
+			rLayout.FillDirection = Enum.FillDirection.Horizontal
+			rLayout.Padding = UDim.new(0, 8)
+			rLayout.Parent = rewardCont
+			
+			local function makePill(txt, col)
+				local p = Instance.new("Frame")
+				p.BackgroundColor3 = col
+				p.BackgroundTransparency = 0.85
+				p.Size = UDim2.fromOffset(0, 22) -- Width set auto
+				p.Parent = rewardCont
+				Instance.new("UICorner", p).CornerRadius = UDim.new(0, 6)
+				local s = Instance.new("UIStroke", p)
+				s.Color = col
+				s.Transparency = 0.4
+				
+				local l = Instance.new("TextLabel")
+				l.Text = txt
+				l.TextColor3 = col
+				l.Font = FONT_HEADING
+				l.TextSize = 11
+				l.BackgroundTransparency = 1
+				l.Size = UDim2.fromScale(0, 1)
+				l.AutomaticSize = Enum.AutomaticSize.X
+				l.Position = UDim2.fromOffset(8, 0)
+				l.Parent = p
+				
+				p.Size = UDim2.fromOffset(l.AbsoluteSize.X + 16, 22)
+				task.delay(0.01, function() p.Size = UDim2.fromOffset(l.AbsoluteSize.X + 16, 22) end)
+			end
+
+			if m.def.reward then
+				if m.def.reward.money then makePill("💰 "..m.def.reward.money, C3(255, 215, 0)) end
+				if m.def.reward.xp then makePill("✨ "..m.def.reward.xp, C3(0, 255, 255)) end
+				if m.def.reward.skin then makePill("🎁 SKIN", C3(255, 100, 255)) end
+			end
+
+			-- Progress Bar (Always show for active/completed)
+			if status == "active" or status == "completed" then
+				local pct = math.clamp(progress/goal, 0, 1)
+
+				local progBg = Instance.new("Frame")
+				progBg.Size = UDim2.new(0, 140, 0, 4)
+				progBg.Position = UDim2.new(1, -280, 1, -26)
+				progBg.BackgroundColor3 = C3(0,0,0)
+				progBg.BackgroundTransparency = 0.5
+				progBg.Parent = row
+				Instance.new("UICorner", progBg).CornerRadius = UDim.new(1,0)
+
+				local progFill = Instance.new("Frame")
+				progFill.Size = UDim2.fromScale(pct, 1)
+				progFill.BackgroundColor3 = themeColor
+				progFill.Parent = progBg
+				Instance.new("UICorner", progFill).CornerRadius = UDim.new(1,0)
+				
+				-- Glow for bar
+				local progGlow = Instance.new("ImageLabel")
+				progGlow.Image = "rbxassetid://1316045217"
+				progGlow.ImageColor3 = themeColor
+				progGlow.ImageTransparency = 0.5
+				progGlow.Size = UDim2.new(1, 20, 3, 0)
+				progGlow.Position = UDim2.new(0, -10, 0.5, 0)
+				progGlow.AnchorPoint = Vector2.new(0, 0.5)
+				progGlow.BackgroundTransparency = 1
+				progGlow.Parent = progFill
+
+				local progText = Instance.new("TextLabel")
+				progText.Text = math.floor(progress) .. " / " .. goal
+				progText.Size = UDim2.new(0, 60, 0, 20)
+				progText.Position = UDim2.new(1, 10, 0.5, 0)
+				progText.AnchorPoint = Vector2.new(0, 0.5)
+				progText.BackgroundTransparency = 1
+				progText.TextColor3 = themeColor
+				progText.Font = FONT_HEADING
+				progText.TextSize = 12
+				progText.TextXAlignment = Enum.TextXAlignment.Left
+				progText.Parent = progBg
+			end
+
+			-- Action Button (Only for Claiming)
+			if status == "completed" then
+				-- Container (Holds the button and shadow space)
+				local btnContainer = Instance.new("Frame")
+				btnContainer.Size = UDim2.new(0, 140, 0, 48) -- Taller for 3D effect
+				btnContainer.Position = UDim2.new(1, -150, 0.5, -24)
+				btnContainer.BackgroundTransparency = 1
+				btnContainer.Parent = row
+
+				-- 1. The Shadow (The "Side" of the 3D block)
+				local shadow = Instance.new("Frame")
+				shadow.Name = "Shadow"
+				shadow.Size = UDim2.new(1, 0, 1, -6)
+				shadow.Position = UDim2.new(0, 0, 0, 6) -- Sits at the bottom
+				shadow.BackgroundColor3 = C3(180, 100, 0) -- Dark Amber/Brown
+				shadow.BorderSizePixel = 0
+				shadow.Parent = btnContainer
+				Instance.new("UICorner", shadow).CornerRadius = UDim.new(0, 10)
+
+				-- 2. The Main Button (The "Top" face)
+				local btn = Instance.new("TextButton")
+				btn.Name = "MainBtn"
+				btn.Size = UDim2.new(1, 0, 1, -6) -- Same size as shadow
+				btn.Position = UDim2.new(0, 0, 0, 0) -- Starts raised
+				btn.Text = ""
+				btn.AutoButtonColor = false
+				btn.BackgroundColor3 = C3(255, 200, 0) -- Vibrant Gold
+				btn.BorderSizePixel = 0
+				btn.Parent = btnContainer
+				Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+
+				-- Thick White Outline (The "Sticker" look)
+				local stroke = Instance.new("UIStroke", btn)
+				stroke.Color = C3(255, 255, 255)
+				stroke.Thickness = 3
+				stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+				-- 3. Glossy Highlight (The "Plastic" shine)
+				local shine = Instance.new("Frame")
+				shine.Size = UDim2.new(1, -10, 0.35, 0)
+				shine.Position = UDim2.new(0, 5, 0, 5)
+				shine.BackgroundColor3 = C3(255, 255, 255)
+				shine.BackgroundTransparency = 0.7
+				shine.BorderSizePixel = 0
+				shine.Parent = btn
+				Instance.new("UICorner", shine).CornerRadius = UDim.new(0, 6)
+
+				-- 4. Text
+				local btnLabel = Instance.new("TextLabel")
+				btnLabel.Size = UDim2.fromScale(1, 1)
+				btnLabel.BackgroundTransparency = 1
+				btnLabel.Text = "CLAIM!" -- Added exclamation for excitement
+				btnLabel.Font = Enum.Font.FredokaOne -- The definitive cartoony font
+				pcall(function() if not Enum.Font.FredokaOne then btnLabel.Font = Enum.Font.GothamBlack end end)
+				btnLabel.TextSize = 22
+				btnLabel.TextColor3 = C3(255, 255, 255)
+				btnLabel.ZIndex = 2
+				btnLabel.Parent = btn
+				
+				-- Text Outline
+				local txtStroke = Instance.new("UIStroke", btnLabel)
+				txtStroke.Color = C3(180, 100, 0)
+				txtStroke.Thickness = 2.5
+				txtStroke.Transparency = 0
+
+				-- 5. Animations (Physical 3D Movement)
+				local isHovered = false
+				local isPressed = false
+				
+				local function updateState()
+					if isPressed then
+						-- Pushed all the way down (covering shadow)
+						tween(btn, TweenInfo.new(0.05, Enum.EasingStyle.Quad), {Position = UDim2.new(0, 0, 0, 6)})
+					elseif isHovered then
+						-- Lifted up slightly (anticipation)
+						tween(btn, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {Position = UDim2.new(0, 0, 0, -2)})
+					else
+						-- Resting state
+						tween(btn, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {Position = UDim2.new(0, 0, 0, 0)})
+					end
+				end
+
+				btn.MouseEnter:Connect(function() isHovered = true; updateState() end)
+				btn.MouseLeave:Connect(function() isHovered = false; isPressed = false; updateState() end)
+				btn.MouseButton1Down:Connect(function() isPressed = true; updateState() end)
+				btn.MouseButton1Up:Connect(function() isPressed = false; updateState() end)
+				
+				-- Click Handler
+				btn.MouseButton1Click:Connect(function()
+					if _G.MatrixQuest.RF then
+						_G.MatrixQuest.RF:InvokeServer("claim", m.id)
+						btnLabel.Text = "CLAIMED"
+						btn.Active = false
+						-- Grey out state
+						btn.BackgroundColor3 = C3(150, 150, 150)
+						shadow.BackgroundColor3 = C3(100, 100, 100)
+						txtStroke.Color = C3(80, 80, 80)
+						tween(btn, TweenInfo.new(0.3), {Position = UDim2.new(0, 0, 0, 6)}) -- Stay pressed
+					end
+				end)
+			elseif status == "claimed" then
+				local btn = Instance.new("TextButton")
+				btn.Size = UDim2.new(0, 120, 0, 36)
+				btn.Position = UDim2.new(1, -130, 0.5, -18)
+				btn.Font = FONT_HEADING
+				btn.TextSize = 14
+				btn.Text = "CLAIMED"
+				btn.TextColor3 = C3(150, 150, 150)
+				btn.BackgroundColor3 = C3(30, 30, 30)
+				btn.AutoButtonColor = false
+				btn.Parent = row
+				Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+			end
+			-- If active (in progress), NO BUTTON, just the progress bar shown above
+		end
+	end
+
+	if not found then
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 0, 30)
+		label.BackgroundTransparency = 1
+		label.TextColor3 = C3(150, 150, 150)
+		label.Text = "No missions available for " .. (planetInfo and planetInfo.name or "...")
+		label.Font = FONT_TEXT
+		label.TextSize = 14
+		label.Parent = missionList
+	end
+end
+
+_G.MatrixQuest.renderMissionTrees = function(st)
+	lastQuestState = st
+	if missionContainer.Visible then
+		renderMissionsList()
+	end
+end
+
 -- Layers for z-indexing
 local behindSunLayer = Instance.new("Frame")
 behindSunLayer.Name, behindSunLayer.Size = "BehindSunLayer", UDim2.fromScale(1, 1)
@@ -633,16 +1151,22 @@ print("------------------------------------")
 local planetObjs, planetLabels, planetAngles, planetData = {}, {}, {}, {}
 
 local function createPlanetUI(p, index)
-	local front = Instance.new("Frame")
+	local front = Instance.new("TextButton")
 	front.Name, front.Size = p.id .. "_front", UDim2.fromOffset(math.floor(p.size * CONFIG.PLANET_SIZE_SCALE), math.floor(p.size * CONFIG.PLANET_SIZE_SCALE))
 	front.BackgroundTransparency, front.BorderSizePixel = 1, 0
+	front.Text = ""
+	front.AutoButtonColor = false
 	front.ZIndex, front.Parent = 30, frontSunLayer
+	front.Active = true -- Block input propagation
 	Instance.new("UICorner", front).CornerRadius = UDim.new(1, 0)
 
-	local back = Instance.new("Frame")
+	local back = Instance.new("TextButton")
 	back.Name, back.Size = p.id .. "_back", UDim2.fromOffset(math.floor(p.size * CONFIG.PLANET_SIZE_SCALE), math.floor(p.size * CONFIG.PLANET_SIZE_SCALE))
 	back.BackgroundTransparency, back.BorderSizePixel = 1, 0
+	back.Text = ""
+	back.AutoButtonColor = false
 	back.ZIndex, back.Parent = 20, behindSunLayer
+	back.Active = true -- Block input propagation
 	Instance.new("UICorner", back).CornerRadius = UDim.new(1, 0)
 
 	local frontPlanet = create3DPlanet(front, p.modelName, UDim2.fromScale(1,1), 31, p)
@@ -726,64 +1250,11 @@ for i, planet in ipairs(planets) do
 		end)
 
 		container.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				local overlay = Instance.new("Frame")
-				overlay.Size, overlay.BackgroundColor3 = UDim2.fromScale(1,1), C3(0,2,5)
-				overlay.BackgroundTransparency, overlay.BorderSizePixel = 1, 0
-				overlay.ZIndex, overlay.Parent = 100, tabMissions
-
-				local holo = Instance.new("Frame")
-				holo.Size, holo.AnchorPoint = UDim2.fromOffset(0,0), Vector2.new(0.5,0.5)
-				holo.Position, holo.BackgroundColor3 = UDim2.new(0.5,0,0.5,0), planet.baseColor:lerp(C3(0,0,0), 0.4)
-				holo.BackgroundTransparency, holo.BorderSizePixel = 0.08, 0
-				holo.ZIndex, holo.Parent = 110, overlay
-				Instance.new("UICorner", holo).CornerRadius = UDim.new(0.25, 0)
-
-				local holoBorder = Instance.new("UIStroke", holo)
-				holoBorder.Color, holoBorder.Thickness = planet.glow, 2
-				holoBorder.Transparency = 0.2
-
-				local icon = create3DPlanet(holo, planet.modelName, UDim2.fromOffset(70,70), 130, planet)
-				icon.Position = UDim2.new(0,25,0,25)
-
-				local title = Instance.new("TextLabel")
-				title.Size, title.Position = UDim2.new(1,-110,0,32), UDim2.new(0,105,0,25)
-				title.BackgroundTransparency, title.BorderSizePixel = 1, 0
-				title.Font, title.TextSize = FONT_HEADING, 19
-				title.TextColor3, title.TextTransparency = planet.glow, 0.05
-				title.TextXAlignment, title.ZIndex = Enum.TextXAlignment.Left, 140
-				title.Text = missionsById[planet.id] and missionsById[planet.id].title or planet.name
-				title.Parent = holo
-
-				local desc = Instance.new("TextLabel")
-				desc.Size, desc.Position = UDim2.new(1,-50,0,90), UDim2.new(0,25,0,70)
-				desc.BackgroundTransparency, desc.BorderSizePixel = 1, 0
-				desc.Font, desc.TextSize = FONT_TEXT, 14
-				desc.TextColor3, desc.TextTransparency = C3(190,220,250), 0.05
-				desc.TextWrapped, desc.TextYAlignment = true, Enum.TextYAlignment.Top
-				desc.ZIndex = 141
-				desc.Text = missionsById[planet.id] and missionsById[planet.id].desc or "Challenge objectives ready for deployment."
-				desc.Parent = holo
-
-				local closeBtn = Instance.new("TextButton")
-				closeBtn.Size, closeBtn.Position = UDim2.fromOffset(80,32), UDim2.new(1,-95,0,15)
-				closeBtn.BackgroundColor3, closeBtn.BackgroundTransparency = planet.glow, 0.15
-				closeBtn.BorderSizePixel, closeBtn.AutoButtonColor = 0, true
-				closeBtn.Font, closeBtn.Text = FONT_HEADING, "CLOSE"
-				closeBtn.TextColor3, closeBtn.TextSize = C3(5,10,20), 14
-				closeBtn.ZIndex, closeBtn.Parent = 150, holo
-				Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0.4, 0)
-
-				tween(overlay, TweenInfo.new(0.3), {BackgroundTransparency = 0.25})
-				tween(holo, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
-					{Size = UDim2.fromOffset(480, 240)})
-
-				closeBtn.MouseButton1Click:Connect(function()
-					tween(overlay, TweenInfo.new(0.22), {BackgroundTransparency = 1})
-					tween(holo, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-						{Size = UDim2.fromOffset(0,0)})
-					task.delay(0.2, function() if overlay then overlay:Destroy() end end)
-				end)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				selectedPlanetId = planet.id
+				area.Visible = false
+				missionContainer.Visible = true
+				renderMissionsList()
 			end
 		end)
 	end

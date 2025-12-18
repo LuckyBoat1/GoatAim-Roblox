@@ -5,9 +5,9 @@ local CrateConfig = {}
 
 -- Hardcoded skins that always work
 local GUARANTEED_SKINS = {
-	"M4-Dragoon", "M4-Cyborg", "M4-Pumpkin", "M4-Leviathan", "M4-Death", 
-	"M4-Monster", "M4-Mind", "M4-Blood&Bones", "M4-Default", "M4-Elite",
-	"AK-Chaos", "AK-Ice", "AK-Jungle", "AK-Default", "AK-Fire", "AK-Dragon",
+	"M4-Dragoon", "Cyborg", "M4-Pumpkin", "Leviathan", "Death", 
+	"Monster", "M4-Mind", "Blood&Bones", "M4-Default", "M4-Elite",
+	"AK-Chaos", "Sea Bone", "AK-Jungle", "AK-Default", "AK-Fire", "AK-Dragon",
 	"Luger-Default", "Luger-Gold", "Luger-Elite", "M4-Galaxy", "AK-Void",
 	"M4-Neon", "AK-Plasma", "Glock-Basic", "Glock-Steel", "Glock-Neon"
 }
@@ -33,6 +33,7 @@ end
 CrateConfig.Crates = {
 	BRONZE = {
 		name = "Bronze Crate",
+		modelName = "Bronze",
 		description = "Common weapons and basic skins",
 		color = Color3.fromRGB(205, 127, 50), -- Bronze color
 		rarity = "uncommon",
@@ -43,6 +44,7 @@ CrateConfig.Crates = {
 	
 	SILVER = {
 		name = "Silver Crate",
+		modelName = "Silver",
 		description = "Improved weapons with better skins",
 		color = Color3.fromRGB(192, 192, 192), -- Silver color
 		rarity = "rare",
@@ -51,10 +53,11 @@ CrateConfig.Crates = {
 		contents = nil -- Will be populated dynamically
 	},
 	
-	GOLD = {
-		name = "Gold Crate",
+	SAPPHIRE = {
+		name = "Sapphire Crate",
+		modelName = "Sapphire",
 		description = "Premium weapons with rare skins",
-		color = Color3.fromRGB(255, 215, 0), -- Gold color
+		color = Color3.fromRGB(65, 105, 225), -- Royal Blue
 		rarity = "epic",
 		icon = "rbxassetid://0",
 		openCost = 250,
@@ -63,23 +66,25 @@ CrateConfig.Crates = {
 	
 	OMEGA = {
 		name = "Omega Crate",
-		description = "Ultimate weapons with mythic skins",
-		color = Color3.fromRGB(138, 43, 226), -- Purple/Omega color
+		modelName = "Omega",
+		description = "Elite weapons with legendary skins",
+		color = Color3.fromRGB(255, 128, 0), -- Orange
 		rarity = "legendary",
 		icon = "rbxassetid://0",
 		openCost = 500,
 		contents = nil -- Will be populated dynamically
 	},
-	
-	BASIC = {
-		name = "Basic Crate",
-		description = "Starter weapons and common items",
-		color = Color3.fromRGB(139, 69, 19), -- Brown/Basic color
-		rarity = "common",
+
+	RUBY = {
+		name = "Ruby Crate",
+		modelName = "Ruby",
+		description = "The ultimate collection",
+		color = Color3.fromRGB(220, 20, 60), -- Ruby Red
+		rarity = "mythic",
 		icon = "rbxassetid://0",
-		openCost = 0,
+		openCost = 1000,
 		contents = nil -- Will be populated dynamically
-	}
+	},
 }
 
 -- Animation settings for crate opening

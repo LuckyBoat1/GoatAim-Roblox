@@ -39,8 +39,6 @@ local function getWeaponFromName(skinName)
 	if name:find("m4") then return "M4" end
 	if name:find("ak") then return "AK" end
 	if name:find("luger") then return "Luger" end
-	if name:find("blaster") then return "Blaster" end
-	if name:find("amerigun") then return "Amerigun" end
 	if name:find("battleaxe") then return "BattleAxe" end
 	return "Unknown"
 end

@@ -10,8 +10,6 @@ local DEFAULT_ICONS = {
 	M4        = "rbxassetid://6047992706",
 	AK        = "rbxassetid://6048009712",
 	Luger     = "rbxassetid://6764432243",
-	Blaster   = "rbxassetid://6764432243",
-	Amerigun  = "rbxassetid://6764432243",
 	BattleAxe = "rbxassetid://6764432243",
 }
 

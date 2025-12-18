@@ -10,9 +10,6 @@ local MatrixQuest = _G.MatrixQuest
 
 -- Pull in required variables from MatrixQuest global
 local tabLog = MatrixQuest.tabLog
-local _bountyStrip = MatrixQuest.bountyStrip
-local bsScroll = MatrixQuest.bsScroll
-local bsTitle = MatrixQuest.bsTitle
 local C3 = MatrixQuest.C3
 local clearChildren = MatrixQuest.clearChildren
 local FONT_HEADING = MatrixQuest.FONT_HEADING
@@ -158,143 +155,15 @@ local function renderLog(state)
 	end
 end
 
--- Render active bounties in top strip
-local function renderBountyStrip(state)
-	clearChildren(bsScroll, true)
-
-	local activeBounties = {}
-	for _, rec in ipairs(state.active or {}) do
-		if rec.kind == "bounty" then table.insert(activeBounties, rec) end
-	end
-
-	bsTitle.Text = ("Active Bounties (%d)"):format(#activeBounties)
-
-	for _, q in ipairs(activeBounties) do
-		local card = Instance.new("Frame")
-		card.Size = UDim2.new(0, 280, 0, 70)
-		card.BackgroundColor3 = C3(10,14,12)
-		card.BackgroundTransparency = 0
-		card.Parent = bsScroll
-		Instance.new("UICorner", card).CornerRadius = CORNER_RADIUS_MEDIUM
-		local st = Instance.new("UIStroke", card)
-		st.Color = GREEN
-		st.Transparency = 0.35
-		st.Thickness = 1
-
-		local name = Instance.new("TextLabel")
-		name.BackgroundTransparency = 1
-		name.Size = UDim2.new(1,-8,0,20)
-		name.Position = UDim2.new(0,6,0,6)
-		name.Font = FONT_HEADING
-		name.TextXAlignment = Enum.TextXAlignment.Left
-		name.TextSize = 15
-		name.TextColor3 = BRIGHT_GREEN
-		name.Text = q.name or "Bounty"
-		name.Parent = card
-
-		local timer = Instance.new("TextLabel")
-		timer.BackgroundTransparency = 1
-		timer.Size = UDim2.new(0,140,0,16)
-		timer.Position = UDim2.new(0,6,0,28)
-		timer.Font = FONT_TEXT
-		timer.TextXAlignment = Enum.TextXAlignment.Left
-		timer.TextSize = 12
-		timer.TextColor3 = BRIGHT_GREEN
-		timer.Text = "Time: --"
-		timer.Parent = card
-
-		-- Add countdown timer if expiry is set
-		if q.expiresAt and MatrixQuest.serverNowAtRender > 0 then 
-			trackCountdown(timer, q.expiresAt, "Time")
-		end
-
-		-- Progress summary
-		local sum, n = 0, 0
-		for _, obj in ipairs(q.objectives or {}) do
-			local cur = (q.progress and q.progress[obj.key]) or 0
-			sum += math.clamp(cur/(obj.count or 1), 0, 1)
-			n += 1
-		end
-
-		local ratio = (n>0) and sum/n or 0
-		local bar = Instance.new("Frame")
-		bar.Size = UDim2.new(0.6,0,0,8)
-		bar.Position = UDim2.new(0,6,0,50)
-		bar.BackgroundColor3 = C3(6,9,8)
-		bar.Parent = card
-		Instance.new("UICorner", bar).CornerRadius = UDim.new(0,4)
-
-		local fill = Instance.new("Frame")
-		fill.Size = UDim2.new(ratio,0,1,0)
-		fill.BackgroundColor3 = BRIGHT_GREEN
-		fill.Parent = bar
-		Instance.new("UICorner", fill).CornerRadius = UDim.new(0,4)
-
-		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.fromOffset(84,26)
-		btn.Position = UDim2.new(1,-92,0,38)
-		btn.BackgroundColor3 = q.completed and C3(20,60,30) or C3(20,30,25)
-		btn.TextColor3 = BRIGHT_GREEN
-		btn.TextSize = 14
-		btn.Font = FONT_HEADING
-		btn.Text = q.completed and "Claim" or "Abandon"
-		btn.Parent = card
-		Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
-		local bst = Instance.new("UIStroke", btn)
-		bst.Color = GREEN
-		bst.Transparency = 0.3
-		bst.Thickness = 2
-
-		if q.completed then
-			btn.MouseButton1Click:Connect(function()
-				tryHookRemotes()
-				if RF then pcall(function() RF:InvokeServer("claim", {id=q.id}) end) end
-				task.defer(MatrixQuest.render)
-			end)
-		else
-			btn.MouseButton1Click:Connect(function()
-				tryHookRemotes()
-				if RF then pcall(function() RF:InvokeServer("abandon", {id=q.id}) end) end
-				task.defer(MatrixQuest.render)
-			end)
-		end
-	end
-
-	-- If no active bounties, show a placeholder card
-	if #activeBounties == 0 then
-		local card = Instance.new("Frame")
-		card.Size = UDim2.new(0, 280, 0, 70)
-		card.BackgroundColor3 = C3(10,14,12)
-		card.BackgroundTransparency = 0
-		card.Parent = bsScroll
-		Instance.new("UICorner", card).CornerRadius = CORNER_RADIUS_MEDIUM
-		local st = Instance.new("UIStroke", card)
-		st.Color = GREEN
-		st.Transparency = 0.5
-		st.Thickness = 1
-
-		local placeholder = Instance.new("TextLabel")
-		placeholder.BackgroundTransparency = 1
-		placeholder.Size = UDim2.new(1, -20, 1, -20)
-		placeholder.Position = UDim2.new(0, 10, 0, 10)
-		placeholder.Font = FONT_TEXT
-		placeholder.TextSize = 14
-		placeholder.TextColor3 = C3(100, 200, 150)
-		placeholder.TextWrapped = true
-		placeholder.Text = "No active bounties. Visit the Find Bounties tab to accept new bounties."
-		placeholder.Parent = card
-	end
-end
-
 -- Register render functions with MatrixQuest
 MatrixQuest.renderLog = renderLog
-MatrixQuest.renderBountyStrip = renderBountyStrip
 
 -- Update RF reference when tryHookRemotes is called
 local originalTryHookRemotes = MatrixQuest.tryHookRemotes
 MatrixQuest.tryHookRemotes = function()
 	originalTryHookRemotes()
-	RF = _G.RS and _G.RS:FindFirstChild("QuestRF")
+	local RS = game:GetService("ReplicatedStorage")
+	RF = RS and RS:FindFirstChild("QuestRF")
 end
 
 -- Update the watermark timestamp

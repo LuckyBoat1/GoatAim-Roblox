@@ -3,6 +3,8 @@
 -- Seeds some AK/M4 skins as owned by default so they appear in the Inventory grid.
 -- Provides _G helpers used by Quests (money/coins, box grant/open, skin grant, stats).
 
+print("!!! DEBUG: PlayerDataManager SYNC CHECK " .. os.time() .. " !!!")
+
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 
@@ -42,8 +44,10 @@ LootBoxRE.Parent = RS
 
 -- Config for skin pools (for box openings) – single canonical module lives in RS.Shared
 local SkinConfig = nil
+local CrateConfig = nil
 pcall(function()
 	SkinConfig = require(RS:WaitForChild("Shared"):WaitForChild("SkinConfig"))
+	CrateConfig = require(RS:WaitForChild("Shared"):WaitForChild("CrateConfig"))
 end)
 
 -- In-memory player data (simple)
@@ -144,11 +148,18 @@ local function ensure(plr)
 			rank = 2, -- Default rank is now 1
 			skins = deepcopy(DEFAULT_SKINS),
 			weaponStats = {},
-			boxes = {BASIC=1, BRONZE=1, SILVER=1, GOLD=1, OMEGA=1},
+			boxes = {BRONZE=1, SILVER=1, SAPPHIRE=1, OMEGA=1, RUBY=1},
 			runHits = 0, -- running hit counter for a session
 			bullseyeCurrent = 0, -- current bullseye round score
 			bullseyeHigh = 0, -- highest bullseye score achieved
 			targetHitTimestamps = {}, -- recent target hit timestamps for rank evaluation
+			
+			-- Health & Armor Stats (for PvE and The Abyss)
+			maxHealth = 100, -- Base max health
+			currentHealth = 100, -- Current health (full by default)
+			armor = 0, -- Armor value (reduces damage)
+			healthUpgradeLevel = 0, -- Track health upgrade progression
+			armorUpgradeLevel = 0, -- Track armor upgrade progression
 		}
 		DATA[plr.UserId] = d
 	end
@@ -242,13 +253,13 @@ end
 
 -- Loot Boxes (no UI here; Quests can grant and optionally auto-open)
 local BOXES = {
-	BASIC   = { skinRate=0.04, weights={common=85, rare=12, epic=3,  legendary=0,  mythic=0} },
 	BRONZE  = { skinRate=0.07, weights={common=72, rare=22, epic=6,  legendary=0,  mythic=0} },
 	SILVER  = { skinRate=0.12, weights={common=58, rare=30, epic=10, legendary=2,  mythic=0} },
-	GOLD    = { skinRate=0.25, weights={common=40, rare=32, epic=20, legendary=7,  mythic=1} },
+	SAPPHIRE = { skinRate=0.25, weights={common=40, rare=32, epic=20, legendary=7,  mythic=1} },
 	OMEGA   = { skinRate=0.38, weights={common=25, rare=35, epic=25, legendary=12, mythic=3} },
+	RUBY    = { skinRate=0.50, weights={common=10, rare=20, epic=30, legendary=25, mythic=15} },
 }
-local _ORDER = {"BASIC","BRONZE","SILVER","GOLD","OMEGA"} -- unused order list (reserved)
+local _ORDER = {"BRONZE","SILVER","SAPPHIRE","OMEGA","RUBY"} -- unused order list (reserved)
 
 local function weightedPick(weights)
 	local total=0; for _,w in pairs(weights) do total+=w end
@@ -345,6 +356,28 @@ PlayerDataRF.OnServerInvoke = function(plr, action, data)
 		warn(string.format("[PlayerDataRF] Added crate item to %s: %s (%s)", plr.Name, data.name, data.rarity))
 		return {success = true}
 		
+	elseif action == "BuyItem" then
+		local itemKey = data.itemKey
+		if not CrateConfig or not CrateConfig.Crates then
+			return {success = false, error = "Server config error"}
+		end
+
+		local crateData = CrateConfig.Crates[itemKey]
+		if not crateData then
+			return {success = false, error = "Invalid item"}
+		end
+		
+		local price = crateData.openCost or 0
+		if (d.money or 0) >= price then
+			d.money = d.money - price
+			-- Grant the crate
+			d.boxes[itemKey] = (d.boxes[itemKey] or 0) + 1
+			warn(string.format("[PlayerDataRF] %s bought %s for $%d", plr.Name, itemKey, price))
+			return {success = true, newBalance = d.money}
+		else
+			return {success = false, error = "Insufficient funds"}
+		end
+
 	elseif action == "UseCrate" then
 		-- Remove crate from inventory and update count
 		if not data or not data.crateType then
@@ -446,8 +479,177 @@ EquipSkinRE.OnServerEvent:Connect(function(plr, payload)
 	end)
 end)
 
+-- ===============================
+-- HEALTH & ARMOR SYSTEM (_G API)
+-- ===============================
+
+-- Get player's current health
+_G.getHealth = function(plr)
+	local d = ensure(plr)
+	return d.currentHealth or d.maxHealth or 100
+end
+
+-- Get player's max health
+_G.getMaxHealth = function(plr)
+	local d = ensure(plr)
+	return d.maxHealth or 100
+end
+
+-- Get player's armor
+_G.getArmor = function(plr)
+	local d = ensure(plr)
+	return d.armor or 0
+end
+
+-- Set player's current health (clamp between 0 and max)
+_G.setHealth = function(plr, value)
+	local d = ensure(plr)
+	d.currentHealth = math.clamp(value or 0, 0, d.maxHealth or 100)
+	return d.currentHealth
+end
+
+-- Heal player (add to current health, don't exceed max)
+_G.healPlayer = function(plr, amount)
+	local d = ensure(plr)
+	d.currentHealth = math.clamp((d.currentHealth or 100) + (amount or 0), 0, d.maxHealth or 100)
+	return d.currentHealth
+end
+
+-- Damage player (subtract from health, apply armor reduction)
+-- Returns: {newHealth, damageDealt, isDead}
+_G.damagePlayer = function(plr, damage, ignoreArmor)
+	local d = ensure(plr)
+	damage = damage or 0
+	
+	-- Apply armor reduction (armor reduces damage by percentage)
+	if not ignoreArmor and d.armor and d.armor > 0 then
+		local reduction = math.min(d.armor / 100, 0.75) -- Max 75% damage reduction
+		damage = damage * (1 - reduction)
+	end
+	
+	d.currentHealth = math.max(0, (d.currentHealth or 100) - damage)
+	local isDead = d.currentHealth <= 0
+	
+	return {
+		newHealth = d.currentHealth,
+		damageDealt = damage,
+		isDead = isDead
+	}
+end
+
+-- Reset player to full health
+_G.resetHealth = function(plr)
+	local d = ensure(plr)
+	d.currentHealth = d.maxHealth or 100
+	return d.currentHealth
+end
+
+-- Upgrade max health (costs money)
+-- Returns: {success, newMaxHealth, cost}
+_G.upgradeMaxHealth = function(plr)
+	local d = ensure(plr)
+	local currentLevel = d.healthUpgradeLevel or 0
+	
+	-- Health upgrade tiers: +10 HP per level, cost increases
+	local upgradeCosts = {1000, 3000, 7000, 15000, 30000} -- 5 tiers max
+	
+	if currentLevel >= #upgradeCosts then
+		return {success = false, reason = "max_level", newMaxHealth = d.maxHealth}
+	end
+	
+	local cost = upgradeCosts[currentLevel + 1]
+	if (d.money or 0) < cost then
+		return {success = false, reason = "insufficient_funds", cost = cost, newMaxHealth = d.maxHealth}
+	end
+	
+	-- Apply upgrade
+	d.money = d.money - cost
+	d.healthUpgradeLevel = currentLevel + 1
+	d.maxHealth = 100 + (d.healthUpgradeLevel * 20) -- +20 HP per level
+	d.currentHealth = d.maxHealth -- Heal to full on upgrade
+	
+	return {
+		success = true,
+		newMaxHealth = d.maxHealth,
+		cost = cost,
+		level = d.healthUpgradeLevel
+	}
+end
+
+-- Upgrade armor (costs money)
+-- Returns: {success, newArmor, cost}
+_G.upgradeArmor = function(plr)
+	local d = ensure(plr)
+	local currentLevel = d.armorUpgradeLevel or 0
+	
+	-- Armor upgrade tiers: +5 armor per level, cost increases
+	local upgradeCosts = {2000, 5000, 10000, 20000, 40000} -- 5 tiers max
+	
+	if currentLevel >= #upgradeCosts then
+		return {success = false, reason = "max_level", newArmor = d.armor}
+	end
+	
+	local cost = upgradeCosts[currentLevel + 1]
+	if (d.money or 0) < cost then
+		return {success = false, reason = "insufficient_funds", cost = cost, newArmor = d.armor}
+	end
+	
+	-- Apply upgrade
+	d.money = d.money - cost
+	d.armorUpgradeLevel = currentLevel + 1
+	d.armor = d.armorUpgradeLevel * 10 -- 10% damage reduction per level (max 50%)
+	
+	return {
+		success = true,
+		newArmor = d.armor,
+		cost = cost,
+		level = d.armorUpgradeLevel
+	}
+end
+
+-- Set armor value directly (for temporary armor pickups, etc.)
+_G.setArmor = function(plr, value)
+	local d = ensure(plr)
+	d.armor = math.max(0, value or 0)
+	return d.armor
+end
+
+-- ===============================
+-- END HEALTH & ARMOR SYSTEM
+-- ===============================
+
 -- Lifecycle
-Players.PlayerAdded:Connect(function(plr) ensure(plr) end)
+Players.PlayerAdded:Connect(function(plr) 
+	ensure(plr) 
+	
+	-- Auto-equip "Power" skin on spawn for testing
+	plr.CharacterAdded:Connect(function(char)
+		-- Wait for tools to load
+		task.wait(1)
+		
+		local tool = findTool(plr, "Hand") or findTool(plr, "Tool")
+		if tool then
+			print("[PlayerDataManager] ⚡ Auto-equipping 'Power' skin for testing")
+			
+			-- Ensure player owns it (just in case)
+			local d = ensure(plr)
+			d.skins["Power"] = true
+			
+			-- Set attribute
+			tool:SetAttribute("SkinId", "Power")
+			
+			-- Apply visual
+			if _G.SkinService and _G.SkinService.ApplySkinToTool then
+				_G.SkinService.ApplySkinToTool(tool, "Power")
+			end
+			
+			-- Equip it
+			char.Humanoid:EquipTool(tool)
+		else
+			warn("[PlayerDataManager] Could not find tool to auto-equip Power skin")
+		end
+	end)
+end)
 Players.PlayerRemoving:Connect(function(plr) DATA[plr.UserId] = nil end)
 
 -- FIXED: Use the correct DATA table instead of undefined playerData

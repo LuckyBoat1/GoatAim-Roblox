@@ -23,7 +23,7 @@ end)
 ----------------------------------------------------------------
 -- SETTINGS
 ----------------------------------------------------------------
-local COOLDOWN          = 5        -- seconds
+local COOLDOWN          = 0        -- seconds
 local FORCE             = 60       -- studs/sec
 local BASE_DURATION     = 0.25     -- seconds (will shrink near walls)
 local WALL_BUFFER       = 0.75     -- gap left before the wall

@@ -2,11 +2,25 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local DuelEvent = ReplicatedStorage:WaitForChild("DuelEvent")
+local DuelEvent = ReplicatedStorage:WaitForChild("DuelEvent", 5)
+if not DuelEvent then
+	warn("⚠️ DuelEvent not found in ReplicatedStorage (Duel script disabled)")
+	return
+end
 
-local arenaFolder = workspace:WaitForChild("DuelArenaSpawns")
-local spawn1 = arenaFolder:WaitForChild("ArenaSpawn1")
-local spawn2 = arenaFolder:WaitForChild("ArenaSpawn2")
+local arenaFolder = workspace:WaitForChild("DuelArenaSpawns", 5)
+if not arenaFolder then
+	warn("⚠️ DuelArenaSpawns folder not found in Workspace (Duel script disabled)")
+	return
+end
+
+local spawn1 = arenaFolder:WaitForChild("ArenaSpawn1", 5)
+local spawn2 = arenaFolder:WaitForChild("ArenaSpawn2", 5)
+
+if not spawn1 or not spawn2 then
+	warn("⚠️ ArenaSpawn1 or ArenaSpawn2 not found in DuelArenaSpawns (Duel script disabled)")
+	return
+end
 
 -- Track duel requests
 local pendingDuels = {}

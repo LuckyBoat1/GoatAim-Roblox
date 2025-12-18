@@ -110,6 +110,7 @@ for _, platform in pairs(Workspace:GetChildren()) do
 end
 
 _G.onBullseyeHit = function(player, ringNumber)
+	print("[BullseyeAimRun] onBullseyeHit called. Ring:", ringNumber) -- DEBUG
 	local data = _G.getData(player)
 	if not data.remainingShots or data.remainingShots <= 0 then return end
 
