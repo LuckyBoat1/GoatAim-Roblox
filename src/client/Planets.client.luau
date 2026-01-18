@@ -2,9 +2,27 @@ while not _G.MatrixQuest do task.wait(0.05) end
 local MQ = _G.MatrixQuest
 local C3, TweenService, clearChildren, FONT_HEADING, FONT_TEXT = MQ.C3, MQ.TweenService, MQ.clearChildren, MQ.FONT_HEADING, MQ.FONT_TEXT
 local tabMissions, RunService, UserInputService = MQ.tabMissions, game:GetService("RunService"), game:GetService("UserInputService")
+local RS = game:GetService("ReplicatedStorage")
+
+-- Get the main menu frame to check if menu is open
+local mainMenuFrame = MQ.main
+
+-- LAZY INITIALIZATION: Wait until the quest menu is actually opened before setting up anything
+-- This prevents the script from running and consuming CPU when the menu has never been opened
+print("🪐 Planets: Waiting for quest menu to open...")
+
+-- Wait until the main menu is visible (user actually opened the quest menu)
+while mainMenuFrame and not mainMenuFrame.Visible do
+	task.wait(0.2)
+end
+
+print("🪐 Planets: Menu opened for first time - initializing...")
+
+-- Get QuestRF for fetching quest data
+local QuestRF = RS:WaitForChild("QuestRF", 5)
 
 -- Model check
-local planetFolder = game.ReplicatedStorage:FindFirstChild("Planets")
+local planetFolder = RS:FindFirstChild("Planets")
 if not planetFolder then error("Missing Planets folder!") end
 
 -- Config
@@ -220,6 +238,11 @@ local function create3DPlanet(parent, modelName, size, z, objectInfo, customRotS
 		if objectInfo and objectInfo.id == "inferno" then rotSpeed = 0.3 end
 
 		while viewport.Parent do
+			-- Skip rotation if UI not visible (saves CPU)
+			if not mainMenuFrame or not mainMenuFrame.Visible then
+				RunService.Heartbeat:Wait()
+				continue
+			end
 			pcall(function()
 				if model:IsA("Model") and model.PrimaryPart then
 					model:SetPrimaryPartCFrame(model.PrimaryPart.CFrame * CFrame.Angles(0, math.rad(rotSpeed), 0))
@@ -494,9 +517,39 @@ missionTitle.Parent = missionContainer
 local lastQuestState = nil
 local selectedPlanetId = nil
 
+-- Helper to convert active array to dictionary for easy lookup
+local function getActiveDict(st)
+	local dict = {}
+	if st and st.active then
+		if type(st.active) == "table" then
+			-- Check if it's already a dictionary (has string keys) or an array (has numeric keys)
+			local firstKey = next(st.active)
+			if type(firstKey) == "number" then
+				-- It's an array, convert to dictionary
+				for _, entry in ipairs(st.active) do
+					if entry.id then
+						dict[entry.id] = entry
+					end
+				end
+			else
+				-- Already a dictionary
+				dict = st.active
+			end
+		end
+	end
+	return dict
+end
+
 local function renderMissionsList()
 	if not selectedPlanetId then return end
 	clearChildren(missionList, true)
+	
+	-- Debug: log what data we have
+	print("🪐 renderMissionsList called for:", selectedPlanetId)
+	print("🪐 lastQuestState exists:", lastQuestState ~= nil)
+	if lastQuestState then
+		print("🪐 missions count:", lastQuestState.missions and #lastQuestState.missions or 0)
+	end
 	
 	local planetInfo = nil
 	for _, p in ipairs(planets) do if p.id == selectedPlanetId then planetInfo = p break end end
@@ -529,6 +582,9 @@ local function renderMissionsList()
 
 	local missions = (lastQuestState and lastQuestState.missions) or {}
 	local found = false
+	
+	-- Get active quests as dictionary for easy lookup
+	local activeDict = getActiveDict(lastQuestState)
 
 	-- Sort missions by goal to show progression
 	table.sort(missions, function(a,b) 
@@ -541,8 +597,8 @@ local function renderMissionsList()
 			
 			-- Calculate Progress & Status
 			local progress = 0
-			if lastQuestState and lastQuestState.active and lastQuestState.active[m.id] then
-				progress = lastQuestState.active[m.id].progress or 0
+			if activeDict[m.id] then
+				progress = activeDict[m.id].progress or 0
 			end
 			local goal = m.def.goal or 1
 			
@@ -662,8 +718,15 @@ local function renderMissionsList()
 				watermark.Position = UDim2.new(1, -40, 0, -10)
 				watermark.BackgroundTransparency = 1
 				watermark.TextSize = 80
-				-- Apocalypse gets 0.2, others get 0
-				watermark.TextTransparency = (planetInfo.id == "apocalypse") and 0.2 or 0
+				-- Custom transparency per planet
+				if planetInfo.id == "apocalypse" then
+					watermark.TextTransparency = 0.2
+				elseif planetInfo.id == "mayhem" then
+					watermark.TextTransparency = 0.5
+					watermark.TextColor3 = C3(150, 50, 255) -- Purple
+				else
+					watermark.TextTransparency = 0
+				end
 				watermark.Rotation = 15
 				watermark.Parent = row
 			end
@@ -1254,6 +1317,23 @@ for i, planet in ipairs(planets) do
 				selectedPlanetId = planet.id
 				area.Visible = false
 				missionContainer.Visible = true
+				
+				-- If quest data hasn't been loaded yet, try to fetch it
+				if not lastQuestState then
+					print("🪐 Quest data not loaded, trying to fetch...")
+					if QuestRF then
+						local ok, srv = pcall(function() return QuestRF:InvokeServer("get") end)
+						if ok and srv and srv.ok then
+							lastQuestState = srv
+							print("🪐 Quest data fetched successfully, missions:", #(srv.missions or {}))
+						else
+							print("🪐 Failed to fetch quest data:", ok, srv)
+						end
+					else
+						print("🪐 QuestRF not available to fetch quest data")
+					end
+				end
+				
 				renderMissionsList()
 			end
 		end)
@@ -1265,6 +1345,16 @@ end
 
 -- Animation system
 local connections, fireballTimer = {}, 0
+
+-- Helper to check if the UI is actually visible (main menu is open AND missions tab is visible)
+local function isUIVisible()
+	-- Check if main menu frame is visible (the whole quest menu is open)
+	if not mainMenuFrame or not mainMenuFrame.Visible then
+		return false
+	end
+	-- Also check if we're on the missions tab
+	return tabMissions and tabMissions.Visible and tabMissions.Parent ~= nil
+end
 
 local function updateLayout()
 	local abs = area.AbsoluteSize
@@ -1294,6 +1384,9 @@ end
 connections[#connections+1] = area:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateLayout)
 
 connections[#connections+1] = RunService.RenderStepped:Connect(function(dt)
+	-- Skip all animations if UI is not visible (saves CPU when tab is closed)
+	if not isUIVisible() then return end
+	
 	local abs = area.AbsoluteSize
 	local _scale = math.min(abs.X, abs.Y)
 

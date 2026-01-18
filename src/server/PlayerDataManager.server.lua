@@ -155,8 +155,8 @@ local function ensure(plr)
 			targetHitTimestamps = {}, -- recent target hit timestamps for rank evaluation
 			
 			-- Health & Armor Stats (for PvE and The Abyss)
-			maxHealth = 100, -- Base max health
-			currentHealth = 100, -- Current health (full by default)
+			maxHealth = 10000, -- Base max health
+			currentHealth = 10000, -- Current health (full by default)
 			armor = 0, -- Armor value (reduces damage)
 			healthUpgradeLevel = 0, -- Track health upgrade progression
 			armorUpgradeLevel = 0, -- Track armor upgrade progression
@@ -624,6 +624,19 @@ Players.PlayerAdded:Connect(function(plr)
 	
 	-- Auto-equip "Power" skin on spawn for testing
 	plr.CharacterAdded:Connect(function(char)
+		-- Wait for humanoid to be ready
+		local humanoid = char:WaitForChild("Humanoid", 5)
+		if humanoid then
+			-- Apply stored health from player data
+			local d = ensure(plr)
+			local storedMaxHealth = d.maxHealth or 100
+			
+			humanoid.MaxHealth = storedMaxHealth
+			humanoid.Health = storedMaxHealth -- Full health on spawn
+			
+			print("[PlayerDataManager] ✅ Applied MaxHealth: " .. storedMaxHealth .. " to " .. plr.Name)
+		end
+		
 		-- Wait for tools to load
 		task.wait(1)
 		

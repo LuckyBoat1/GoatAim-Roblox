@@ -13,12 +13,12 @@ local Players = game:GetService("Players")
 print("✅ Services loaded")
 
 -- Configuration
-local ARENA_COUNT = 1 -- Reduced from 10 to prevent lag
+local MAX_ARENAS = 10 -- Maximum arenas that can exist
 local ARENA_SPACING = 10000
 local ARENA_HEIGHT = 500 -- Height to prevent falling into void
 local ANIMATION_ID = "rbxassetid://102385254834975" -- Bull walk animation
 local GAME_DURATION = 600 -- Seconds (10 minutes)
-print("⚙️ Config: " .. ARENA_COUNT .. " arena(s), " .. ARENA_SPACING .. " studs apart, height: " .. ARENA_HEIGHT)
+print("⚙️ Config: DYNAMIC cloning (max " .. MAX_ARENAS .. "), " .. ARENA_SPACING .. " studs apart, height: " .. ARENA_HEIGHT)
 print("")
 
 -- Setup RemoteEvents
@@ -74,7 +74,8 @@ print("")
 local arenaPool = {}
 local playerArenas = {}
 local deathConnections = {} -- Track death connections to disconnect on cleanup
-print("📊 Arena pool initialized (empty)")
+local nextArenaIndex = 2 -- Starts at 2 since main arena is #1
+print("📊 Arena pool initialized (no pre-cloning - clone only when needed)")
 print("")
 
 local TweenService = game:GetService("TweenService")
@@ -212,10 +213,10 @@ end
 
 -- Clone and position arenas
 local function createArenaInstances()
-	print("🏗️ Creating arena instances...")
+	print("🏗️ Setting up main arena (NO cloning at startup)...")
 	print("")
 	
-	-- Arena 1: Use template
+	-- Arena 1: Use the existing template directly - NO CLONING
 	templateArena.Name = "BullArena_1"
 	
 	-- Ensure template is anchored first
@@ -223,9 +224,6 @@ local function createArenaInstances()
 	
 	-- Position first arena using smart move
 	moveArenaTo(templateArena, Vector3.new(ARENA_SPACING, ARENA_HEIGHT, 0))
-	
-	-- Setup lights for template
-	-- setupArenaLights(templateArena) -- DEPRECATED: Using UI based traffic light
 	
 	local spawnPoint = templateArena:FindFirstChild("ArenaPlatform")
 	local bull = templateArena:FindFirstChild("bull")
@@ -240,7 +238,7 @@ local function createArenaInstances()
 		warn("   ❌ BullBehavior script not found in ServerScriptService!")
 	end
 	
-	print("   Arena 1:")
+	print("   Arena 1 (Main - Original):")
 	print("      Name: " .. templateArena.Name)
 	print("      Bull: " .. tostring(bull))
 	print("      Spawn: " .. tostring(spawnPoint))
@@ -257,57 +255,74 @@ local function createArenaInstances()
 		player = nil
 	})
 	
-	print("   ✅ Arena 1 added to pool")
+	print("   ✅ Main arena ready (no cloning performed)")
 	print("")
-	
-	-- Clone additional arenas
-	for i = 2, ARENA_COUNT do
-		print("   Cloning arena " .. i .. "...")
-		local newArena = templateArena:Clone()
-		newArena.Name = "BullArena_" .. i
-		
-		-- Ensure clone is anchored
-		anchorModel(newArena)
-		
-		local angle = (2 * math.pi / ARENA_COUNT) * (i - 1)
-		local x = math.round(math.cos(angle) * ARENA_SPACING)
-		local z = math.round(math.sin(angle) * ARENA_SPACING)
-		
-		moveArenaTo(newArena, Vector3.new(x, ARENA_HEIGHT, z))
-		
-		newArena.Parent = workspace
-		
-		-- Setup lights for clone
-		-- setupArenaLights(newArena) -- DEPRECATED: Using UI based traffic light
-		
-		local clonedSpawnPoint = newArena:FindFirstChild("ArenaPlatform")
-		local clonedBull = newArena:FindFirstChild("bull")
-		-- Animation handled on client
-		
-		print("      Bull: " .. tostring(clonedBull))
-		print("      Spawn: " .. tostring(clonedSpawnPoint))
-		if clonedSpawnPoint and clonedSpawnPoint:IsA("BasePart") then
-			print("      Spawn Position: " .. tostring(clonedSpawnPoint.Position))
-		end
-		print("      Position: (" .. x .. ", " .. ARENA_HEIGHT .. ", " .. z .. ")")
-		
-		table.insert(arenaPool, {
-			arena = newArena,
-			bull = clonedBull,
-			spawnPoint = clonedSpawnPoint,
-			occupied = false,
-			player = nil
-		})
-		
-		print("   ✅ Arena " .. i .. " added to pool")
+	print("=" .. string.rep("=", 60))
+	print("✅ MAIN ARENA READY - Will clone from it ONLY when needed")
+	print("📊 Current arenas: 1 (max: " .. MAX_ARENAS .. ")")
+	print("=" .. string.rep("=", 60))
+	print("")
+end
+
+-- Dynamically create a new arena when needed (clones from main arena)
+local function createNewArena()
+	if nextArenaIndex > MAX_ARENAS then
+		warn("⚠️ Maximum arena count reached! (" .. MAX_ARENAS .. ")")
+		return nil
 	end
 	
-	print("")
-	print("=" .. string.rep("=", 60))
-	print("✅ ARENA CREATION COMPLETE")
-	print("📊 Total arenas in pool: " .. #arenaPool)
-	print("=" .. string.rep("=", 60))
-	print("")
+	-- Clone from the main arena (BullArena_1)
+	local mainArena = arenaPool[1] and arenaPool[1].arena
+	if not mainArena then
+		warn("⚠️ Main arena not found!")
+		return nil
+	end
+	
+	print("🏗️ Dynamically cloning new arena #" .. nextArenaIndex .. " from main arena...")
+	
+	local newArena = mainArena:Clone()
+	newArena.Name = "BullArena_" .. nextArenaIndex
+	
+	-- Ensure clone is anchored
+	anchorModel(newArena)
+	
+	-- Position in a circle around origin
+	local angle = (2 * math.pi / MAX_ARENAS) * (nextArenaIndex - 1)
+	local x = math.round(math.cos(angle) * ARENA_SPACING)
+	local z = math.round(math.sin(angle) * ARENA_SPACING)
+	
+	moveArenaTo(newArena, Vector3.new(x, ARENA_HEIGHT, z))
+	
+	newArena.Parent = workspace
+	
+	local clonedSpawnPoint = newArena:FindFirstChild("ArenaPlatform")
+	local clonedBull = newArena:FindFirstChild("bull")
+	
+	-- Note: BullBehavior script is already in the bull from main arena clone
+	
+	print("   Arena " .. nextArenaIndex .. ":")
+	print("      Bull: " .. tostring(clonedBull))
+	print("      Spawn: " .. tostring(clonedSpawnPoint))
+	if clonedSpawnPoint and clonedSpawnPoint:IsA("BasePart") then
+		print("      Spawn Position: " .. tostring(clonedSpawnPoint.Position))
+	end
+	print("      Position: (" .. x .. ", " .. ARENA_HEIGHT .. ", " .. z .. ")")
+	
+	local arenaData = {
+		arena = newArena,
+		bull = clonedBull,
+		spawnPoint = clonedSpawnPoint,
+		occupied = false,
+		player = nil
+	}
+	
+	table.insert(arenaPool, arenaData)
+	nextArenaIndex = nextArenaIndex + 1
+	
+	print("   ✅ Arena " .. newArena.Name .. " created and added to pool")
+	print("   📊 Total arenas now: " .. #arenaPool)
+	
+	return arenaData
 end
 
 -- Get an available arena for a player
@@ -320,6 +335,7 @@ local function getAvailableArena(player)
 		return nil
 	end
 	
+	-- First, try to find an existing available arena
 	for i, arenaData in ipairs(arenaPool) do
 		local status = arenaData.occupied and ("OCCUPIED by " .. tostring(arenaData.player)) or "AVAILABLE"
 		print("   Arena " .. i .. ": " .. status)
@@ -328,12 +344,24 @@ local function getAvailableArena(player)
 			arenaData.occupied = true
 			arenaData.player = player
 			playerArenas[player.UserId] = arenaData
-			print("   ✅ Assigned " .. arenaData.arena.Name)
+			print("   ✅ Assigned existing " .. arenaData.arena.Name)
 			return arenaData
 		end
 	end
 	
-	warn("   ⚠️ All arenas occupied!")
+	-- All existing arenas are occupied - try to create a new one
+	print("   ⚠️ All existing arenas occupied, attempting to create new one...")
+	local newArenaData = createNewArena()
+	
+	if newArenaData then
+		newArenaData.occupied = true
+		newArenaData.player = player
+		playerArenas[player.UserId] = newArenaData
+		print("   ✅ Assigned newly created " .. newArenaData.arena.Name)
+		return newArenaData
+	end
+	
+	warn("   ❌ Could not create new arena - max limit reached!")
 	return nil
 end
 
@@ -501,7 +529,7 @@ end
 
 print("=" .. string.rep("=", 60))
 print("✅ BULL ARENA MANAGER READY")
-print("📊 Total arenas: " .. #arenaPool .. "/" .. ARENA_COUNT)
+print("📊 Starting arenas: " .. #arenaPool .. " (dynamic cloning up to " .. MAX_ARENAS .. ")")
 print("🌍 Global functions set: _G.RequestBullArena, _G.FreeBullArena")
 print("=" .. string.rep("=", 60))
 
@@ -510,5 +538,5 @@ return {
 	RequestArena = _G.RequestBullArena,
 	FreeArena = _G.FreeBullArena,
 	GetPlayerArena = _G.GetPlayerArena,
-	ArenaCount = ARENA_COUNT
+	MaxArenas = MAX_ARENAS
 }

@@ -23,9 +23,15 @@ local MELEE_TYPES = {
 }
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	-- IGNORE gameProcessed check for shooting to ensure it works even if UI (like SwingAnimation) claims the input
+	-- Respect gameProcessed when a UI is handling the input
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		print("[ShootingHandler] 🖱️ MB1 Detected. GameProcessed:", gameProcessed)
+		
+		-- Don't shoot if UI is handling the click (gameProcessed = true means UI captured it)
+		if gameProcessed then
+			print("[ShootingHandler] ❌ Click captured by UI, not shooting")
+			return
+		end
 		
 		if not shootEvent then
 			warn("[ShootingHandler] ❌ Cannot shoot - ShootEvent is missing!")

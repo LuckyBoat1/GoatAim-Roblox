@@ -222,6 +222,7 @@ gui.Name = "MatrixQuests"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.DisplayOrder = 100 -- High display order to be on top of other GUIs
 gui.Parent = playerGui
 
 local blur = Instance.new("BlurEffect"); blur.Name="QuestBlur"; blur.Size=0; blur.Parent=Lighting
@@ -998,7 +999,7 @@ contentArea.Parent=root
 
 local tabMissions = Instance.new("Frame"); tabMissions.Size=UDim2.fromScale(1,1); tabMissions.BackgroundTransparency=1; tabMissions.Parent=contentArea
 local tabLog = Instance.new("Frame"); tabLog.Size=UDim2.fromScale(1,1); tabLog.BackgroundTransparency=1; tabLog.Parent=contentArea
-local tabFind = Instance.new("Frame"); tabFind.Size=UDim2.fromScale(1,1); tabFind.BackgroundTransparency=1; tabFind.Parent=contentArea
+local tabFind = Instance.new("Frame"); tabFind.Size=UDim2.fromScale(1,1); tabFind.BackgroundTransparency=1; tabFind.Active=false; tabFind.Parent=contentArea
 
 -- Find Bounties Tab UI Setup
 local findTop = Instance.new("Frame")
@@ -1654,6 +1655,7 @@ local function renderFind(state)
 		glowContainer.Size = UDim2.new(1, -20, 0, 110)
 		glowContainer.BackgroundTransparency = 1
 		glowContainer.ClipsDescendants = false
+		glowContainer.Active = false -- CRITICAL: Don't block clicks!
 		glowContainer.Parent = findListScroll
 		
 		-- 5-layer MEGA glow system (all inactive so they don't block clicks)
@@ -1703,7 +1705,8 @@ local function renderFind(state)
 		row.Size = UDim2.new(1, 0, 1, 0)
 		row.BackgroundColor3 = CARD_BG
 		row.BorderSizePixel = 0
-		row.ClipsDescendants = true
+		row.ClipsDescendants = false -- Allow button glows to extend beyond card
+		row.Active = false -- CRITICAL: Don't block clicks!
 		row.Parent = glowContainer
 		Instance.new("UICorner", row).CornerRadius = UDim.new(0, 14)
 		
@@ -1727,6 +1730,7 @@ local function renderFind(state)
 		shimmer.Rotation = 15
 		shimmer.BorderSizePixel = 0
 		shimmer.ZIndex = 3
+		shimmer.Active = false -- Don't block clicks
 		shimmer.Parent = row
 		
 		local shimmerGrad = Instance.new("UIGradient")
@@ -1761,6 +1765,7 @@ local function renderFind(state)
 		topEdge.BackgroundTransparency = 0.8
 		topEdge.BorderSizePixel = 0
 		topEdge.ZIndex = 5
+		topEdge.Active = false -- Don't block clicks
 		topEdge.Parent = row
 		
 		-- Colored top glow bar
@@ -1771,6 +1776,7 @@ local function renderFind(state)
 		topGlow.BackgroundTransparency = 0.6
 		topGlow.BorderSizePixel = 0
 		topGlow.ZIndex = 6
+		topGlow.Active = false -- Don't block clicks
 		topGlow.Parent = row
 		
 		local topGlowGrad = Instance.new("UIGradient")
@@ -1791,6 +1797,7 @@ local function renderFind(state)
 		accentGlow.BackgroundTransparency = 0.7
 		accentGlow.BorderSizePixel = 0
 		accentGlow.ZIndex = 1
+		accentGlow.Active = false -- Don't block clicks
 		accentGlow.Parent = row
 		Instance.new("UICorner", accentGlow).CornerRadius = UDim.new(0, 6)
 		
@@ -1800,6 +1807,7 @@ local function renderFind(state)
 		sideAccent.BackgroundColor3 = theme.glow
 		sideAccent.BorderSizePixel = 0
 		sideAccent.ZIndex = 2
+		sideAccent.Active = false -- Don't block clicks
 		sideAccent.Parent = row
 		Instance.new("UICorner", sideAccent).CornerRadius = UDim.new(0, 3)
 		
@@ -1840,6 +1848,7 @@ local function renderFind(state)
 		content.Position = UDim2.new(0, 18, 0, 8)
 		content.BackgroundTransparency = 1
 		content.ZIndex = 4
+		content.Active = false -- Don't block clicks on button!
 		content.Parent = row
 
 		-- Title glow behind text
@@ -1904,6 +1913,7 @@ local function renderFind(state)
 		badgeContainer.Position = UDim2.new(1, -128, 0, 10)
 		badgeContainer.BackgroundTransparency = 1
 		badgeContainer.ZIndex = 20
+		badgeContainer.Active = false -- Don't block clicks
 		badgeContainer.Parent = glowContainer
 		
 		-- Badge outer glow
@@ -1922,6 +1932,7 @@ local function renderFind(state)
 		badge.Size = UDim2.new(1, 0, 1, 0)
 		badge.BackgroundColor3 = theme.glow
 		badge.ZIndex = 21
+		badge.Active = false -- Don't block clicks
 		badge.Parent = badgeContainer
 		Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 8)
 		
@@ -1930,7 +1941,7 @@ local function renderFind(state)
 		badgeGrad.Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
 			ColorSequenceKeypoint.new(0.5, theme.glow),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(theme.glow.R * 180, theme.glow.G * 180, theme.glow.B * 180))
+			ColorSequenceKeypoint.new(1, Color3.new(math.min(1, theme.glow.R * 0.7), math.min(1, theme.glow.G * 0.7), math.min(1, theme.glow.B * 0.7)))
 		})
 		badgeGrad.Rotation = 135
 		badgeGrad.Parent = badge
@@ -1941,6 +1952,7 @@ local function renderFind(state)
 		badgeInner.Position = UDim2.new(0, 2, 0, 2)
 		badgeInner.BackgroundColor3 = C3(12, 14, 22)
 		badgeInner.ZIndex = 22
+		badgeInner.Active = false -- Don't block clicks
 		badgeInner.Parent = badge
 		Instance.new("UICorner", badgeInner).CornerRadius = UDim.new(0, 6)
 		
@@ -1978,6 +1990,7 @@ local function renderFind(state)
 		bottomRow.Position = UDim2.new(0, 0, 1, -38)
 		bottomRow.BackgroundTransparency = 1
 		bottomRow.ZIndex = 6
+		bottomRow.Active = false -- Don't block clicks on button!
 		bottomRow.Parent = content
 
 		-- Timer chip - CYBERPUNK NEON STYLE
@@ -2007,6 +2020,7 @@ local function renderFind(state)
 		timerChip.Position = UDim2.new(0, 0, 0, -1)
 		timerChip.BackgroundColor3 = C3(18, 22, 32)
 		timerChip.ZIndex = 7
+		timerChip.Active = false -- Don't block clicks on button
 		timerChip.Parent = bottomRow
 		Instance.new("UICorner", timerChip).CornerRadius = UDim.new(0, 10)
 		
@@ -2062,67 +2076,95 @@ local function renderFind(state)
 
 		-- Money display - CYBERPUNK PREMIUM NEON
 		local moneyGlow = Instance.new("Frame")
-		moneyGlow.Size = UDim2.new(0, 102, 0, 44)
-		moneyGlow.Position = UDim2.new(1, -220, 0, -5)
-		moneyGlow.BackgroundColor3 = BRIGHT_GREEN
+		moneyGlow.Size = UDim2.new(0, 120, 0, 50)
+		moneyGlow.Position = UDim2.new(1, -240, 0, -8)
+		moneyGlow.BackgroundColor3 = C3(0, 180, 255)
 		moneyGlow.BackgroundTransparency = 0.75
 		moneyGlow.ZIndex = 6
 		moneyGlow.Active = false
 		moneyGlow.Parent = bottomRow
-		Instance.new("UICorner", moneyGlow).CornerRadius = UDim.new(0, 14)
+		Instance.new("UICorner", moneyGlow).CornerRadius = UDim.new(0, 16)
 		
 		-- Second outer glow for more neon effect
 		local moneyGlow2 = Instance.new("Frame")
-		moneyGlow2.Size = UDim2.new(0, 110, 0, 50)
-		moneyGlow2.Position = UDim2.new(1, -224, 0, -8)
-		moneyGlow2.BackgroundColor3 = BRIGHT_GREEN
+		moneyGlow2.Size = UDim2.new(0, 128, 0, 58)
+		moneyGlow2.Position = UDim2.new(1, -244, 0, -12)
+		moneyGlow2.BackgroundColor3 = C3(0, 180, 255)
 		moneyGlow2.BackgroundTransparency = 0.92
 		moneyGlow2.ZIndex = 5
 		moneyGlow2.Active = false
 		moneyGlow2.Parent = bottomRow
-		Instance.new("UICorner", moneyGlow2).CornerRadius = UDim.new(0, 18)
+		Instance.new("UICorner", moneyGlow2).CornerRadius = UDim.new(0, 20)
+		
+		-- Neon blue color for money
+		local NEON_BLUE = C3(0, 180, 255)
+		local NEON_BLUE_DARK = C3(0, 80, 150)
 		
 		local moneyFrame = Instance.new("Frame")
-		moneyFrame.Size = UDim2.new(0, 92, 0, 36)
-		moneyFrame.Position = UDim2.new(1, -215, 0, -1)
-		moneyFrame.BackgroundColor3 = C3(15, 55, 30)
+		moneyFrame.Size = UDim2.new(0, 110, 0, 42)
+		moneyFrame.Position = UDim2.new(1, -235, 0, -4)
+		moneyFrame.BackgroundColor3 = C3(10, 30, 50)
 		moneyFrame.ZIndex = 7
+		moneyFrame.Active = false -- Don't block clicks on button
 		moneyFrame.Parent = bottomRow
-		Instance.new("UICorner", moneyFrame).CornerRadius = UDim.new(0, 10)
+		Instance.new("UICorner", moneyFrame).CornerRadius = UDim.new(0, 12)
 		
 		local moneyGradient = Instance.new("UIGradient")
 		moneyGradient.Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, C3(40, 120, 70)),
-			ColorSequenceKeypoint.new(0.3, C3(25, 80, 45)),
-			ColorSequenceKeypoint.new(0.7, C3(15, 55, 30)),
-			ColorSequenceKeypoint.new(1, C3(8, 35, 18))
+			ColorSequenceKeypoint.new(0, C3(20, 80, 120)),
+			ColorSequenceKeypoint.new(0.3, C3(10, 50, 90)),
+			ColorSequenceKeypoint.new(0.7, C3(5, 30, 60)),
+			ColorSequenceKeypoint.new(1, C3(0, 15, 35))
 		})
 		moneyGradient.Rotation = 135
 		moneyGradient.Parent = moneyFrame
 		
+		-- Rotating neon glow stroke
 		local moneyStroke = Instance.new("UIStroke", moneyFrame)
-		moneyStroke.Color = BRIGHT_GREEN
-		moneyStroke.Transparency = 0.1
-		moneyStroke.Thickness = 2
+		moneyStroke.Color = NEON_BLUE
+		moneyStroke.Transparency = 0
+		moneyStroke.Thickness = 2.5
+		
+		-- Animated gradient for rotating glow effect
+		local moneyStrokeGrad = Instance.new("UIGradient")
+		moneyStrokeGrad.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, C3(0, 255, 255)),
+			ColorSequenceKeypoint.new(0.25, NEON_BLUE),
+			ColorSequenceKeypoint.new(0.5, C3(100, 200, 255)),
+			ColorSequenceKeypoint.new(0.75, NEON_BLUE),
+			ColorSequenceKeypoint.new(1, C3(0, 255, 255))
+		})
+		moneyStrokeGrad.Rotation = 0
+		moneyStrokeGrad.Parent = moneyStroke
+		
+		-- Animate the gradient rotation clockwise
+		task.spawn(function()
+			local rotation = 0
+			while moneyStrokeGrad and moneyStrokeGrad.Parent do
+				rotation = (rotation + 2) % 360 -- Clockwise rotation
+				moneyStrokeGrad.Rotation = rotation
+				task.wait(0.03)
+			end
+		end)
 		
 		local moneyIcon = Instance.new("TextLabel")
-		moneyIcon.Size = UDim2.new(0, 26, 1, 0)
+		moneyIcon.Size = UDim2.new(0, 30, 1, 0)
 		moneyIcon.Position = UDim2.new(0, 6, 0, 0)
 		moneyIcon.BackgroundTransparency = 1
-		moneyIcon.Font = FONT_HEADING
-		moneyIcon.TextSize = 17
-		moneyIcon.TextColor3 = BRIGHT_GREEN
+		moneyIcon.Font = Enum.Font.FredokaOne
+		moneyIcon.TextSize = 22
+		moneyIcon.TextColor3 = NEON_BLUE
 		moneyIcon.Text = "💰"
 		moneyIcon.ZIndex = 8
 		moneyIcon.Parent = moneyFrame
 		
 		local moneyText = Instance.new("TextLabel")
-		moneyText.Size = UDim2.new(1, -34, 1, 0)
-		moneyText.Position = UDim2.new(0, 32, 0, 0)
+		moneyText.Size = UDim2.new(1, -38, 1, 0)
+		moneyText.Position = UDim2.new(0, 36, 0, 0)
 		moneyText.BackgroundTransparency = 1
-		moneyText.Font = FONT_HEADING
-		moneyText.TextSize = 17
-		moneyText.TextColor3 = BRIGHT_GREEN
+		moneyText.Font = Enum.Font.FredokaOne -- Stylish cartoony font
+		moneyText.TextSize = 22
+		moneyText.TextColor3 = NEON_BLUE
 		moneyText.TextXAlignment = Enum.TextXAlignment.Left
 		moneyText.Text = "$" .. tostring(reward.money or 0)
 		moneyText.ZIndex = 8
@@ -2130,9 +2172,9 @@ local function renderFind(state)
 		
 		-- Money text glow stroke
 		local moneyTextStroke = Instance.new("UIStroke")
-		moneyTextStroke.Color = BRIGHT_GREEN
-		moneyTextStroke.Transparency = 0.6
-		moneyTextStroke.Thickness = 1
+		moneyTextStroke.Color = NEON_BLUE
+		moneyTextStroke.Transparency = 0.5
+		moneyTextStroke.Thickness = 1.5
 		moneyTextStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 		moneyTextStroke.Parent = moneyText
 
@@ -2169,7 +2211,7 @@ local function renderFind(state)
 		btn.TextColor3 = Color3.new(1, 1, 1)
 		btn.Text = "ACCEPT"
 		btn.AutoButtonColor = false
-		btn.ZIndex = 10
+		btn.ZIndex = 100 -- Very high ZIndex to be on top of everything
 		btn.Parent = bottomRow
 		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
 		
@@ -2178,9 +2220,9 @@ local function renderFind(state)
 		local glowR, glowG, glowB = theme.glow.R, theme.glow.G, theme.glow.B
 		btnGradient.Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, Color3.new(math.min(1, glowR * 1.4), math.min(1, glowG * 1.4), math.min(1, glowB * 1.4))),
-			ColorSequenceKeypoint.new(0.3, Color3.new(glowR * 1.1, glowG * 1.1, glowB * 1.1)),
+			ColorSequenceKeypoint.new(0.3, Color3.new(math.min(1, glowR * 1.1), math.min(1, glowG * 1.1), math.min(1, glowB * 1.1))),
 			ColorSequenceKeypoint.new(0.7, theme.glow),
-			ColorSequenceKeypoint.new(1, Color3.new(glowR * 0.7, glowG * 0.7, glowB * 0.7))
+			ColorSequenceKeypoint.new(1, Color3.new(math.min(1, glowR * 0.7), math.min(1, glowG * 0.7), math.min(1, glowB * 0.7)))
 		})
 		btnGradient.Rotation = 135
 		btnGradient.Parent = btn
@@ -2201,13 +2243,29 @@ local function renderFind(state)
 		btnTextStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 		btnTextStroke.Parent = btn
 		
-		-- Hover effects on button
+		-- Hover effects on button - VERY VISIBLE for debugging
+		local originalBtnSize = btn.Size
+		local originalBtnPos = btn.Position
 		btn.MouseEnter:Connect(function()
-			TweenService:Create(btnGlow, TweenInfo.new(0.2), {BackgroundTransparency = 0.55}):Play()
-			TweenService:Create(btnGlow2, TweenInfo.new(0.2), {BackgroundTransparency = 0.8}):Play()
-			TweenService:Create(btnBorderStroke, TweenInfo.new(0.2), {Transparency = 0.3}):Play()
+			print("👉 BUTTON HOVER ENTERED!")
+			-- Make button grow and turn bright yellow
+			TweenService:Create(btn, TweenInfo.new(0.15), {
+				Size = UDim2.new(0, 125, 0, 42),
+				Position = UDim2.new(1, -128, 0, -4),
+				BackgroundColor3 = C3(255, 255, 0)
+			}):Play()
+			TweenService:Create(btnGlow, TweenInfo.new(0.15), {BackgroundTransparency = 0.3}):Play()
+			TweenService:Create(btnGlow2, TweenInfo.new(0.15), {BackgroundTransparency = 0.6}):Play()
+			TweenService:Create(btnBorderStroke, TweenInfo.new(0.15), {Transparency = 0, Thickness = 3}):Play()
 		end)
 		btn.MouseLeave:Connect(function()
+			print("👈 BUTTON HOVER LEFT")
+			-- Return to normal
+			TweenService:Create(btn, TweenInfo.new(0.2), {
+				Size = originalBtnSize,
+				Position = originalBtnPos,
+				BackgroundColor3 = theme.glow
+			}):Play()
 			TweenService:Create(btnGlow, TweenInfo.new(0.3), {BackgroundTransparency = 0.75}):Play()
 			TweenService:Create(btnGlow2, TweenInfo.new(0.3), {BackgroundTransparency = 0.92}):Play()
 			TweenService:Create(btnBorderStroke, TweenInfo.new(0.3), {Transparency = 0.6}):Play()
