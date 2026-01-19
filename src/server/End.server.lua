@@ -458,14 +458,14 @@ for _, npc in ipairs(NPCS) do
 										-- FREEZE NPC while shooting
 										isShooting = true
 										
-										-- Spawn RedEnergyBeam at Effect attachment
-										local effectAttachment = npc:FindFirstChild("Effect", true)
-										print("[END DEBUG] Looking for Effect attachment, found:", effectAttachment and effectAttachment:GetFullName() or "NONE")
-										
-										if effectAttachment then
-											-- Fire effect on ALL clients (instant, no replication delay)
-													spawnEffectEvent:FireAllClients("RedEnergyBeam", npc, "Effect", hrp.Position, 3)
-													print("[END DEBUG] Fired SpawnEffect to all clients")
+-- Spawn Beam effect at Effect attachment
+												local effectAttachment = npc:FindFirstChild("Effect", true)
+												print("[END DEBUG] Looking for Effect attachment, found:", effectAttachment and effectAttachment:GetFullName() or "NONE")
+												
+												if effectAttachment then
+													-- Fire Beam effect on ALL clients (instant, no replication delay)
+													spawnEffectEvent:FireAllClients("Beam", npc, "Effect", hrp.Position, 3)
+													print("[END DEBUG] Fired Beam effect to all clients")
 												else
 													print("[END DEBUG] FAILED - no Effect attachment found")
 												end
@@ -494,14 +494,14 @@ for _, npc in ipairs(NPCS) do
 										-- FREEZE NPC while shooting
 										isShooting = true
 										
-										-- Spawn RedEnergyBeam at Effect attachment
-										local effectAttachment = npc:FindFirstChild("Effect", true)
-										print("[END DEBUG] Attack3 - Looking for Effect attachment, found:", effectAttachment and effectAttachment:GetFullName() or "NONE")
-										
-										if effectAttachment then
-											-- Fire effect on ALL clients (instant, no replication delay)
-													spawnEffectEvent:FireAllClients("RedEnergyBeam", npc, "Effect", hrp.Position, 3)
-													print("[END DEBUG] Attack3 - Fired SpawnEffect to all clients")
+-- Spawn Beam effect at Effect attachment
+												local effectAttachment = npc:FindFirstChild("Effect", true)
+												print("[END DEBUG] Attack3 - Looking for Effect attachment, found:", effectAttachment and effectAttachment:GetFullName() or "NONE")
+												
+												if effectAttachment then
+													-- Fire Beam effect on ALL clients (instant, no replication delay)
+													spawnEffectEvent:FireAllClients("Beam", npc, "Effect", hrp.Position, 3)
+													print("[END DEBUG] Attack3 - Fired Beam effect to all clients")
 												else
 													print("[END DEBUG] Attack3 - FAILED - no Effect attachment found")
 												end
