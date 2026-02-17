@@ -1,449 +1,940 @@
--- PlayerInteractClient.lua
--- Improved player interaction UI (Cyberpunk Neon Theme to match dash)
--- Single LocalScript (client-side). Secure actions must be validated on the server.
+-- interaction.client.luau
+-- Floating BillboardGui that appears above nearby players
+-- Always faces the camera, bobs in the air, glowing animated strokes
+-- Options: Duel (top), Trade (bottom) — fully clickable
 
 --// Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local ContextActionService = game:GetService("ContextActionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
---// Local Player
+--// Player
 local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
 
---------------------------------------------------
--- CONFIG
---------------------------------------------------
-local CONFIG = {
-	InteractKey = Enum.KeyCode.M,
-	InteractRange = 12,
-	CheckInterval = 0.15,        -- seconds between proximity scans
-	FadeTime = 0.18,
-	MenuButtons = { "Profile", "Trade", "Duel" },
-	Theme = {
-		Neon = Color3.fromRGB(0,255,0),
-		NeonDim = Color3.fromRGB(0,180,0),
-		Panel = Color3.fromRGB(0,0,0),
-		PanelTransparency = 0.25,
-		Button = Color3.fromRGB(10,35,10),
-		ButtonHover = Color3.fromRGB(20,60,20),
-		Text = Color3.fromRGB(255,255,255)
-	},
-	Highlight = {
-		FillTransparency = 1,
-		OutlineTransparency = 0,
-		OutlineColor = Color3.fromRGB(0,255,0)
-	},
-	MenuSize = UDim2.new(0, 260, 0, 230)
+--// Remote (non-blocking so the billboard system starts immediately)
+local DuelEvent = ReplicatedStorage:FindFirstChild("DuelEvent")
+if not DuelEvent then
+	task.spawn(function()
+		DuelEvent = ReplicatedStorage:WaitForChild("DuelEvent", 30)
+		if DuelEvent then
+			print("✅ [Interaction] DuelEvent found")
+		else
+			warn("⚠️ [Interaction] DuelEvent never appeared — duel button won't work")
+		end
+	end)
+end
+
+--// Config
+local INTERACT_RANGE = 16 -- studs
+local CHECK_INTERVAL = 0.12 -- seconds between proximity scans
+local BOB_SPEED = 1.8 -- how fast it floats up/down
+local BOB_AMPLITUDE = 0.25 -- studs of vertical bob
+local BILLBOARD_OFFSET = Vector3.new(0, 5, 0) -- above head
+
+-- BillboardGui pixel dimensions (bigger = sharper text)
+local BB_WIDTH = 340
+local BB_HEIGHT = 220
+local BB_STUDS_W = 8
+local BB_STUDS_H = 5.2
+
+--// Theme colors (electric cyan)
+local C = {
+	BgMain = Color3.fromRGB(8, 10, 22),
+	BgHeader = Color3.fromRGB(12, 14, 30),
+	StrokeOuter = Color3.fromRGB(0, 200, 255),
+	StrokeOuterDim = Color3.fromRGB(0, 70, 120),
+	StrokeOuterBright = Color3.fromRGB(120, 235, 255),
+	DuelBg = Color3.fromRGB(30, 10, 12),
+	DuelAccent = Color3.fromRGB(255, 65, 75),
+	DuelGlow = Color3.fromRGB(255, 120, 120),
+	DuelStroke = Color3.fromRGB(255, 50, 60),
+	TradeBg = Color3.fromRGB(10, 14, 34),
+	TradeAccent = Color3.fromRGB(60, 170, 255),
+	TradeGlow = Color3.fromRGB(120, 200, 255),
+	TradeStroke = Color3.fromRGB(50, 150, 255),
+	White = Color3.fromRGB(255, 255, 255),
+	WhiteSoft = Color3.fromRGB(230, 235, 245),
+	WhiteDim = Color3.fromRGB(160, 165, 180),
+	NameGlow = Color3.fromRGB(0, 210, 255),
+	Separator = Color3.fromRGB(30, 40, 65),
 }
 
---------------------------------------------------
--- State
---------------------------------------------------
-local currentTarget : Player? = nil
-local menuOpen = false
-local lastCheck = 0
+--------------------------------------------------------------------------
+-- STATE
+--------------------------------------------------------------------------
+local activeBillboards: { [Player]: { gui: BillboardGui, connections: { RBXScriptConnection } } } = {}
 local character, rootPart, humanoid
-local highlight -- Highlight instance for target
+local lastCheck = 0
 
---------------------------------------------------
--- Character Handling
---------------------------------------------------
 local function bindCharacter()
 	character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
 	humanoid = character:WaitForChild("Humanoid")
 	rootPart = character:WaitForChild("HumanoidRootPart")
+	print("✅ [Interaction] Character bound:", character.Name, "RootPart:", rootPart ~= nil)
 end
 bindCharacter()
 localPlayer.CharacterAdded:Connect(bindCharacter)
 
---------------------------------------------------
--- UI CREATION
---------------------------------------------------
-local playerGui = localPlayer:WaitForChild("PlayerGui")
-
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "InteractUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
-
--- Prompt Frame
-local promptFrame = Instance.new("Frame")
-promptFrame.Size = UDim2.new(0, 240, 0, 60)
-promptFrame.Position = UDim2.new(0.5, -120, 0.85, 0)
-promptFrame.BackgroundColor3 = CONFIG.Theme.Panel
-promptFrame.BackgroundTransparency = CONFIG.Theme.PanelTransparency
-promptFrame.BorderSizePixel = 0
-promptFrame.Visible = false
-promptFrame.Parent = screenGui
-
-local promptCorner = Instance.new("UICorner")
-promptCorner.CornerRadius = UDim.new(0, 10)
-promptCorner.Parent = promptFrame
-
-local promptStroke = Instance.new("UIStroke")
-promptStroke.Thickness = 3
-promptStroke.Color = CONFIG.Theme.Neon
-promptStroke.Parent = promptFrame
-
-local promptGradient = Instance.new("UIGradient")
-promptGradient.Color = ColorSequence.new(
-	ColorSequenceKeypoint.new(0, CONFIG.Theme.NeonDim),
-	ColorSequenceKeypoint.new(0.5, CONFIG.Theme.Neon),
-	ColorSequenceKeypoint.new(1, CONFIG.Theme.NeonDim)
-)
-promptGradient.Rotation = 0
-promptGradient.Parent = promptFrame
-
-local keyBox = Instance.new("Frame")
-keyBox.Size = UDim2.new(0, 60, 1, 0)
-keyBox.BackgroundColor3 = CONFIG.Theme.NeonDim
-keyBox.BackgroundTransparency = 0.15
-keyBox.BorderSizePixel = 0
-keyBox.Parent = promptFrame
-
-local keyCorner = Instance.new("UICorner")
-keyCorner.CornerRadius = UDim.new(0,10)
-keyCorner.Parent = keyBox
-
-local keyStroke = Instance.new("UIStroke")
-keyStroke.Thickness = 2
-keyStroke.Color = CONFIG.Theme.Neon
-keyStroke.Parent = keyBox
-
-local keyLabel = Instance.new("TextLabel")
-keyLabel.Size = UDim2.new(1,0,1,0)
-keyLabel.BackgroundTransparency = 1
-keyLabel.Text = (CONFIG.InteractKey.Name):upper()
-keyLabel.Font = Enum.Font.GothamBold
-keyLabel.TextScaled = true
-keyLabel.TextColor3 = CONFIG.Theme.Text
-keyLabel.Parent = keyBox
-
-local promptText = Instance.new("TextLabel")
-promptText.Size = UDim2.new(1, -70, 1, 0)
-promptText.Position = UDim2.new(0, 70, 0, 0)
-promptText.BackgroundTransparency = 1
-promptText.Font = Enum.Font.GothamBold
-promptText.TextScaled = true
-promptText.TextWrapped = true
-promptText.TextColor3 = CONFIG.Theme.Text
-promptText.Text = "Interact"
-promptText.Parent = promptFrame
-
--- Menu Frame
-local menuFrame = Instance.new("Frame")
-menuFrame.Size = CONFIG.MenuSize
-menuFrame.Position = UDim2.new(0.5, -CONFIG.MenuSize.X.Offset/2, 0.5, -CONFIG.MenuSize.Y.Offset/2)
-menuFrame.BackgroundColor3 = CONFIG.Theme.Panel
-menuFrame.BackgroundTransparency = CONFIG.Theme.PanelTransparency
-menuFrame.BorderSizePixel = 0
-menuFrame.Visible = false
-menuFrame.Parent = screenGui
-
-local menuCorner = Instance.new("UICorner")
-menuCorner.CornerRadius = UDim.new(0, 12)
-menuCorner.Parent = menuFrame
-
-local menuStroke = Instance.new("UIStroke")
-menuStroke.Thickness = 3
-menuStroke.Color = CONFIG.Theme.Neon
-menuStroke.Parent = menuFrame
-
-local menuGradient = Instance.new("UIGradient")
-menuGradient.Color = ColorSequence.new(
-	ColorSequenceKeypoint.new(0, CONFIG.Theme.Neon),
-	ColorSequenceKeypoint.new(1, CONFIG.Theme.NeonDim)
-)
-menuGradient.Rotation = 90
-menuGradient.Parent = menuFrame
-
-local menuTitle = Instance.new("TextLabel")
-menuTitle.Size = UDim2.new(1, -20, 0, 40)
-menuTitle.Position = UDim2.new(0,10, 0, 5)
-menuTitle.BackgroundTransparency = 1
-menuTitle.Font = Enum.Font.GothamBlack
-menuTitle.TextScaled = true
-menuTitle.TextColor3 = CONFIG.Theme.Neon
-menuTitle.Text = "PLAYER MENU"
-menuTitle.Parent = menuFrame
-
-local buttonHolder = Instance.new("Frame")
-buttonHolder.Size = UDim2.new(1, -20, 1, -55)
-buttonHolder.Position = UDim2.new(0,10,0,45)
-buttonHolder.BackgroundTransparency = 1
-buttonHolder.Parent = menuFrame
-
-local listLayout = Instance.new("UIListLayout")
-listLayout.Padding = UDim.new(0, 8)
-listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Parent = buttonHolder
-
-local function tween(obj, props, duration, style, direction)
-	local info = TweenInfo.new(duration or CONFIG.FadeTime, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
-	return TweenService:Create(obj, info, props)
+--------------------------------------------------------------------------
+-- UTILITY: Smooth tween helper
+--------------------------------------------------------------------------
+local function tw(obj, info, props)
+	local t = TweenService:Create(obj, info, props)
+	t:Play()
+	return t
 end
 
--- Pulse effect (only active when prompt visible)
-local pulseActive = false
-local function startPulse()
-	if pulseActive then return end
-	pulseActive = true
+--------------------------------------------------------------------------
+-- BUILD BILLBOARD GUI FOR A TARGET PLAYER
+--------------------------------------------------------------------------
+local function createBillboard(targetPlayer: Player, targetChar: Model): BillboardGui
+	local hrp = targetChar:FindFirstChild("HumanoidRootPart")
+	if not hrp then return nil end
+
+	local connections: { RBXScriptConnection } = {}
+
+	-- BillboardGui
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "InteractBillboard"
+	bb.Adornee = hrp
+	bb.StudsOffset = BILLBOARD_OFFSET
+	bb.Size = UDim2.new(BB_STUDS_W, 0, BB_STUDS_H, 0)
+	bb.AlwaysOnTop = true
+	bb.ResetOnSpawn = false
+	bb.LightInfluence = 0
+	bb.MaxDistance = INTERACT_RANGE + 4
+	bb.ClipsDescendants = false
+	bb.Active = true
+	bb.Parent = playerGui
+
+	-- Root (transparent container for glow layers + panel)
+	local root = Instance.new("Frame")
+	root.Name = "Root"
+	root.AnchorPoint = Vector2.new(0.5, 0.5)
+	root.Position = UDim2.new(0.5, 0, 0.46, 0)
+	root.Size = UDim2.new(0.92, 0, 0.9, 0)
+	root.BackgroundTransparency = 1
+	root.Parent = bb
+
+	------------------------------------------------------------
+	-- GLOW LAYERS (colored frames behind the panel for bloom)
+	------------------------------------------------------------
+	local glowOuter = Instance.new("Frame")
+	glowOuter.Name = "GlowOuter"
+	glowOuter.AnchorPoint = Vector2.new(0.5, 0.5)
+	glowOuter.Position = UDim2.new(0.5, 0, 0.5, 0)
+	glowOuter.Size = UDim2.new(1, 14, 1, 14)
+	glowOuter.BackgroundColor3 = C.StrokeOuter
+	glowOuter.BackgroundTransparency = 0.88
+	glowOuter.BorderSizePixel = 0
+	glowOuter.ZIndex = 1
+	glowOuter.Parent = root
+	Instance.new("UICorner", glowOuter).CornerRadius = UDim.new(0, 22)
+
+	local glowMid = Instance.new("Frame")
+	glowMid.Name = "GlowMid"
+	glowMid.AnchorPoint = Vector2.new(0.5, 0.5)
+	glowMid.Position = UDim2.new(0.5, 0, 0.5, 0)
+	glowMid.Size = UDim2.new(1, 6, 1, 6)
+	glowMid.BackgroundColor3 = C.StrokeOuter
+	glowMid.BackgroundTransparency = 0.82
+	glowMid.BorderSizePixel = 0
+	glowMid.ZIndex = 1
+	glowMid.Parent = root
+	Instance.new("UICorner", glowMid).CornerRadius = UDim.new(0, 20)
+
+	------------------------------------------------------------
+	-- MAIN PANEL
+	------------------------------------------------------------
+	local panel = Instance.new("Frame")
+	panel.Name = "Panel"
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Position = UDim2.new(0.5, 0, 0.5, 0)
+	panel.Size = UDim2.new(1, 0, 1, 0)
+	panel.BackgroundColor3 = C.BgMain
+	panel.BackgroundTransparency = 0.04
+	panel.BorderSizePixel = 0
+	panel.ZIndex = 2
+	panel.ClipsDescendants = true
+	panel.Parent = root
+	Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 16)
+
+	-- Panel gradient
+	local panelGrad = Instance.new("UIGradient")
+	panelGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 38)),
+		ColorSequenceKeypoint.new(0.4, Color3.fromRGB(12, 12, 24)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(6, 6, 14)),
+	})
+	panelGrad.Rotation = 180
+	panelGrad.Parent = panel
+
+	-- Rotating border stroke with gradient
+	local mainStroke = Instance.new("UIStroke")
+	mainStroke.Name = "MainStroke"
+	mainStroke.Thickness = 3
+	mainStroke.Color = Color3.fromRGB(255, 255, 255)
+	mainStroke.Transparency = 0
+	mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	mainStroke.Parent = panel
+
+	local strokeGrad = Instance.new("UIGradient")
+	strokeGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 200, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 40, 50)),
+	})
+	strokeGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	strokeGrad.Rotation = 0
+	strokeGrad.Parent = mainStroke
+
+	-- Spin the stroke gradient continuously
+	local function spinStroke()
+		while bb.Parent do
+			local t = tw(strokeGrad, TweenInfo.new(5, Enum.EasingStyle.Linear), {
+				Rotation = strokeGrad.Rotation + 360,
+			})
+			t.Completed:Wait()
+		end
+	end
+	task.spawn(spinStroke)
+
+	------------------------------------------------------------
+	-- ANIMATED SCAN LINE (horizontal bar that slides down)
+	------------------------------------------------------------
+	local scanLine = Instance.new("Frame")
+	scanLine.Name = "ScanLine"
+	scanLine.Size = UDim2.new(1, 0, 0, 3)
+	scanLine.Position = UDim2.new(0, 0, 0, 0)
+	scanLine.BackgroundColor3 = C.StrokeOuter
+	scanLine.BackgroundTransparency = 0.6
+	scanLine.BorderSizePixel = 0
+	scanLine.ZIndex = 10
+	scanLine.Parent = panel
+
+	local scanGrad = Instance.new("UIGradient")
+	scanGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.3, 0),
+		NumberSequenceKeypoint.new(0.7, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	scanGrad.Parent = scanLine
+
+	-- Animate scan line looping
 	task.spawn(function()
-		while pulseActive do
-			tween(promptStroke, {Thickness = 6, Color = CONFIG.Theme.NeonDim}, 0.45, Enum.EasingStyle.Sine):Play()
-			task.wait(0.45)
-			tween(promptStroke, {Thickness = 3, Color = CONFIG.Theme.Neon}, 0.45, Enum.EasingStyle.Sine):Play()
-			task.wait(0.45)
+		while bb.Parent do
+			scanLine.Position = UDim2.new(0, 0, -0.02, 0)
+			scanLine.BackgroundTransparency = 0.55
+			local t = tw(scanLine, TweenInfo.new(2.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+				Position = UDim2.new(0, 0, 1, -3),
+			})
+			tw(scanLine, TweenInfo.new(2.2, Enum.EasingStyle.Sine), {
+				BackgroundTransparency = 0.85,
+			})
+			t.Completed:Wait()
+			task.wait(0.4)
 		end
 	end)
-end
-local function stopPulse()
-	pulseActive = false
-	promptStroke.Thickness = 3
-	promptStroke.Color = CONFIG.Theme.Neon
-end
 
--- Menu Buttons
-local buttons = {}
-local function createMenuButtons()
-	for _, child in ipairs(buttonHolder:GetChildren()) do
-		if child:IsA("TextButton") then child:Destroy() end
-	end
-	table.clear(buttons)
+	------------------------------------------------------------
+	-- HEADER
+	------------------------------------------------------------
+	local header = Instance.new("Frame")
+	header.Name = "Header"
+	header.Size = UDim2.new(1, 0, 0.26, 0)
+	header.Position = UDim2.new(0, 0, 0, 0)
+	header.BackgroundColor3 = Color3.fromRGB(0, 30, 50)
+	header.BackgroundTransparency = 0.75
+	header.BorderSizePixel = 0
+	header.ZIndex = 3
+	header.ClipsDescendants = true
+	header.Parent = panel
+	Instance.new("UICorner", header).CornerRadius = UDim.new(0, 16)
 
-	for i, labelText in ipairs(CONFIG.MenuButtons) do
+	-- Header gradient
+	local hGrad = Instance.new("UIGradient")
+	hGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 50, 80)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 12, 25)),
+	})
+	hGrad.Rotation = 180
+	hGrad.Parent = header
+
+	-- Player name
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "PlayerName"
+	nameLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	nameLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+	nameLabel.Size = UDim2.new(0.88, 0, 0.7, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Font = Enum.Font.GothamBlack
+	nameLabel.TextScaled = true
+	nameLabel.TextColor3 = C.NameGlow
+	nameLabel.Text = string.upper(targetPlayer.DisplayName)
+	nameLabel.ZIndex = 5
+	nameLabel.Parent = header
+
+	-- Name text stroke for readability
+	nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 25, 50)
+	nameLabel.TextStrokeTransparency = 0.6
+
+	------------------------------------------------------------
+	-- SEPARATOR with animated width
+	------------------------------------------------------------
+	local sep = Instance.new("Frame")
+	sep.Name = "Sep"
+	sep.AnchorPoint = Vector2.new(0.5, 0)
+	sep.Position = UDim2.new(0.5, 0, 0.26, 0)
+	sep.Size = UDim2.new(0.9, 0, 0, 2)
+	sep.BackgroundColor3 = C.StrokeOuter
+	sep.BackgroundTransparency = 0.4
+	sep.BorderSizePixel = 0
+	sep.ZIndex = 5
+	sep.Parent = panel
+
+	local sepGrad = Instance.new("UIGradient")
+	sepGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.15, 0),
+		NumberSequenceKeypoint.new(0.85, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	sepGrad.Parent = sep
+
+	------------------------------------------------------------
+	-- BUTTON AREA
+	------------------------------------------------------------
+	local btnArea = Instance.new("Frame")
+	btnArea.Name = "Buttons"
+	btnArea.Size = UDim2.new(1, -14, 0.68, -6)
+	btnArea.Position = UDim2.new(0, 7, 0.29, 3)
+	btnArea.BackgroundTransparency = 1
+	btnArea.ZIndex = 3
+	btnArea.Parent = panel
+
+	local btnLayout = Instance.new("UIListLayout")
+	btnLayout.Padding = UDim.new(0.055, 0)
+	btnLayout.FillDirection = Enum.FillDirection.Vertical
+	btnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	btnLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	btnLayout.Parent = btnArea
+
+	------------------------------------------------------------
+	-- BUTTON FACTORY (strokes animated via Color tween, not gradient)
+	------------------------------------------------------------
+	local btnStrokes = {} -- store for animation
+
+	local function makeButton(config: {
+		name: string,
+		label: string,
+		icon: string,
+		subtitle: string,
+		bgColor: Color3,
+		accentColor: Color3,
+		glowColor: Color3,
+		strokeColor: Color3,
+		order: number,
+		callback: () -> (),
+	})
 		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(1, 0, 0, 50)
-		btn.BackgroundColor3 = CONFIG.Theme.Button
-		btn.Text = labelText
-		btn.TextColor3 = CONFIG.Theme.Text
-		btn.Font = Enum.Font.GothamBold
-		btn.TextScaled = true
+		btn.Name = config.name
+		btn.Size = UDim2.new(1, 0, 0.45, 0)
+		btn.BackgroundColor3 = config.bgColor
+		btn.BackgroundTransparency = 0.15
 		btn.AutoButtonColor = false
-		btn.LayoutOrder = i
-		btn.Parent = buttonHolder
+		btn.Text = ""
+		btn.BorderSizePixel = 0
+		btn.LayoutOrder = config.order
+		btn.ZIndex = 4
+		btn.Parent = btnArea
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
 
-		local bCorner = Instance.new("UICorner")
-		bCorner.CornerRadius = UDim.new(0, 8)
-		bCorner.Parent = btn
+		-- Button gradient
+		local btnGrad = Instance.new("UIGradient")
+		btnGrad.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, config.bgColor:Lerp(C.White, 0.1)),
+			ColorSequenceKeypoint.new(0.5, config.bgColor),
+			ColorSequenceKeypoint.new(1, config.bgColor:Lerp(Color3.new(0,0,0), 0.15)),
+		})
+		btnGrad.Rotation = 180
+		btnGrad.Parent = btn
 
-		local bStroke = Instance.new("UIStroke")
-		bStroke.Thickness = 2
-		bStroke.Color = CONFIG.Theme.NeonDim
-		bStroke.Parent = btn
+		-- Stroke (animated color, no gradient)
+		local btnStroke = Instance.new("UIStroke")
+		btnStroke.Name = "Stroke"
+		btnStroke.Thickness = 2
+		btnStroke.Color = config.strokeColor
+		btnStroke.Transparency = 0.25
+		btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		btnStroke.Parent = btn
+		table.insert(btnStrokes, { stroke = btnStroke, color = config.strokeColor, glow = config.glowColor })
+
+		-- Left accent bar
+		local bar = Instance.new("Frame")
+		bar.Name = "Bar"
+		bar.Size = UDim2.new(0, 4, 0.55, 0)
+		bar.AnchorPoint = Vector2.new(0, 0.5)
+		bar.Position = UDim2.new(0, 7, 0.5, 0)
+		bar.BackgroundColor3 = config.accentColor
+		bar.BackgroundTransparency = 0
+		bar.BorderSizePixel = 0
+		bar.ZIndex = 6
+		bar.Parent = btn
+		Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+
+		-- Icon
+		local icon = Instance.new("TextLabel")
+		icon.Name = "Icon"
+		icon.AnchorPoint = Vector2.new(0, 0.5)
+		icon.Position = UDim2.new(0, 18, 0.5, 0)
+		icon.Size = UDim2.new(0, 26, 0, 26)
+		icon.BackgroundTransparency = 1
+		icon.Font = Enum.Font.GothamBold
+		icon.Text = config.icon
+		icon.TextScaled = true
+		icon.TextColor3 = config.accentColor
+		icon.ZIndex = 6
+		icon.Parent = btn
+
+		-- Label
+		local label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.AnchorPoint = Vector2.new(0, 0.5)
+		label.Position = UDim2.new(0, 50, 0.3, 0)
+		label.Size = UDim2.new(1, -72, 0.4, 0)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBlack
+		label.TextScaled = true
+		label.TextColor3 = C.WhiteSoft
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.Text = config.label
+		label.TextStrokeTransparency = 0.85
+		label.TextStrokeColor3 = config.strokeColor
+		label.ZIndex = 6
+		label.Parent = btn
+
+		-- Subtitle
+		local sub = Instance.new("TextLabel")
+		sub.Name = "Sub"
+		sub.AnchorPoint = Vector2.new(0, 0.5)
+		sub.Position = UDim2.new(0, 50, 0.72, 0)
+		sub.Size = UDim2.new(1, -72, 0.26, 0)
+		sub.BackgroundTransparency = 1
+		sub.Font = Enum.Font.Gotham
+		sub.TextScaled = true
+		sub.TextColor3 = C.WhiteDim
+		sub.TextXAlignment = Enum.TextXAlignment.Left
+		sub.Text = config.subtitle
+		sub.ZIndex = 6
+		sub.Parent = btn
+
+		-- Arrow
+		local arrow = Instance.new("TextLabel")
+		arrow.Name = "Arrow"
+		arrow.AnchorPoint = Vector2.new(1, 0.5)
+		arrow.Position = UDim2.new(1, -8, 0.5, 0)
+		arrow.Size = UDim2.new(0, 20, 0, 22)
+		arrow.BackgroundTransparency = 1
+		arrow.Font = Enum.Font.GothamBold
+		arrow.Text = "›"
+		arrow.TextScaled = true
+		arrow.TextColor3 = config.strokeColor
+		arrow.TextTransparency = 0.2
+		arrow.ZIndex = 6
+		arrow.Parent = btn
+
+		-- Hover overlay
+		local hover = Instance.new("Frame")
+		hover.Name = "Hover"
+		hover.Size = UDim2.new(1, 0, 1, 0)
+		hover.BackgroundColor3 = config.accentColor
+		hover.BackgroundTransparency = 1
+		hover.BorderSizePixel = 0
+		hover.ZIndex = 5
+		hover.Parent = btn
+		Instance.new("UICorner", hover).CornerRadius = UDim.new(0, 12)
 
 		btn.MouseEnter:Connect(function()
-			tween(btn, {BackgroundColor3 = CONFIG.Theme.ButtonHover}, 0.15):Play()
-			tween(bStroke, {Color = CONFIG.Theme.Neon}, 0.15):Play()
+			tw(hover, TweenInfo.new(0.18), { BackgroundTransparency = 0.82 })
+			tw(btnStroke, TweenInfo.new(0.18), { Transparency = 0, Thickness = 3.5, Color = config.glowColor })
+			tw(bar, TweenInfo.new(0.12), { Size = UDim2.new(0, 5, 0.7, 0), BackgroundColor3 = config.glowColor })
+			tw(arrow, TweenInfo.new(0.12), { TextColor3 = C.White, TextTransparency = 0 })
+			tw(label, TweenInfo.new(0.12), { TextColor3 = config.glowColor })
 		end)
+
 		btn.MouseLeave:Connect(function()
-			tween(btn, {BackgroundColor3 = CONFIG.Theme.Button}, 0.25):Play()
-			tween(bStroke, {Color = CONFIG.Theme.NeonDim}, 0.25):Play()
+			tw(hover, TweenInfo.new(0.25), { BackgroundTransparency = 1 })
+			tw(btnStroke, TweenInfo.new(0.25), { Transparency = 0.25, Thickness = 2, Color = config.strokeColor })
+			tw(bar, TweenInfo.new(0.2), { Size = UDim2.new(0, 4, 0.55, 0), BackgroundColor3 = config.accentColor })
+			tw(arrow, TweenInfo.new(0.2), { TextColor3 = config.strokeColor, TextTransparency = 0.2 })
+			tw(label, TweenInfo.new(0.2), { TextColor3 = C.WhiteSoft })
 		end)
 
-		btn.MouseButton1Click:Connect(function()
-			if currentTarget then
-				print(("%s clicked for %s"):format(labelText, currentTarget.Name))
-				-- TODO: Fire RemoteEvent for secure server logic
+		btn.MouseButton1Click:Connect(config.callback)
+	end
+
+	------------------------------------------------------------
+	-- CREATE BUTTONS
+	------------------------------------------------------------
+	makeButton({
+		name = "DuelBtn",
+		label = "DUEL",
+		icon = "⚔️",
+		subtitle = "Challenge to 1v1",
+		bgColor = C.DuelBg,
+		accentColor = C.DuelAccent,
+		glowColor = C.DuelGlow,
+		strokeColor = C.DuelStroke,
+		order = 1,
+		callback = function()
+			if DuelEvent then
+				DuelEvent:FireServer("RequestDuel", targetPlayer)
 			end
-		end)
+		end,
+	})
 
-		buttons[labelText] = btn
-	end
-end
-createMenuButtons()
+	makeButton({
+		name = "TradeBtn",
+		label = "TRADE",
+		icon = "💰",
+		subtitle = "Open trade window",
+		bgColor = C.TradeBg,
+		accentColor = C.TradeAccent,
+		glowColor = C.TradeGlow,
+		strokeColor = C.TradeStroke,
+		order = 2,
+		callback = function()
+			warn("[Interaction] Trade with " .. targetPlayer.Name .. " — not yet implemented")
+		end,
+	})
 
---------------------------------------------------
--- Utility: Fade In / Out
---------------------------------------------------
-local function showFrame(frameObj)
-	frameObj.Visible = true
-	frameObj.BackgroundTransparency = 1
-	frameObj.Size = UDim2.new(frameObj.Size.X.Scale, frameObj.Size.X.Offset,
-		frameObj.Size.Y.Scale, frameObj.Size.Y.Offset) -- stable
-	tween(frameObj, {BackgroundTransparency = CONFIG.Theme.PanelTransparency}, CONFIG.FadeTime):Play()
-end
-local function hideFrame(frameObj)
-	if not frameObj.Visible then return end
-	local tw = tween(frameObj, {BackgroundTransparency = 1}, CONFIG.FadeTime)
-	tw:Play()
-	tw.Completed:Wait()
-	frameObj.Visible = false
-end
+	------------------------------------------------------------
+	-- POINTER (arrow pointing at player)
+	------------------------------------------------------------
+	local pointer = Instance.new("Frame")
+	pointer.Name = "Pointer"
+	pointer.AnchorPoint = Vector2.new(0.5, 0)
+	pointer.Position = UDim2.new(0.5, 0, 1, -1)
+	pointer.Size = UDim2.new(0, 14, 0, 14)
+	pointer.Rotation = 45
+	pointer.BackgroundColor3 = C.BgMain
+	pointer.BackgroundTransparency = 0.04
+	pointer.BorderSizePixel = 0
+	pointer.ZIndex = 2
+	pointer.Parent = panel
 
---------------------------------------------------
--- Target Highlight
---------------------------------------------------
-local function attachHighlight(targetPlayer : Player?)
-	if highlight then highlight:Destroy(); highlight = nil end
-	if not targetPlayer or not targetPlayer.Character then return end
-	local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-	if not hrp then return end
-	highlight = Instance.new("Highlight")
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.FillTransparency = CONFIG.Highlight.FillTransparency
-	highlight.OutlineTransparency = CONFIG.Highlight.OutlineTransparency
-	highlight.OutlineColor = CONFIG.Highlight.OutlineColor
-	highlight.Adornee = targetPlayer.Character
-	highlight.Parent = targetPlayer.Character
-end
+	local pointerStroke = Instance.new("UIStroke")
+	pointerStroke.Thickness = 3
+	pointerStroke.Color = C.StrokeOuter
+	pointerStroke.Transparency = 0.05
+	pointerStroke.Parent = pointer
 
-local function clearHighlight()
-	if highlight then
-		highlight:Destroy()
-		highlight = nil
-	end
-end
+	------------------------------------------------------------
+	-- HEARTBEAT ANIMATION LOOP
+	------------------------------------------------------------
+	local startTime = tick()
 
---------------------------------------------------
--- Proximity Detection
---------------------------------------------------
-local function distanceToPlayer(other : Player)
-	if not rootPart then return math.huge end
-	local char = other.Character
-	if not char then return math.huge end
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	if not hrp or not hum or hum.Health <= 0 then return math.huge end
-	return (rootPart.Position - hrp.Position).Magnitude
-end
+	-- Color cycle arrays for the main stroke
+	local strokeColors = { C.StrokeOuter, C.StrokeOuterBright, C.StrokeOuter, C.StrokeOuterDim }
 
-local function findClosestPlayer()
-	local closest : Player? = nil
-	local minDist = CONFIG.InteractRange
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= localPlayer then
-			local dist = distanceToPlayer(p)
-			if dist <= minDist then
-				minDist = dist
-				closest = p
+	table.insert(connections, RunService.Heartbeat:Connect(function()
+		local t = tick() - startTime
+		local pulse01 = (math.sin(t * 2.5) + 1) / 2 -- 0→1 smoothly
+
+		-- BOB up and down
+		local bobOffset = math.sin(t * BOB_SPEED) * BOB_AMPLITUDE
+		bb.StudsOffset = BILLBOARD_OFFSET + Vector3.new(0, bobOffset, 0)
+
+		-- MAIN STROKE: color pulse
+		local colorT = (math.sin(t * 1.8) + 1) / 2
+
+		-- POINTER stroke matches orbit color
+		pointerStroke.Color = C.StrokeOuterDim:Lerp(C.StrokeOuterBright, colorT)
+		pointerStroke.Thickness = 2.5 + pulse01 * 0.5
+
+		-- GLOW LAYERS pulse
+		glowOuter.BackgroundTransparency = 0.84 + (1 - pulse01) * 0.1
+		glowMid.BackgroundTransparency = 0.76 + (1 - pulse01) * 0.12
+		glowOuter.BackgroundColor3 = mainStroke.Color
+		glowMid.BackgroundColor3 = mainStroke.Color
+
+		-- NAME pulse
+		nameLabel.TextColor3 = C.NameGlow:Lerp(C.StrokeOuterBright, pulse01 * 0.5)
+
+		-- SEPARATOR breathe
+		sep.BackgroundTransparency = 0.3 + (1 - pulse01) * 0.3
+
+		-- BUTTON STROKES: color cycle
+		for _, bs in ipairs(btnStrokes) do
+			local btnColorT = (math.sin(t * 2 + bs.stroke.LayoutOrder * 1.5) + 1) / 2
+			-- Only animate if not hovered (check transparency to detect hover state)
+			if bs.stroke.Transparency > 0.1 then
+				bs.stroke.Color = bs.color:Lerp(bs.glow, btnColorT)
 			end
 		end
-	end
-	return closest, minDist
+	end))
+
+	------------------------------------------------------------
+	-- ENTRANCE ANIMATION
+	------------------------------------------------------------
+	root.Size = UDim2.new(0.5, 0, 0.45, 0)
+	panel.BackgroundTransparency = 1
+	mainStroke.Transparency = 1
+	glowOuter.BackgroundTransparency = 1
+	glowMid.BackgroundTransparency = 1
+
+	tw(root, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0.92, 0, 0.9, 0),
+	})
+	tw(panel, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
+		BackgroundTransparency = 0.04,
+	})
+	tw(mainStroke, TweenInfo.new(0.5), {
+		Transparency = 0,
+	})
+	task.delay(0.15, function()
+		tw(glowOuter, TweenInfo.new(0.4), { BackgroundTransparency = 0.88 })
+		tw(glowMid, TweenInfo.new(0.4), { BackgroundTransparency = 0.82 })
+	end)
+
+	return bb, connections
 end
 
---------------------------------------------------
--- Prompt Handling
---------------------------------------------------
-local function updatePrompt()
-	if currentTarget then
-		promptText.Text = "Interact: " .. currentTarget.Name
+--------------------------------------------------------------------------
+-- BILLBOARD LIFECYCLE: Show/hide based on proximity
+--------------------------------------------------------------------------
+local function showBillboard(targetPlayer: Player)
+	if activeBillboards[targetPlayer] then return end
+	local targetChar = targetPlayer.Character
+	if not targetChar then return end
+	local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
+	if not targetHRP then return end
+	local targetHum = targetChar:FindFirstChildOfClass("Humanoid")
+	if not targetHum or targetHum.Health <= 0 then return end
+
+	print("🎯 [Interaction] Showing billboard for", targetPlayer.Name)
+	local gui, conns = createBillboard(targetPlayer, targetChar)
+	if gui then
+		activeBillboards[targetPlayer] = { gui = gui, connections = conns }
+		print("✅ [Interaction] Billboard created for", targetPlayer.Name)
 	else
-		promptText.Text = "Interact"
+		warn("⚠️ [Interaction] createBillboard returned nil for", targetPlayer.Name)
 	end
 end
 
-local function setTarget(newTarget : Player?)
-	if newTarget == currentTarget then return end
+local function hideBillboard(targetPlayer: Player)
+	local data = activeBillboards[targetPlayer]
+	if not data then return end
 
-	if newTarget then
-		currentTarget = newTarget
-		updatePrompt()
-		attachHighlight(currentTarget)
-		if not promptFrame.Visible then
-			showFrame(promptFrame)
-			startPulse()
+	-- Fade out
+	local root = data.gui:FindFirstChild("Root")
+	if root then
+		local panel = root:FindFirstChild("Panel")
+		if panel then
+			local stroke = panel:FindFirstChild("MainStroke")
+			if stroke then
+				tw(stroke, TweenInfo.new(0.15), { Transparency = 1 })
+			end
+			tw(panel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				BackgroundTransparency = 1,
+			})
 		end
-	else
-		currentTarget = nil
-		updatePrompt()
-		clearHighlight()
-		if promptFrame.Visible then
-			hideFrame(promptFrame)
-			stopPulse()
-		end
-		if menuOpen then
-			menuOpen = false
-			hideFrame(menuFrame)
-		end
+		-- Shrink glow layers
+		local glowOuter = root:FindFirstChild("GlowOuter")
+		local glowMid = root:FindFirstChild("GlowMid")
+		if glowOuter then tw(glowOuter, TweenInfo.new(0.2), { BackgroundTransparency = 1 }) end
+		if glowMid then tw(glowMid, TweenInfo.new(0.2), { BackgroundTransparency = 1 }) end
+
+		tw(root, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+			Size = UDim2.new(0.4, 0, 0.35, 0),
+		})
 	end
-end
 
---------------------------------------------------
--- Menu Handling
---------------------------------------------------
-local function openMenu()
-	if not currentTarget then return end
-	menuTitle.Text = string.upper(currentTarget.Name)
-	showFrame(menuFrame)
-	menuOpen = true
-end
-
-local function closeMenu()
-	if not menuOpen then return end
-	menuOpen = false
-	hideFrame(menuFrame)
-end
-
-local function toggleMenu()
-	if menuOpen then
-		closeMenu()
-	else
-		openMenu()
+	-- Disconnect animations
+	for _, conn in ipairs(data.connections) do
+		conn:Disconnect()
 	end
-end
 
---------------------------------------------------
--- Input (ContextActionService)
---------------------------------------------------
-local ACTION_NAME = "InteractAction"
-
-local function interactionAction(_, state, inputObj)
-	if state == Enum.UserInputState.Begin then
-		-- Ignore if typing in chat or textbox
-		if UserInputService:GetFocusedTextBox() then return Enum.ContextActionResult.Pass end
-		if currentTarget then
-			toggleMenu()
+	-- Destroy after fade
+	task.delay(0.25, function()
+		if data.gui and data.gui.Parent then
+			data.gui:Destroy()
 		end
-	end
-	return Enum.ContextActionResult.Sink
+	end)
+
+	activeBillboards[targetPlayer] = nil
 end
 
-ContextActionService:BindAction(ACTION_NAME, interactionAction, false, CONFIG.InteractKey)
-
---------------------------------------------------
--- Update Loop (throttled)
---------------------------------------------------
+--------------------------------------------------------------------------
+-- PROXIMITY SCANNER
+--------------------------------------------------------------------------
 RunService.Heartbeat:Connect(function(dt)
 	lastCheck += dt
-	if lastCheck < CONFIG.CheckInterval then return end
+	if lastCheck < CHECK_INTERVAL then return end
 	lastCheck = 0
 
-	-- Character safety
 	if not character or not rootPart or not humanoid or humanoid.Health <= 0 then
-		setTarget(nil)
+		-- Hide all if we're dead
+		for plr, _ in pairs(activeBillboards) do
+			hideBillboard(plr)
+		end
 		return
 	end
 
-	local closest = findClosestPlayer()
+	local myPos = rootPart.Position
+	local nearbyPlayers: { [Player]: boolean } = {}
+	local playerCount = 0
 
-	if closest then
-		setTarget(closest)
-	else
-		setTarget(nil)
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr == localPlayer then continue end
+		playerCount += 1
+
+		local char = plr.Character
+		if not char then continue end
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if not hrp or not hum or hum.Health <= 0 then continue end
+
+		local dist = (myPos - hrp.Position).Magnitude
+		if dist <= INTERACT_RANGE then
+			nearbyPlayers[plr] = true
+			showBillboard(plr)
+		end
 	end
 
-	-- Auto-close menu if target lost or out of range
-	if menuOpen and (not currentTarget) then
-		closeMenu()
+	-- Remove billboards for players no longer in range
+	for plr, _ in pairs(activeBillboards) do
+		if not nearbyPlayers[plr] then
+			hideBillboard(plr)
+		end
 	end
 end)
 
---------------------------------------------------
--- Cleanup on player removing target (listen for players leaving)
---------------------------------------------------
+-- Cleanup when players leave
 Players.PlayerRemoving:Connect(function(plr)
-	if plr == currentTarget then
-		setTarget(nil)
-	end
+	hideBillboard(plr)
 end)
 
---------------------------------------------------
--- Initial UI State
---------------------------------------------------
-promptFrame.Visible = false
-menuFrame.Visible = false
-stopPulse()
+--------------------------------------------------------------------------
+-- DUEL INVITE POPUP (received from server)
+--------------------------------------------------------------------------
+local function createDuelPopup(fromPlayer: Player)
+	local popup = Instance.new("ScreenGui")
+	popup.Name = "DuelInvite"
+	popup.ResetOnSpawn = false
+	popup.DisplayOrder = 15
+	popup.Parent = playerGui
+
+	local bg = Instance.new("Frame")
+	bg.AnchorPoint = Vector2.new(0.5, 0)
+	bg.Position = UDim2.new(0.5, 0, 0, -130)
+	bg.Size = UDim2.new(0, 400, 0, 120)
+	bg.BackgroundColor3 = C.BgMain
+	bg.BackgroundTransparency = 0.1
+	bg.BorderSizePixel = 0
+	bg.Parent = popup
+
+	local bgCorner = Instance.new("UICorner")
+	bgCorner.CornerRadius = UDim.new(0, 14)
+	bgCorner.Parent = bg
+
+	local bgStroke = Instance.new("UIStroke")
+	bgStroke.Thickness = 2.5
+	bgStroke.Color = C.DuelAccent
+	bgStroke.Transparency = 0.2
+	bgStroke.Parent = bg
+
+	local bgStrokeGrad = Instance.new("UIGradient")
+	bgStrokeGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, C.DuelGlow),
+		ColorSequenceKeypoint.new(0.5, C.DuelStroke),
+		ColorSequenceKeypoint.new(1, C.DuelGlow),
+	})
+	bgStrokeGrad.Rotation = 0
+	bgStrokeGrad.Parent = bgStroke
+
+	local msgLabel = Instance.new("TextLabel")
+	msgLabel.Size = UDim2.new(1, -20, 0, 44)
+	msgLabel.Position = UDim2.new(0, 10, 0, 8)
+	msgLabel.BackgroundTransparency = 1
+	msgLabel.Font = Enum.Font.GothamBold
+	msgLabel.TextScaled = true
+	msgLabel.TextColor3 = C.White
+	msgLabel.Text = "⚔️  " .. fromPlayer.Name .. " challenges you!"
+	msgLabel.Parent = bg
+
+	-- Accept
+	local acceptBtn = Instance.new("TextButton")
+	acceptBtn.Size = UDim2.new(0.44, 0, 0, 44)
+	acceptBtn.Position = UDim2.new(0.03, 0, 0, 60)
+	acceptBtn.BackgroundColor3 = Color3.fromRGB(20, 160, 50)
+	acceptBtn.BackgroundTransparency = 0.15
+	acceptBtn.Font = Enum.Font.GothamBold
+	acceptBtn.TextScaled = true
+	acceptBtn.Text = "✓  ACCEPT"
+	acceptBtn.TextColor3 = C.White
+	acceptBtn.AutoButtonColor = false
+	acceptBtn.BorderSizePixel = 0
+	acceptBtn.Parent = bg
+	Instance.new("UICorner", acceptBtn).CornerRadius = UDim.new(0, 10)
+
+	local acceptStroke = Instance.new("UIStroke")
+	acceptStroke.Thickness = 1.5
+	acceptStroke.Color = Color3.fromRGB(50, 255, 100)
+	acceptStroke.Transparency = 0.4
+	acceptStroke.Parent = acceptBtn
+
+	-- Decline
+	local declineBtn = Instance.new("TextButton")
+	declineBtn.Size = UDim2.new(0.44, 0, 0, 44)
+	declineBtn.Position = UDim2.new(0.53, 0, 0, 60)
+	declineBtn.BackgroundColor3 = Color3.fromRGB(160, 20, 20)
+	declineBtn.BackgroundTransparency = 0.15
+	declineBtn.Font = Enum.Font.GothamBold
+	declineBtn.TextScaled = true
+	declineBtn.Text = "✕  DECLINE"
+	declineBtn.TextColor3 = C.White
+	declineBtn.AutoButtonColor = false
+	declineBtn.BorderSizePixel = 0
+	declineBtn.Parent = bg
+	Instance.new("UICorner", declineBtn).CornerRadius = UDim.new(0, 10)
+
+	local declineStroke = Instance.new("UIStroke")
+	declineStroke.Thickness = 1.5
+	declineStroke.Color = Color3.fromRGB(255, 80, 80)
+	declineStroke.Transparency = 0.4
+	declineStroke.Parent = declineBtn
+
+	-- Hover effects
+	for _, b in ipairs({ acceptBtn, declineBtn }) do
+		local origTrans = b.BackgroundTransparency
+		b.MouseEnter:Connect(function()
+			tw(b, TweenInfo.new(0.15), { BackgroundTransparency = 0 })
+		end)
+		b.MouseLeave:Connect(function()
+			tw(b, TweenInfo.new(0.2), { BackgroundTransparency = origTrans })
+		end)
+	end
+
+	-- Slide in from top
+	tw(bg, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, 0, 0, 20),
+	})
+
+	-- Rotate popup stroke
+	local popupConn
+	local popupStart = tick()
+	popupConn = RunService.Heartbeat:Connect(function()
+		bgStrokeGrad.Rotation = ((tick() - popupStart) * 80) % 360
+	end)
+
+	local function dismiss()
+		if popupConn then popupConn:Disconnect() end
+		tw(bg, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = UDim2.new(0.5, 0, 0, -150),
+		})
+		task.delay(0.3, function()
+			popup:Destroy()
+		end)
+	end
+
+	acceptBtn.MouseButton1Click:Connect(function()
+		if DuelEvent then
+			DuelEvent:FireServer("AcceptDuel", fromPlayer)
+		end
+		dismiss()
+	end)
+
+	declineBtn.MouseButton1Click:Connect(function()
+		if DuelEvent then
+			DuelEvent:FireServer("DeclineDuel", fromPlayer)
+		end
+		dismiss()
+	end)
+
+	-- Auto-dismiss after 15s
+	task.delay(15, function()
+		if popup.Parent then
+			if DuelEvent then
+				DuelEvent:FireServer("DeclineDuel", fromPlayer)
+			end
+			dismiss()
+		end
+	end)
+end
+
+--------------------------------------------------------------------------
+-- NOTIFICATION BANNER
+--------------------------------------------------------------------------
+local function showNotification(text: string, color: Color3?)
+	local notifColor = color or C.StrokeOuter
+
+	local notif = Instance.new("ScreenGui")
+	notif.Name = "InteractNotif"
+	notif.ResetOnSpawn = false
+	notif.DisplayOrder = 12
+	notif.Parent = playerGui
+
+	local bar = Instance.new("Frame")
+	bar.AnchorPoint = Vector2.new(0.5, 0)
+	bar.Position = UDim2.new(0.5, 0, 0, -60)
+	bar.Size = UDim2.new(0, 420, 0, 50)
+	bar.BackgroundColor3 = C.BgMain
+	bar.BackgroundTransparency = 0.1
+	bar.BorderSizePixel = 0
+	bar.Parent = notif
+
+	Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 12)
+
+	local barStroke = Instance.new("UIStroke")
+	barStroke.Thickness = 2
+	barStroke.Color = notifColor
+	barStroke.Transparency = 0.3
+	barStroke.Parent = bar
+
+	local barLabel = Instance.new("TextLabel")
+	barLabel.Size = UDim2.new(1, -20, 1, 0)
+	barLabel.Position = UDim2.new(0, 10, 0, 0)
+	barLabel.BackgroundTransparency = 1
+	barLabel.Font = Enum.Font.GothamBold
+	barLabel.TextScaled = true
+	barLabel.TextColor3 = C.White
+	barLabel.Text = text
+	barLabel.Parent = bar
+
+	tw(bar, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, 0, 0, 16),
+	})
+
+	task.delay(3.5, function()
+		tw(bar, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
+			Position = UDim2.new(0.5, 0, 0, -70),
+		})
+		task.delay(0.3, function()
+			notif:Destroy()
+		end)
+	end)
+end
+
+--------------------------------------------------------------------------
+-- LISTEN FOR SERVER EVENTS
+--------------------------------------------------------------------------
+if DuelEvent then
+	DuelEvent.OnClientEvent:Connect(function(action, fromPlayer)
+		if action == "Invite" then
+			createDuelPopup(fromPlayer)
+		elseif action == "Declined" then
+			showNotification(fromPlayer.Name .. " declined your duel.", C.DuelAccent)
+		elseif action == "Message" then
+			showNotification("⚔️ Teleporting to arena...", C.StrokeOuter)
+		end
+	end)
+end
+
+print("✅ [Interaction] Billboard system loaded — walk near a player to interact")

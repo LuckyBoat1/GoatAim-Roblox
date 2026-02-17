@@ -1,4 +1,4 @@
--- SkinConfig.lua: Skins + rarity + icons + ADS settings
+-- SkinConfig.lua: Skins + rarity + icons + ADS settings + damage
 -- 5-tier rarity: common < rare < epic < legendary < mythic
 
 local SkinConfig = {}
@@ -12,6 +12,45 @@ local DEFAULT_ICONS = {
 	Luger     = "rbxassetid://6764432243",
 	BattleAxe = "rbxassetid://6764432243",
 }
+
+-- Base damage per weapon type
+local WEAPON_BASE_DAMAGE = {
+	-- Guns
+	Pistol   = 8,
+	Revolver = 12,
+	SMG      = 7,
+	Rifle    = 10,
+	AK       = 11,
+	M4       = 10,
+	Sniper   = 35,
+	Shotgun  = 25,  -- Per pellet
+	LMG      = 9,
+	Launcher = 50,
+	
+	-- Melee
+	Blade    = 15,
+	Sword    = 18,
+	Axe      = 22,
+	Hammer   = 25,
+	Mace     = 20,
+	Spear    = 16,
+	Halberd  = 19,
+	Club     = 14,
+	Machete  = 13,
+	Shiv     = 10,
+	Staff    = 12,
+	Greatsword = 28,
+}
+
+-- Damage multiplier per rarity
+local RARITY_DAMAGE_MULTIPLIER = {
+	common    = 1.0,
+	rare      = 1.2,
+	epic      = 1.5,
+	legendary = 2.0,
+	mythic    = 2.5,
+}
+
 --
 -- Base-weapon ADS defaults
 local DEFAULT_ADS = {
@@ -764,6 +803,33 @@ function SkinConfig.GetADSFOVForSkin(skinId, toolName)
 	if meta and meta.adsFov then return meta.adsFov end
 	local weapon = meta and meta.weapon or normalizeWeaponName(toolName)
 	return (weapon and DEFAULT_ADS.FOV[weapon]) or 55
+end
+
+-- Get damage for a skin based on weapon type and rarity
+function SkinConfig.GetDamage(skinId)
+	local meta = SKINS[skinId]
+	if not meta then return 10 end -- Default damage
+	
+	-- If skin has custom damage override, use it
+	if meta.damage then return meta.damage end
+	
+	-- Calculate damage from weapon type and rarity
+	local baseDamage = WEAPON_BASE_DAMAGE[meta.weapon] or 10
+	local rarityMultiplier = RARITY_DAMAGE_MULTIPLIER[meta.rarity] or 1.0
+	
+	return math.floor(baseDamage * rarityMultiplier)
+end
+
+-- Get weapon type for a skin
+function SkinConfig.GetWeaponType(skinId)
+	local meta = SKINS[skinId]
+	return meta and meta.weapon or "Unknown"
+end
+
+-- Get rarity for a skin
+function SkinConfig.GetRarity(skinId)
+	local meta = SKINS[skinId]
+	return meta and meta.rarity or "common"
 end
 
 function SkinConfig.GetAllSkins()

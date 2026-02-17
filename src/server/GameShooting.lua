@@ -416,6 +416,18 @@ shootEvent.OnServerEvent:Connect(function(player, mouseHitPosition)
 		return
 	end
 
+	-- 🟢 NPC Hit (PVE System)
+	if _G.PVESystem and _G.PVESystem.findNPCFromHit then
+		local npcModel = _G.PVESystem.findNPCFromHit(hitPart)
+		if npcModel then
+			print("[ShootingServer] NPC Hit:", npcModel.Name, "by", player.Name)
+			
+			local damage = _G.PVESystem.getWeaponDamage(player)
+			_G.PVESystem.damageNPC(npcModel, damage, player)
+			return
+		end
+	end
+
 	-- 🟢 Normal Mode
 	if hitPart:GetAttribute("PlayerId") == player.UserId then
 		hitPart:Destroy()

@@ -5,6 +5,12 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
 
+-- Wait for game to be ready
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+task.wait(1) -- Extra wait to ensure workspace is populated
+
 -- NPC Config
 local NPC_FOLDER_NAME = "Npc"
 local MODEL_NAME = "Spidy"
@@ -23,9 +29,12 @@ local ANIM_ATTACK = 130278364981698
 
 local NPCS = {}
 
--- FishSpawn model
-local spawnModel = Workspace:FindFirstChild("SpidySpawn")
-if not spawnModel then error("SpidySpawn model missing") end
+-- SpidySpawn model - wait for it
+local spawnModel = Workspace:WaitForChild("SpidySpawn", 10)
+if not spawnModel then 
+	warn("[Spidy] SpidySpawn model missing - NPC won't spawn")
+	return
+end
 
 -- Get all parts inside spawn model
 local spawnParts = {}
@@ -34,7 +43,10 @@ for _, part in ipairs(spawnModel:GetDescendants()) do
 		table.insert(spawnParts, part)
 	end
 end
-if #spawnParts == 0 then error("No parts found in FishSpawn model") end
+if #spawnParts == 0 then 
+	warn("[Spidy] No parts found in SpidySpawn model")
+	return
+end
 
 -- Helper: get random spawn point above terrain
 local function getSpawnPosition(part)
@@ -108,10 +120,18 @@ local function moveAlongPath(npc, humanoid, targetPos)
 end
 
 -- Spawn NPCs
-local folder = ReplicatedStorage:FindFirstChild(NPC_FOLDER_NAME)
-if not folder then error("Npc folder missing") end
-local template = folder:FindFirstChild(MODEL_NAME)
-if not template then error(MODEL_NAME.." missing") end
+local folder = ReplicatedStorage:WaitForChild(NPC_FOLDER_NAME, 10)
+if not folder then 
+	warn("[Spidy] Npc folder missing in ReplicatedStorage")
+	return
+end
+local template = folder:WaitForChild(MODEL_NAME, 10)
+if not template then 
+	warn("[Spidy] " .. MODEL_NAME .. " model missing in Npc folder")
+	return
+end
+
+print("[Spidy] Found template and spawn, spawning", NPC_COUNT, "NPCs...")
 
 for i = 1, NPC_COUNT do
 	local spawnPart = spawnParts[math.random(1, #spawnParts)]

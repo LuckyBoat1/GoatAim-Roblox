@@ -23,6 +23,7 @@ local BUTTON_COLORS = {
 	{main = THEME.CRIMSON, dark = Color3.fromRGB(150, 30, 50)},
 	{main = THEME.EMBER, dark = Color3.fromRGB(180, 60, 20)},
 	{main = THEME.ABYSS, dark = Color3.fromRGB(90, 30, 140)},
+	{main = Color3.fromRGB(60, 60, 70), dark = Color3.fromRGB(40, 40, 50)}, -- Settings gray
 }
 
 -- Icons
@@ -30,6 +31,7 @@ local ICONS = {
 	INVENTORY = "rbxthumb://type=Asset&id=104277052032419&w=420&h=420",
 	QUESTS = "rbxthumb://type=Asset&id=96245622853577&w=420&h=420",
 	SHOP = "rbxthumb://type=Asset&id=91509180731644&w=420&h=420",
+	HEADQUARTERS = "rbxassetid://6031265976", -- Building/base icon
 	SETTINGS = "rbxassetid://8337535591"
 }
 
@@ -463,6 +465,9 @@ local function closeAllMenus()
 	if _G.MatrixShop and _G.MatrixShop.IsOpen and _G.MatrixShop.IsOpen() then
 		_G.MatrixShop.Close()
 	end
+	if _G.MatrixHeadquarters and _G.MatrixHeadquarters.IsOpen and _G.MatrixHeadquarters.IsOpen() then
+		_G.MatrixHeadquarters.Close()
+	end
 end
 
 -- Create buttons
@@ -502,7 +507,19 @@ createButton("ShopBtn", ICONS.SHOP, 3, function()
 	end
 end, 46)
 
-createButton("SettingsBtn", ICONS.SETTINGS, 4, function()
+createButton("HeadquartersBtn", ICONS.HEADQUARTERS, 4, function()
+	if _G.MatrixHeadquarters and _G.MatrixHeadquarters.Toggle then
+		local wasOpen = _G.MatrixHeadquarters.IsOpen and _G.MatrixHeadquarters.IsOpen()
+		closeAllMenus()
+		if not wasOpen then
+			_G.MatrixHeadquarters.Toggle()
+		end
+	else
+		warn("Headquarters API not found in _G.MatrixHeadquarters")
+	end
+end, 42)
+
+createButton("SettingsBtn", ICONS.SETTINGS, 5, function()
 	print("Settings clicked")
 end, 40)
 

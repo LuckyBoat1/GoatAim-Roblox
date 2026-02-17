@@ -1,5 +1,5 @@
 --[[
-	End NPC - Using NPCController
+	Two Face NPC - Using NPCController
 	
 	All configuration is in: src/shared/NPCConfig.lua
 	All AI logic is in: src/shared/NPCController.lua
@@ -12,4 +12,4 @@ local sharedFolder = ReplicatedStorage:WaitForChild("Shared")
 local NPCController = require(sharedFolder:WaitForChild("NPCController"))
 
 -- Initialize with config name (matches key in NPCConfig)
-NPCController.init("End")
+NPCController.init("TwoFace")

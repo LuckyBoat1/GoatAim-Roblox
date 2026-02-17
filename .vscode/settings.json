@@ -33,10 +33,10 @@
   "luau-lsp.types.strictDatamodelTypes": true,
   // Ensure both .lua and .luau open with the Luau language server (not the generic Lua one)
   "files.associations": {
-    "*.luau": "luau",
-    "*.lua": "luau",
-    "*.client.luau": "luau",
-    "*.server.luau": "luau"
+    "*.luau": "lua",
+    "*.lua": "lua",
+    "*.client.luau": "lua",
+    "*.server.luau": "lua"
   },
   // (Optional) You can temporarily relax strictness while importing code:
   // "luau-lsp.diagnostics.severity": { "StrictModeFunction": "Information" }

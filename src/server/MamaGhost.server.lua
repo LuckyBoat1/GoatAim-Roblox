@@ -137,6 +137,9 @@ for i = 1, NPC_COUNT do
 	local humanoid = npc:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid.WalkSpeed = WALK_SPEED
+		-- Set health from config
+		humanoid.MaxHealth = 200
+		humanoid.Health = 200
 		
 		-- Make sure HumanoidRootPart exists
 		local hrp = npc:FindFirstChild("HumanoidRootPart")
@@ -322,6 +325,13 @@ for _, npc in ipairs(NPCS) do
 			end
 			
 			task.wait(0.1) -- 10 checks per second
+		end
+		
+		-- NPC died, wait 5 seconds before removing the body
+		task.wait(5)
+		if npc and npc.Parent then
+			npc:Destroy()
+			print("[NPC] Removed " .. npc.Name .. " after death")
 		end
 	end)
 end
