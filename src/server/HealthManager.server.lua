@@ -117,9 +117,9 @@ local function applyDamage(player, damage, attacker, damageType, ignoreArmor)
 		damageType = damageType or "normal"
 	})
 	
-	-- Handle death
+	-- Handle death (non-blocking so applyDamage returns immediately)
 	if result.isDead then
-		handlePlayerDeath(player, attacker, damageType)
+		task.spawn(handlePlayerDeath, player, attacker, damageType)
 	end
 	
 	print(string.format("[HealthManager] %s took %.1f damage (%.1f HP remaining)", 

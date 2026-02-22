@@ -29,8 +29,9 @@ local ANIM_ATTACK = 130278364981698
 
 local NPCS = {}
 
--- SpidySpawn model - wait for it
-local spawnModel = Workspace:WaitForChild("SpidySpawn", 10)
+-- SpidySpawn model - recursive search (may be inside Game.Abyss.AbyssModels)
+task.wait(2) -- Give workspace time to load nested models
+local spawnModel = Workspace:FindFirstChild("SpidySpawn", true)
 if not spawnModel then 
 	warn("[Spidy] SpidySpawn model missing - NPC won't spawn")
 	return

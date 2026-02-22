@@ -88,7 +88,7 @@ local function populateDefaultSkins()
 	}
 	
 	for skinId, _ in pairs(hardcodedSkins) do
-		DEFAULT_SKINS[skinId] = true
+		DEFAULT_SKINS[skinId] = 1
 	end
 	
 	-- Now scan SkinLibrary directly on the server
@@ -101,7 +101,7 @@ local function populateDefaultSkins()
 			if model:IsA("Model") or model:IsA("MeshPart") or model:IsA("BasePart") then
 				local skinId = model.Name
 				if not DEFAULT_SKINS[skinId] then -- Don't overwrite hardcoded ones
-					DEFAULT_SKINS[skinId] = true
+					DEFAULT_SKINS[skinId] = 1
 					scannedCount = scannedCount + 1
 					print(string.format("[PlayerDataManager] Added skin from SkinLibrary: %s", skinId))
 				end
@@ -143,7 +143,8 @@ local function ensure(plr)
 			wins = 0,
 			battles = 0,
 			death = 0,
-			losses = 0, 
+			losses = 0,
+			winstreak = 0, 
 			trumpCoin = 10,
 			rank = 2, -- Default rank is now 1
 			skins = deepcopy(DEFAULT_SKINS),
@@ -154,12 +155,25 @@ local function ensure(plr)
 			bullseyeHigh = 0, -- highest bullseye score achieved
 			targetHitTimestamps = {}, -- recent target hit timestamps for rank evaluation
 			
+			-- Storage (second inventory accessible from HQ)
+			storage = {}, -- { [skinId] = true }
+			
 			-- Health & Armor Stats (for PvE and The Abyss)
-			maxHealth = 10000, -- Base max health
-			currentHealth = 10000, -- Current health (full by default)
+			maxHealth = 100, -- Base max health
+			currentHealth = 100, -- Current health (full by default)
 			armor = 0, -- Armor value (reduces damage)
 			healthUpgradeLevel = 0, -- Track health upgrade progression
 			armorUpgradeLevel = 0, -- Track armor upgrade progression
+			
+			-- HQ Upgrade Tree: Passive (AFK) Upgrades
+			goldPerSecondLevel = 0, -- Passive gold generation
+			refinerSpeedLevel = 0, -- Refiner efficiency (faster crate production)
+			
+			-- HQ Upgrade Tree: Active Upgrades
+			pvpGoldBonusLevel = 0, -- Bonus gold from PVP kills
+			abyssGoldBonusLevel = 0, -- Bonus gold from Abyss kills
+			pveGoldBonusLevel = 0, -- Bonus gold from PvE kills
+			playTimeBonusLevel = 0, -- Bonus gold for time spent in game
 		}
 		DATA[plr.UserId] = d
 	end
@@ -172,7 +186,7 @@ _G.giveAllSkinsToPlayer = function(plr)
 	local count = 0
 	for skinId, _ in pairs(DEFAULT_SKINS) do
 		if not d.skins[skinId] then
-			d.skins[skinId] = true
+			d.skins[skinId] = 1
 			count = count + 1
 		end
 	end
@@ -229,13 +243,13 @@ _G.setCoins = function(plr, value)
 end
 
 _G.hasSkin = function(plr, skinId)
-	local d = ensure(plr); return d.skins[skinId] == true
+	local d = ensure(plr); return d.skins[skinId] ~= nil
 end
 
 _G.grantSkin = function(plr, skinId)
 	if type(skinId) ~= "string" or skinId == "" then return end
 	local d = ensure(plr)
-	d.skins[skinId] = true
+	d.skins[skinId] = (d.skins[skinId] or 0) + 1
 end
 
 _G.markWeaponSpawned = function(plr, weaponName)
@@ -304,8 +318,8 @@ _G.OpenBox = function(plr, tier)
 			LootBoxRE:FireClient(plr, {type="miss", tier=tier})
 			return {ok=true, miss=true}
 		end
-		local dupe = d.skins[skinId] == true
-		d.skins[skinId] = true
+		local dupe = d.skins[skinId] ~= nil
+		d.skins[skinId] = (d.skins[skinId] or 0) + 1
 		LootBoxRE:FireClient(plr, {type="drop", tier=tier, skinId=skinId, rarity=rarity, dupe=dupe})
 		return {ok=true, skinId=skinId, rarity=rarity, dupe=dupe}
 	else
@@ -322,21 +336,57 @@ GetPlayerDataRF.OnServerInvoke = function(plr)
 		local flag = Instance.new("BoolValue")
 		flag.Name = "_LoggedFirstInvoke"
 		flag.Parent = script
-		local count = 0; if type(d.skins) == "table" then for _ in pairs(d.skins) do count += 1 end end
+		local count = 0; if type(d.skins) == \"table\" then for _, q in pairs(d.skins) do count += (type(q) == \"number\" and q or 1) end end
 		warn(("[PDM] GetPlayerData -> money=%s, coins=%s, rank=%s, skins=%d"):format(tostring(d.money), tostring(d.trumpCoin), tostring(d.rank), count))
 	end
+	-- Compute derived HQ stats
+	local goldPerSec = (d.goldPerSecondLevel or 0) * 2 -- +2 gold/sec per level
+	local activeRefiners = 0
+	local refinersFolder = workspace:FindFirstChild("Refiners")
+	if refinersFolder then
+		for _, inst in ipairs(refinersFolder:GetChildren()) do
+			local progressFlag = plr:FindFirstChild("RefinerProgress") and plr.RefinerProgress:FindFirstChild(inst.Name)
+			if progressFlag and progressFlag.Value then
+				activeRefiners = activeRefiners + 1
+			end
+		end
+	end
+	local refinerSpeedMult = 1 + (d.refinerSpeedLevel or 0) * 0.15 -- +15% speed per level
+	local cratesPerDay = activeRefiners * refinerSpeedMult
+
 	return {
 		money = d.money,
 		trumpCoin = d.trumpCoin,
 		rank = d.rank,
-		skins = d.skins,              -- MatrixVault reads this and looks up models in ReplicatedStorage/SkinLibrary
-		weaponStats = d.weaponStats,  -- For item page stats
-		-- boxes are not shown by the Inventory UI, but kept for rewards
+		skins = d.skins,
+		weaponStats = d.weaponStats,
 		boxes = d.boxes,
 		runHits = d.runHits,
 		bullseyeCurrent = d.bullseyeCurrent,
 		bullseyeHigh = d.bullseyeHigh,
 		rankProgress = (_G.getRankProgress and _G.getRankProgress(plr)) or nil,
+		-- PvP stats
+		wins = d.wins or 0,
+		losses = d.losses or 0,
+		death = d.death or 0,
+		battles = d.battles or 0,
+		winstreak = d.winstreak or 0,
+		-- Storage
+		storage = d.storage or {},
+		-- HQ Stats
+		maxHealth = d.maxHealth or 100,
+		armor = d.armor or 0,
+		goldPerSecond = goldPerSec,
+		cratesPerDay = cratesPerDay,
+		-- Upgrade levels (for UI)
+		healthUpgradeLevel = d.healthUpgradeLevel or 0,
+		armorUpgradeLevel = d.armorUpgradeLevel or 0,
+		goldPerSecondLevel = d.goldPerSecondLevel or 0,
+		refinerSpeedLevel = d.refinerSpeedLevel or 0,
+		pvpGoldBonusLevel = d.pvpGoldBonusLevel or 0,
+		abyssGoldBonusLevel = d.abyssGoldBonusLevel or 0,
+		pveGoldBonusLevel = d.pveGoldBonusLevel or 0,
+		playTimeBonusLevel = d.playTimeBonusLevel or 0,
 	}
 end
 
@@ -351,8 +401,8 @@ PlayerDataRF.OnServerInvoke = function(plr, action, data)
 			return {success = false, error = "Invalid item data"}
 		end
 		
-		-- Add the item to skins
-		d.skins[data.name] = true
+		-- Add the item to skins (increment count)
+		d.skins[data.name] = (d.skins[data.name] or 0) + 1
 		warn(string.format("[PlayerDataRF] Added crate item to %s: %s (%s)", plr.Name, data.name, data.rarity))
 		return {success = true}
 		
@@ -405,6 +455,149 @@ PlayerDataRF.OnServerInvoke = function(plr, action, data)
 		end
 		
 		return {success = true}
+	
+	elseif action == "MoveAllToStorage" then
+		-- Bulk move ALL inventory skins to storage in one call
+		if not d.storage then d.storage = {} end
+		local count = 0
+		for skinId, qty in pairs(d.skins) do
+			d.storage[skinId] = (d.storage[skinId] or 0) + (type(qty) == "number" and qty or 1)
+			count = count + (type(qty) == "number" and qty or 1)
+		end
+		-- Clear all skins from inventory
+		d.skins = {}
+		warn(string.format("[PlayerDataRF] %s moved ALL %d skins to storage", plr.Name, count))
+		return {success = true, count = count}
+	
+	elseif action == "MoveToStorage" then
+		-- Move ONE copy from inventory (skins) to storage
+		if not data or not data.skinId then
+			return {success = false, error = "No skinId provided"}
+		end
+		local skinId = data.skinId
+		if not d.skins[skinId] then
+			return {success = false, error = "Item not in inventory"}
+		end
+		if not d.storage then d.storage = {} end
+		-- Decrement inventory (remove entry if 0)
+		local qty = type(d.skins[skinId]) == "number" and d.skins[skinId] or 1
+		if qty <= 1 then
+			d.skins[skinId] = nil
+		else
+			d.skins[skinId] = qty - 1
+		end
+		d.storage[skinId] = (d.storage[skinId] or 0) + 1
+		warn(string.format("[PlayerDataRF] %s moved %s to storage", plr.Name, skinId))
+		return {success = true}
+		
+	elseif action == "MoveFromStorage" then
+		-- Move ONE copy from storage back to inventory (skins)
+		if not data or not data.skinId then
+			return {success = false, error = "No skinId provided"}
+		end
+		local skinId = data.skinId
+		if not d.storage then d.storage = {} end
+		if not d.storage[skinId] then
+			return {success = false, error = "Item not in storage"}
+		end
+		-- Decrement storage (remove entry if 0)
+		local qty = type(d.storage[skinId]) == "number" and d.storage[skinId] or 1
+		if qty <= 1 then
+			d.storage[skinId] = nil
+		else
+			d.storage[skinId] = qty - 1
+		end
+		d.skins[skinId] = (d.skins[skinId] or 0) + 1
+		warn(string.format("[PlayerDataRF] %s moved %s from storage to inventory", plr.Name, skinId))
+		return {success = true}
+	
+	elseif action == "HQUpgrade" then
+		-- Headquarters skill tree upgrade system
+		if not data or not data.upgradeKey then
+			return {success = false, error = "No upgradeKey provided"}
+		end
+		local key = data.upgradeKey
+		
+		-- Upgrade configs: { dataField, maxLevel, costs, applyFn }
+		local UPGRADE_CONFIGS = {
+			health = {
+				field = "healthUpgradeLevel", maxLevel = 5,
+				costs = {1000, 3000, 7000, 15000, 30000},
+				apply = function(dd, lvl)
+					dd.maxHealth = 100 + (lvl * 20)
+					dd.currentHealth = dd.maxHealth
+				end,
+			},
+			armor = {
+				field = "armorUpgradeLevel", maxLevel = 5,
+				costs = {2000, 5000, 10000, 20000, 40000},
+				apply = function(dd, lvl)
+					dd.armor = lvl * 10
+				end,
+			},
+			goldPerSecond = {
+				field = "goldPerSecondLevel", maxLevel = 10,
+				costs = {500, 1500, 4000, 8000, 15000, 25000, 40000, 65000, 100000, 150000},
+				apply = function() end, -- computed on read
+			},
+			refinerSpeed = {
+				field = "refinerSpeedLevel", maxLevel = 10,
+				costs = {2000, 5000, 12000, 25000, 50000, 80000, 120000, 175000, 250000, 400000},
+				apply = function() end, -- computed on read
+			},
+			pvpGoldBonus = {
+				field = "pvpGoldBonusLevel", maxLevel = 10,
+				costs = {1000, 2500, 5000, 10000, 18000, 30000, 50000, 80000, 120000, 200000},
+				apply = function() end,
+			},
+			abyssGoldBonus = {
+				field = "abyssGoldBonusLevel", maxLevel = 10,
+				costs = {1000, 2500, 5000, 10000, 18000, 30000, 50000, 80000, 120000, 200000},
+				apply = function() end,
+			},
+			pveGoldBonus = {
+				field = "pveGoldBonusLevel", maxLevel = 10,
+				costs = {1000, 2500, 5000, 10000, 18000, 30000, 50000, 80000, 120000, 200000},
+				apply = function() end,
+			},
+			playTimeBonus = {
+				field = "playTimeBonusLevel", maxLevel = 10,
+				costs = {800, 2000, 4500, 9000, 16000, 28000, 45000, 70000, 110000, 180000},
+				apply = function() end,
+			},
+		}
+		
+		local cfg = UPGRADE_CONFIGS[key]
+		if not cfg then
+			return {success = false, error = "Invalid upgrade key: " .. tostring(key)}
+		end
+		
+		local currentLevel = d[cfg.field] or 0
+		if currentLevel >= cfg.maxLevel then
+			return {success = false, reason = "max_level", level = currentLevel}
+		end
+		
+		local cost = cfg.costs[currentLevel + 1]
+		if not cost then
+			return {success = false, reason = "max_level", level = currentLevel}
+		end
+		
+		if (d.money or 0) < cost then
+			return {success = false, reason = "insufficient_funds", cost = cost, money = d.money}
+		end
+		
+		-- Apply upgrade
+		d.money = d.money - cost
+		d[cfg.field] = currentLevel + 1
+		cfg.apply(d, currentLevel + 1)
+		
+		warn(string.format("[PlayerDataRF] %s upgraded %s to level %d for $%d", plr.Name, key, currentLevel + 1, cost))
+		return {
+			success = true,
+			level = currentLevel + 1,
+			cost = cost,
+			newMoney = d.money,
+		}
 	end
 	
 	warn(string.format("[PlayerDataRF] Unknown action: %s", tostring(action)))
@@ -618,6 +811,51 @@ end
 -- END HEALTH & ARMOR SYSTEM
 -- ===============================
 
+-- ===============================
+-- GOLD PER SECOND (Passive AFK Income)
+-- ===============================
+local GOLD_TICK_INTERVAL = 1 -- seconds between gold ticks
+
+-- Expose gold bonus multiplier for other systems (PvP, Abyss, PvE)
+_G.getGoldBonusMultiplier = function(plr, source)
+	local d = ensure(plr)
+	local base = 1
+	if source == "pvp" then
+		base = base + (d.pvpGoldBonusLevel or 0) * 0.10 -- +10% per level
+	elseif source == "abyss" then
+		base = base + (d.abyssGoldBonusLevel or 0) * 0.10
+	elseif source == "pve" then
+		base = base + (d.pveGoldBonusLevel or 0) * 0.10
+	end
+	-- Play time bonus adds to all sources
+	base = base + (d.playTimeBonusLevel or 0) * 0.05 -- +5% per level
+	return base
+end
+
+-- Passive gold ticker
+task.spawn(function()
+	while true do
+		task.wait(GOLD_TICK_INTERVAL)
+		for _, plr in ipairs(Players:GetPlayers()) do
+			local ok, _ = pcall(function()
+				local d = DATA[plr.UserId]
+				if d then
+					local goldPerSec = (d.goldPerSecondLevel or 0) * 2 -- +2 gold/sec per level
+					if goldPerSec > 0 then
+						d.money = (d.money or 0) + goldPerSec
+					end
+				end
+			end)
+		end
+	end
+end)
+
+-- Expose refiner speed multiplier for RefinerSystem
+_G.getRefinerSpeedMultiplier = function(plr)
+	local d = ensure(plr)
+	return 1 + (d.refinerSpeedLevel or 0) * 0.15 -- +15% faster per level
+end
+
 -- Lifecycle
 Players.PlayerAdded:Connect(function(plr) 
 	ensure(plr) 
@@ -646,7 +884,7 @@ Players.PlayerAdded:Connect(function(plr)
 			
 			-- Ensure player owns it (just in case)
 			local d = ensure(plr)
-			d.skins["Power"] = true
+			if not d.skins["Power"] then d.skins["Power"] = 1 end
 			
 			-- Set attribute
 			tool:SetAttribute("SkinId", "Power")

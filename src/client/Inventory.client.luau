@@ -2892,11 +2892,21 @@ end
 local function populateInventory()
     for _,c in ipairs(inventoryContainer:GetChildren()) do if c:IsA("Frame") or c:IsA("TextLabel") then c:Destroy() end end
     
+    -- Refresh player data so we have the latest ownership info
+    fetchData()
+    
     local allSkinsList = {}
     
     if currentTab == "skins" then
-        -- Get all skins from SkinConfig
-        allSkinsList = SkinConfig.GetAllSkinNames()
+        -- Show each owned copy as a separate entry (qty=2 means 2 entries)
+        if playerData and playerData.skins then
+            for skinId, qty in pairs(playerData.skins) do
+                local count = (type(qty) == "number" and qty or 1)
+                for i = 1, count do
+                    table.insert(allSkinsList, skinId)
+                end
+            end
+        end
         
         -- Update tab buttons visual state
         skinsTabBtn.BackgroundColor3 = BLACK

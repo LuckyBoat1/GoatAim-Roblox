@@ -91,13 +91,8 @@ end
 HealthUpdateRE.OnClientEvent:Connect(function(data)
 	if not data then return end
 	
-	-- Check if health mode was enabled/disabled
-	if data.enabled ~= nil then
-		healthGui.Enabled = data.enabled
-		if not data.enabled then
-			return
-		end
-	end
+	-- Always keep health GUI visible (ignore enabled/disabled toggles)
+	-- The health bar should always show regardless of mode
 	
 	-- Update health if provided
 	if data.health and data.maxHealth then

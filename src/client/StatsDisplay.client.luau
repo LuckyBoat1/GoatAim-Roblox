@@ -1,8 +1,12 @@
 --[[
-	StatsDisplay - Link player stats to UI TextLabels
+	StatsDisplay - Self-healing stats display
 	
-	Displays: Gold, Coins, W/L, Kills, Deaths
-	Links to PlayerDataManager for real-time stat updates
+	No init/re-init pattern. Every 0.5 seconds we check:
+	1. Is there a Stats ScreenGui that needs FloatingGui wrapping?
+	2. Do all labels exist and have their effects (gradients, fonts)?
+	3. If anything is missing, fix it immediately.
+	
+	Works for ALL players regardless of respawn, PvP, teleport, anything.
 ]]
 
 local Players = game:GetService("Players")
@@ -12,10 +16,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Get GetPlayerData remote function
 local GetPlayerDataRF = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("GetPlayerData")
+local FloatingGui = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FloatingGui"))
 
--- Cache for player data
+--------------------------------------------------------------------------
+-- DATA CACHE
+--------------------------------------------------------------------------
 local playerData = {
 	Gold = 0,
 	TrumpCoins = 0,
@@ -25,154 +31,22 @@ local playerData = {
 	AbyssDeath = 0,
 }
 
--- Find the Stats screen GUI
-local screenGui = playerGui:WaitForChild("Stats")
-local statLabels = {}
-
--- Find existing TextLabels in the Stats GUI - search more aggressively
-local goldLabel
-local coinsLabel
-local wlLabel
-local killsLabel
-local deathsLabel
-
--- Function to find label in frame
-local function findLabelInFrame(frameName)
-	local frame = screenGui:FindFirstChild(frameName)
-	if not frame then return nil end
-	-- Get first TextLabel in this frame, no matter how nested
-	for _, child in ipairs(frame:GetDescendants()) do
-		if child:IsA("TextLabel") then
-			return child
-		end
-	end
-	return frame:FindFirstChild("TextLabel")
-end
-
-goldLabel = findLabelInFrame("Gold")
-coinsLabel = findLabelInFrame("Coins") or findLabelInFrame("TrumpCoins")
-wlLabel = findLabelInFrame("W/L")
-killsLabel = findLabelInFrame("Kills")
-deathsLabel = findLabelInFrame("Deaths")
-
-print("[StatsDisplay] === LABEL SEARCH RESULTS ===")
-print("[StatsDisplay] Gold:", goldLabel and goldLabel.Name or "NOT FOUND")
-print("[StatsDisplay] Coins:", coinsLabel and coinsLabel.Name or "NOT FOUND")
-print("[StatsDisplay] W/L:", wlLabel and wlLabel.Name or "NOT FOUND")
-print("[StatsDisplay] Kills:", killsLabel and killsLabel.Name or "NOT FOUND")
-print("[StatsDisplay] Deaths:", deathsLabel and deathsLabel.Name or "NOT FOUND")
-
--- Style all labels: font, color, and double size
-local function styleLabel(label, baseColor)
-	if label then
-		label.Font = Enum.Font.GothamBold
-		label.TextColor3 = Color3.new(1, 1, 1)
-		label.TextScaled = true
-		local constraint = label:FindFirstChildOfClass("UITextSizeConstraint") or Instance.new("UITextSizeConstraint")
-		constraint.MaxTextSize = 32
-		constraint.Parent = label
-		
-		-- Remove existing gradient if any
-		local existingGradient = label:FindFirstChild("UIGradient")
-		if existingGradient then existingGradient:Destroy() end
-		
-		-- Add gradient effect
-		local gradient = Instance.new("UIGradient")
-		gradient.Rotation = 45
-		gradient.Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, baseColor),
-			ColorSequenceKeypoint.new(1, Color3.new(
-				math.min(baseColor.R + 0.3, 1),
-				math.min(baseColor.G + 0.3, 1),
-				math.min(baseColor.B + 0.3, 1)
-			))
-		})
-		gradient.Parent = label
-	end
-end
-
--- Apply colors: Gold (gold), Coins (green), W/L (blue/red), Kills (blue), Deaths (black)
-styleLabel(goldLabel, Color3.fromRGB(255, 193, 7))
-styleLabel(coinsLabel, Color3.fromRGB(76, 175, 80))
-if wlLabel then
-	wlLabel.Font = Enum.Font.GothamBold
-	wlLabel.TextScaled = true
-	wlLabel.TextColor3 = Color3.new(1, 1, 1)
-	local wlConstraint = wlLabel:FindFirstChildOfClass("UITextSizeConstraint") or Instance.new("UITextSizeConstraint")
-	wlConstraint.MaxTextSize = 40
-	wlConstraint.Parent = wlLabel
-	
-	-- Remove existing gradient if any
-	local existingGradient = wlLabel:FindFirstChild("UIGradient")
-	if existingGradient then existingGradient:Destroy() end
-	
-	local gradient = Instance.new("UIGradient")
-	gradient.Rotation = 45
-	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(33, 150, 243)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(244, 67, 54))
-	})
-	gradient.Parent = wlLabel
-end
-if killsLabel then
-	killsLabel.Font = Enum.Font.GothamBold
-	killsLabel.TextColor3 = Color3.new(1, 1, 1)
-	killsLabel.TextScaled = true
-	local killsConstraint = killsLabel:FindFirstChildOfClass("UITextSizeConstraint") or Instance.new("UITextSizeConstraint")
-	killsConstraint.MaxTextSize = 36
-	killsConstraint.Parent = killsLabel
-	
-	-- Remove existing gradient if any
-	local existingGradient = killsLabel:FindFirstChild("UIGradient")
-	if existingGradient then existingGradient:Destroy() end
-	
-	local gradient = Instance.new("UIGradient")
-	gradient.Rotation = 45
-	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(33, 150, 243)),
-		ColorSequenceKeypoint.new(1, Color3.new(
-			math.min(0.129 + 0.3, 1),
-			math.min(0.588 + 0.3, 1),
-			math.min(0.953 + 0.3, 1)
-		))
-	})
-	gradient.Parent = killsLabel
-end
-if deathsLabel then
-	deathsLabel.Font = Enum.Font.GothamBold
-	deathsLabel.TextColor3 = Color3.new(1, 1, 1)
-	deathsLabel.TextStrokeTransparency = 0
-	deathsLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-	deathsLabel.TextScaled = true
-	local deathsConstraint = deathsLabel:FindFirstChildOfClass("UITextSizeConstraint") or Instance.new("UITextSizeConstraint")
-	deathsConstraint.MaxTextSize = 36
-	deathsConstraint.Parent = deathsLabel
-end
-
--- Function to refresh player data from server
 local function refreshPlayerData()
 	task.spawn(function()
 		local ok, data = pcall(function()
 			return GetPlayerDataRF:InvokeServer()
 		end)
-		
 		if ok and data then
-			-- Map server data to display names - use exact field names from server
 			playerData.Gold = data.money or 0
-			playerData.TrumpCoins = data.trumpCoin or 0  -- Server sends 'trumpCoin' (singular)
+			playerData.TrumpCoins = data.trumpCoin or 0
 			playerData.ArenaWins = data.wins or 0
 			playerData.ArenaLoses = data.losses or 0
 			playerData.AbyssDeath = data.death or 0
 			playerData.AbyssKill = data.battles or 0
-			print("[StatsDisplay] Updated data from server - TrumpCoins:", playerData.TrumpCoins, "Gold:", playerData.Gold)
-		else
-			print("[StatsDisplay] Failed to get player data:", tostring(data))
 		end
 	end)
 end
 
--- Refresh data every 2 seconds
 task.spawn(function()
 	while true do
 		refreshPlayerData()
@@ -180,14 +54,11 @@ task.spawn(function()
 	end
 end)
 
--- Get initial data
-refreshPlayerData()
-
-
--- Format large numbers with commas
+--------------------------------------------------------------------------
+-- FORMAT HELPERS
+--------------------------------------------------------------------------
 local function formatNumber(num)
 	local formatted = tostring(num)
-	local k = 0
 	for i = #formatted - 2, 1, -3 do
 		if i > 1 then
 			formatted = formatted:sub(1, i) .. "," .. formatted:sub(i + 1)
@@ -196,7 +67,6 @@ local function formatNumber(num)
 	return formatted
 end
 
--- Format numbers with K/M notation for Gold and Coins
 local function formatCompactNumber(num)
 	if num >= 1000000 then
 		return string.format("%.1f", num / 1000000):gsub("%.0$", "") .. "M"
@@ -207,46 +77,351 @@ local function formatCompactNumber(num)
 	end
 end
 
-local TweenService = game:GetService("TweenService")
-local FloatingGui = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FloatingGui"))
+--------------------------------------------------------------------------
+-- EFFECT APPLICATION — idempotent, safe to call repeatedly
+-- Checks BOTH the marker attribute AND that the gradient child exists.
+-- If either is missing, effects are fully re-applied.
+--------------------------------------------------------------------------
+local function hasGradient(label)
+	if not label then return false end
+	return label:FindFirstChildOfClass("UIGradient") ~= nil
+end
 
--- Convert Stats GUI into a FloatingGui (3D SurfaceGui for buttery smooth movement)
-local statsFloat = FloatingGui.new(screenGui, {
-	Speed = 1,       -- snappy follow (we want it locked to camera)
-	Distance = 0,
-	Angle = 0,
-	Offset = Vector2.new(0, 0),
-})
---
--- Bob the GUI up and down by oscillating the Y offset
-local BOB_SPEED     = 1.8   -- oscillations speed
-local BOB_AMPLITUDE = 0.008 -- how far it bobs (fraction of screen height)
-local bobStart = tick()
+local function applyGradient(label, colorSeq)
+	if not label or not label.Parent then return end
+	-- Check marker AND gradient presence — if both exist, skip
+	if label:GetAttribute("StatsEffectsDone") and hasGradient(label) then return end
 
-RunService.Heartbeat:Connect(function()
-	local t = tick() - bobStart
-	local yOff = math.sin(t * BOB_SPEED) * BOB_AMPLITUDE
-	statsFloat:Change({
-		Offset = Vector2.new(0, yOff)
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+
+	-- Size constraint
+	if not label:FindFirstChildOfClass("UITextSizeConstraint") then
+		local c = Instance.new("UITextSizeConstraint")
+		c.MaxTextSize = 32
+		c.Parent = label
+	end
+
+	-- Remove old gradients, add new
+	for _, g in label:GetChildren() do
+		if g:IsA("UIGradient") then g:Destroy() end
+	end
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 45
+	gradient.Color = colorSeq
+	gradient.Parent = label
+
+	label:SetAttribute("StatsEffectsDone", true)
+end
+
+local function applyWLStyle(label)
+	if not label or not label.Parent then return end
+	if label:GetAttribute("StatsEffectsDone") and hasGradient(label) then return end
+
+	label.Font = Enum.Font.GothamBold
+	label.TextScaled = true
+	label.TextColor3 = Color3.new(1, 1, 1)
+
+	if not label:FindFirstChildOfClass("UITextSizeConstraint") then
+		local c = Instance.new("UITextSizeConstraint")
+		c.MaxTextSize = 40
+		c.Parent = label
+	end
+
+	for _, g in label:GetChildren() do
+		if g:IsA("UIGradient") then g:Destroy() end
+	end
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 45
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(33, 150, 243)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(244, 67, 54)),
 	})
-end)
+	gradient.Parent = label
 
--- Update stats every frame
-RunService.RenderStepped:Connect(function(dt)
-	if goldLabel then 
+	label:SetAttribute("StatsEffectsDone", true)
+end
+
+local function applyKillsStyle(label)
+	if not label or not label.Parent then return end
+	if label:GetAttribute("StatsEffectsDone") and hasGradient(label) then return end
+
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+
+	if not label:FindFirstChildOfClass("UITextSizeConstraint") then
+		local c = Instance.new("UITextSizeConstraint")
+		c.MaxTextSize = 36
+		c.Parent = label
+	end
+
+	for _, g in label:GetChildren() do
+		if g:IsA("UIGradient") then g:Destroy() end
+	end
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 45
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(33, 150, 243)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(110, 227, 255)),
+	})
+	gradient.Parent = label
+
+	label:SetAttribute("StatsEffectsDone", true)
+end
+
+local function applyDeathsStyle(label)
+	if not label or not label.Parent then return end
+	if label:GetAttribute("StatsEffectsDone") then return end
+	-- Deaths doesn't use gradient, so no hasGradient check needed
+
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0
+	label.TextStrokeColor3 = Color3.new(0, 0, 0)
+	label.TextScaled = true
+
+	if not label:FindFirstChildOfClass("UITextSizeConstraint") then
+		local c = Instance.new("UITextSizeConstraint")
+		c.MaxTextSize = 36
+		c.Parent = label
+	end
+
+	label:SetAttribute("StatsEffectsDone", true)
+end
+
+--------------------------------------------------------------------------
+-- LABEL FINDING — searches ANY Stats container in PlayerGui or workspace
+--------------------------------------------------------------------------
+local goldLabel, coinsLabel, wlLabel, killsLabel, deathsLabel
+
+local function findLabelIn(container, frameName)
+	local frame = container:FindFirstChild(frameName)
+	if not frame then return nil end
+	for _, child in frame:GetDescendants() do
+		if child:IsA("TextLabel") then return child end
+	end
+	return nil
+end
+
+local function findStatsContainer()
+	-- Search PlayerGui for any Stats GUI (ScreenGui or SurfaceGui) that has actual stat frames
+	for _, gui in playerGui:GetChildren() do
+		if gui.Name == "Stats" and (gui:FindFirstChild("Gold") or gui:FindFirstChild("Coins")) then
+			return gui
+		end
+	end
+	-- Search FloatingGui Parts in workspace
+	for _, obj in workspace:GetChildren() do
+		if obj.Name == "FloatingGuiAdornee" and obj:IsA("BasePart") then
+			for _, sg in obj:GetChildren() do
+				if sg:IsA("SurfaceGui") and sg.Name == "Stats" and (sg:FindFirstChild("Gold") or sg:FindFirstChild("Coins")) then
+					return sg
+				end
+			end
+		end
+	end
+	return nil
+end
+
+local function findAllLabels()
+	local container = findStatsContainer()
+	if not container then return false end
+
+	goldLabel = findLabelIn(container, "Gold")
+	coinsLabel = findLabelIn(container, "Coins") or findLabelIn(container, "TrumpCoins")
+	wlLabel = findLabelIn(container, "W/L")
+	killsLabel = findLabelIn(container, "Kills")
+	deathsLabel = findLabelIn(container, "Deaths")
+	return goldLabel ~= nil
+end
+
+--------------------------------------------------------------------------
+-- FLOATING GUI MANAGEMENT
+--------------------------------------------------------------------------
+local statsFloat = nil
+
+local function cleanupOldFloating(keepScreenGui)
+	-- Remove old FloatingGui wrapper
+	if statsFloat and not statsFloat.Removed then
+		-- Grab reference to old ScreenGui BEFORE Remove restores it to PlayerGui
+		local oldSG = statsFloat.ScreenGui
+		pcall(function() statsFloat:Remove() end)
+		-- Remove() moved old ScreenGui back to PlayerGui — destroy it
+		-- so it doesn't get detected as a "fresh" ScreenGui next cycle (ping-pong bug)
+		if oldSG and oldSG.Parent and oldSG ~= keepScreenGui then
+			oldSG:Destroy()
+		end
+	end
+	statsFloat = nil
+
+	-- Remove stale ScreenGuis in ReplicatedFirst
+	for _, obj in game.ReplicatedFirst:GetChildren() do
+		if obj:IsA("ScreenGui") and obj.Name == "Stats" then
+			obj:Destroy()
+		end
+	end
+	-- Remove orphaned SurfaceGuis named Stats in PlayerGui
+	for _, child in playerGui:GetChildren() do
+		if child:IsA("SurfaceGui") and child.Name == "Stats" then
+			child:Destroy()
+		end
+	end
+	-- Remove ALL leftover Stats ScreenGuis in PlayerGui except the one we're keeping
+	for _, child in playerGui:GetChildren() do
+		if child:IsA("ScreenGui") and child.Name == "Stats" and child ~= keepScreenGui then
+			child:Destroy()
+		end
+	end
+	-- Remove orphaned FloatingGui parts
+	for _, obj in workspace:GetChildren() do
+		if obj.Name == "FloatingGuiAdornee" and obj:IsA("BasePart") then
+			local hasStats = false
+			for _, sg in obj:GetChildren() do
+				if sg.Name == "Stats" then hasStats = true end
+			end
+			if hasStats or not obj:FindFirstChildOfClass("SurfaceGui") then
+				obj:Destroy()
+			end
+		end
+	end
+end
+
+local _debugTimer = 0
+
+local function ensureFloatingGui()
+	-- Debug: log the state every 5 seconds
+	_debugTimer = _debugTimer + 0.5
+	if _debugTimer % 5 < 0.6 then
+		local childNames = {}
+		for _, gui in playerGui:GetChildren() do
+			if gui.Name == "Stats" then
+				table.insert(childNames, gui.ClassName .. ":" .. gui.Name .. " Enabled=" .. tostring(gui.Enabled))
+			end
+		end
+		print("[StatsDisplay DEBUG] statsFloat=", statsFloat and (statsFloat.Removed and "REMOVED" or "ACTIVE") or "nil",
+			"| Stats children in PlayerGui:", #childNames > 0 and table.concat(childNames, ", ") or "NONE")
+	end
+
+	-- If we already have an active FloatingGui, nothing to do
+	if statsFloat and not statsFloat.Removed then
+		return
+	end
+
+	-- Look for an unwrapped Stats ScreenGui in PlayerGui
+	for _, gui in playerGui:GetChildren() do
+		if gui:IsA("ScreenGui") and gui.Name == "Stats" then
+			print("[StatsDisplay] Found fresh Stats ScreenGui, wrapping with FloatingGui...")
+			-- Found a fresh ScreenGui — clean up old stuff and wrap it
+			-- Pass the gui we want to KEEP so cleanup doesn't destroy it
+			cleanupOldFloating(gui)
+
+			statsFloat = FloatingGui.new(gui, {
+				Speed = 1,
+				Distance = 0,
+				Angle = 0,
+				Offset = Vector2.new(0, 0),
+			})
+			print("[StatsDisplay] FloatingGui created for Stats ScreenGui")
+
+			-- Labels moved into SurfaceGui now, re-find them
+			findAllLabels()
+			return
+		end
+	end
+end
+
+--------------------------------------------------------------------------
+-- FORCE RE-APPLY EFFECTS AFTER DUEL ENDS
+-- When PvpCountdownEvent fires "FightEnd", clear all effect markers
+-- so the next heal cycle re-applies everything fresh.
+--------------------------------------------------------------------------
+local PvpCountdownEvent = ReplicatedStorage:FindFirstChild("PvpCountdownEvent")
+if PvpCountdownEvent then
+	PvpCountdownEvent.OnClientEvent:Connect(function(action)
+		if action == "FightEnd" or action == "FightStart" then
+			-- Clear markers so effects are re-applied
+			for _, label in { goldLabel, coinsLabel, wlLabel, killsLabel, deathsLabel } do
+				if label and label.Parent then
+					label:SetAttribute("StatsEffectsDone", nil)
+				end
+			end
+			-- Also re-find labels in case the container shifted
+			task.delay(0.3, function()
+				findAllLabels()
+				for _, label in { goldLabel, coinsLabel, wlLabel, killsLabel, deathsLabel } do
+					if label and label.Parent then
+						label:SetAttribute("StatsEffectsDone", nil)
+					end
+				end
+			end)
+		end
+	end)
+end
+
+--------------------------------------------------------------------------
+-- MAIN LOOP — self-healing, runs every frame
+--------------------------------------------------------------------------
+local BOB_SPEED = 1.8
+local BOB_AMPLITUDE = 0.008
+local bobStart = tick()
+local lastHealCheck = 0
+
+RunService.RenderStepped:Connect(function()
+	local now = tick()
+
+	-- Every 0.5 seconds: self-healing check
+	if now - lastHealCheck > 0.5 then
+		lastHealCheck = now
+
+		-- 1) Wrap any fresh Stats ScreenGui in FloatingGui
+		ensureFloatingGui()
+
+		-- 2) Re-find labels if stale
+		if not goldLabel or not goldLabel.Parent then
+			findAllLabels()
+		end
+
+		-- 3) Apply effects (skips instantly if already done via attribute check)
+		applyGradient(goldLabel, ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 193, 7)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 84)),
+		}))
+		applyGradient(coinsLabel, ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(76, 175, 80)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(153, 252, 157)),
+		}))
+		applyWLStyle(wlLabel)
+		applyKillsStyle(killsLabel)
+		applyDeathsStyle(deathsLabel)
+	end
+--
+	-- Bob animation
+	if statsFloat and not statsFloat.Removed then
+		local t = now - bobStart
+		local yOff = math.sin(t * BOB_SPEED) * BOB_AMPLITUDE
+		statsFloat:Change({ Offset = Vector2.new(0, yOff) })
+	end
+
+	-- Update text values
+	if goldLabel and goldLabel.Parent then
 		goldLabel.Text = formatCompactNumber(playerData.Gold)
-	else
-		print("[StatsDisplay] Warning: goldLabel not found")
 	end
-	if coinsLabel then 
+	if coinsLabel and coinsLabel.Parent then
 		coinsLabel.Text = formatCompactNumber(playerData.TrumpCoins)
-	else
-		print("[StatsDisplay] Warning: coinsLabel not found, TrumpCoins value is:", playerData.TrumpCoins)
 	end
-	if wlLabel then wlLabel.Text = formatNumber(playerData.ArenaWins) .. " / " .. formatNumber(playerData.ArenaLoses) end
-	if killsLabel then killsLabel.Text = formatNumber(playerData.AbyssKill) end
-	if deathsLabel then deathsLabel.Text = formatNumber(playerData.AbyssDeath) end
+	if wlLabel and wlLabel.Parent then
+		wlLabel.Text = formatNumber(playerData.ArenaWins) .. " / " .. formatNumber(playerData.ArenaLoses)
+	end
+	if killsLabel and killsLabel.Parent then
+		killsLabel.Text = formatNumber(playerData.AbyssKill)
+	end
+	if deathsLabel and deathsLabel.Parent then
+		deathsLabel.Text = formatNumber(playerData.AbyssDeath)
+	end
 end)
 
-print("[StatsDisplay] Professional stats display loaded!")
+print("[StatsDisplay] Self-healing stats display loaded!")
 

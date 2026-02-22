@@ -1,6 +1,7 @@
 print("==================== SHOOTINGSERVER SCRIPT IS RUNNING ====================")
 warn("==================== SHOOTINGSERVER SCRIPT IS RUNNING ====================")
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -265,6 +266,123 @@ shootEvent.OnServerEvent:Connect(function(player, mouseHitPosition)
 	local distance = directionVector.Magnitude
 	-- Extend the ray slightly past the target to prevent floating point misses
 	local direction = directionVector.Unit * (math.max(distance, 100) + 2)
+
+	-- ⚔️ PvP DUEL HITSCAN — instant click-based, no bullet travel needed
+	if _G.PvpDuel and _G.PvpDuel.isInDuel(player) then
+		local opponent = _G.PvpDuel.getOpponent(player)
+		if opponent then
+			local opChar = opponent.Character
+			if opChar then
+				-- Raycast directly from shooter toward mouse position, only hitting opponent
+				local pvpParams = RaycastParams.new()
+				local pvpFilter = { character }
+				-- Exclude everything EXCEPT the opponent character
+				-- We use Include mode with just the opponent
+				pvpParams.FilterDescendantsInstances = { opChar }
+				pvpParams.FilterType = Enum.RaycastFilterType.Include
+
+				local pvpResult = Workspace:Raycast(origin, direction, pvpParams)
+
+				-- Direct hit only — no proximity fallback
+				local pvpIsHeadshot = false
+				if pvpResult then
+					-- Check if the IMPACT POINT is above the neck
+					local opHead = opChar:FindFirstChild("Head")
+					if opHead and pvpResult.Position then
+						local neckY = opHead.Position.Y - (opHead.Size.Y * 0.5)
+						pvpIsHeadshot = pvpResult.Position.Y >= neckY
+					end
+				end
+
+				if pvpResult and pvpResult.Instance then
+					local hitPartName = pvpResult.Instance.Name
+					local handled = _G.PvpDuel.dealPvpHit(player, opponent, pvpIsHeadshot)
+					if handled then
+						print("[ShootingServer] ⚔️ PvP Hitscan:", player.Name, "→", opponent.Name,
+							pvpIsHeadshot and "HEADSHOT!" or "body hit", "(part:", hitPartName, ")")
+						-- Still spawn the visual bullet for feedback
+						if skinId then
+							spawnBulletVisual(skinId, origin, origin + direction)
+						end
+						return
+					end
+				end
+			end
+		end
+	end
+
+	-- 🌀 ABYSS OPEN-WORLD PVP — shoot any player in the Abyss zone
+	if _G.AbyssPvP and _G.AbyssPvP.isInAbyss(player) then
+		local abyssTargets = _G.AbyssPvP.getAbyssPlayers(player)
+		print("[ShootingServer] 🌀 Abyss PvP: shooter", player.Name, "is in Abyss, targets:", #abyssTargets)
+		if #abyssTargets > 0 then
+			-- Build include filter with all other Abyss player characters
+			local abyssChars = {}
+			for _, target in abyssTargets do
+				if target.Character then
+					table.insert(abyssChars, target.Character)
+				end
+			end
+
+			if #abyssChars > 0 then
+				local abyssParams = RaycastParams.new()
+				abyssParams.FilterDescendantsInstances = abyssChars
+				abyssParams.FilterType = Enum.RaycastFilterType.Include
+
+				-- Use Spherecast for easier hits (same as PvE)
+				local abyssRadius = 1.0
+				local abyssResult = Workspace:Spherecast(origin, abyssRadius, direction, abyssParams)
+				
+				-- Fallback to thin ray if spherecast missed
+				if not abyssResult then
+					abyssResult = Workspace:Raycast(origin, direction, abyssParams)
+				end
+
+				if abyssResult and abyssResult.Instance then
+					-- Find which player was hit
+					local hitChar = abyssResult.Instance:FindFirstAncestorOfClass("Model")
+					local hitPlayer = hitChar and Players:GetPlayerFromCharacter(hitChar)
+
+					if hitPlayer and _G.AbyssPvP.isInAbyss(hitPlayer) then
+						-- Check headshot (Y-position above neck)
+						local abyssHeadshot = false
+						local hitHead = hitChar:FindFirstChild("Head")
+						if hitHead and abyssResult.Position then
+							local neckY = hitHead.Position.Y - (hitHead.Size.Y * 0.5)
+							abyssHeadshot = abyssResult.Position.Y >= neckY
+						end
+
+						local handled = _G.AbyssPvP.dealDamage(player, hitPlayer, abyssHeadshot)
+						if handled then
+							print("[ShootingServer] 🌀 Abyss PvP:", player.Name, "→", hitPlayer.Name,
+								abyssHeadshot and "HEADSHOT!" or "body hit",
+								"(part:", abyssResult.Instance.Name, ")")
+							if skinId then
+								spawnBulletVisual(skinId, origin, origin + direction)
+							end
+							return
+						else
+							warn("[ShootingServer] 🌀 Abyss PvP: dealDamage returned false for", player.Name, "→", hitPlayer.Name)
+						end
+					else
+						warn("[ShootingServer] 🌀 Abyss PvP: hit instance but no valid player. Instance:", abyssResult.Instance:GetFullName(),
+							"hitPlayer:", hitPlayer and hitPlayer.Name or "nil",
+							"inAbyss:", hitPlayer and tostring(_G.AbyssPvP.isInAbyss(hitPlayer)) or "N/A")
+					end
+				else
+					print("[ShootingServer] 🌀 Abyss PvP: raycast missed all", #abyssChars, "target characters")
+				end
+			end
+		end
+	else
+		-- Debug: why is player not in abyss?
+		if not _G.AbyssPvP then
+			if not player:GetAttribute("_abyssWarnLogged") then
+				warn("[ShootingServer] _G.AbyssPvP is nil! AbyssPvP script may not have loaded yet.")
+				player:SetAttribute("_abyssWarnLogged", true)
+			end
+		end
+	end
 
 	-- Spawn custom bullet visual if weapon has one
 	local visualBullet

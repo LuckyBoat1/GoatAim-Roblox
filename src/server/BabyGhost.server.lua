@@ -23,8 +23,8 @@ local ANIM_ATTACK = 87176561929767
 
 local NPCS = {}
 
--- FishSpawn model
-local spawnModel = Workspace:FindFirstChild("BabyGhostSpawn")
+-- BabyGhostSpawn model (recursive search — may be inside Game.Abyss.AbyssModels)
+local spawnModel = Workspace:FindFirstChild("BabyGhostSpawn", true)
 if not spawnModel then error("BabyGhostSpawn model missing") end
 
 -- Get all parts inside spawn model

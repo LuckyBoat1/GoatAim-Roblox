@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local Rs = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -10,31 +11,35 @@ local THEME = {
 	BG_DARK = Color3.fromRGB(12, 12, 18),
 	BG_MID = Color3.fromRGB(22, 22, 32),
 	BG_LIGHT = Color3.fromRGB(35, 35, 50),
-	GOLD = Color3.fromRGB(255, 195, 70),
-	GOLD_DARK = Color3.fromRGB(180, 130, 40),
+	GOLD = Color3.fromRGB(0, 0, 0),
+	GOLD_DARK = Color3.fromRGB(0, 0, 0),
 	CRIMSON = Color3.fromRGB(220, 50, 70),
 	EMBER = Color3.fromRGB(255, 100, 40),
 	ABYSS = Color3.fromRGB(140, 60, 200),
+	BLUE = Color3.fromRGB(50, 120, 220),
+	BLUE_DARK = Color3.fromRGB(30, 70, 150),
+	GREEN = Color3.fromRGB(50, 200, 90),
+	GREEN_DARK = Color3.fromRGB(30, 130, 55),
 	WHITE = Color3.fromRGB(255, 255, 255),
 }
 
 local BUTTON_COLORS = {
-	{main = THEME.GOLD, dark = THEME.GOLD_DARK},
-	{main = THEME.CRIMSON, dark = Color3.fromRGB(150, 30, 50)},
-	{main = THEME.EMBER, dark = Color3.fromRGB(180, 60, 20)},
-	{main = THEME.ABYSS, dark = Color3.fromRGB(90, 30, 140)},
-	{main = Color3.fromRGB(60, 60, 70), dark = Color3.fromRGB(40, 40, 50)}, -- Settings gray
+	{main = THEME.GREEN, dark = THEME.GREEN_DARK}, -- Inventory (green)
+	{main = THEME.BLUE, dark = THEME.BLUE_DARK}, -- Quests (blue)
+	{main = THEME.CRIMSON, dark = Color3.fromRGB(150, 30, 50)}, -- Shop (red)
+	{main = THEME.EMBER, dark = Color3.fromRGB(180, 60, 20)}, -- Headquarters (orange)
+	{main = THEME.ABYSS, dark = Color3.fromRGB(90, 30, 140)}, -- Abyss teleport
 }
 
 -- Icons
 local ICONS = {
 	INVENTORY = "rbxthumb://type=Asset&id=104277052032419&w=420&h=420",
-	QUESTS = "rbxthumb://type=Asset&id=96245622853577&w=420&h=420",
-	SHOP = "rbxthumb://type=Asset&id=91509180731644&w=420&h=420",
-	HEADQUARTERS = "rbxassetid://6031265976", -- Building/base icon
-	SETTINGS = "rbxassetid://8337535591"
+	QUESTS = "rbxassetid://109374124083924",
+	SHOP = "rbxassetid://71043629499874",
+	HEADQUARTERS = "rbxassetid://73736302943571", -- Building/base icon
+	ABYSS = "rbxassetid://121736679613445", -- Skull/void icon
 }
-
+--
 -- Create GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "SideMenu"
@@ -44,52 +49,31 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.DisplayOrder = 100 -- Always on top of other menus
 gui.Parent = playerGui
 
--- Outer glow layer (creates that premium floating effect)
-local outerGlow = Instance.new("Frame")
-outerGlow.Name = "OuterGlow"
-outerGlow.Size = UDim2.new(0, 95, 0, 385)
-outerGlow.Position = UDim2.new(0, 10, 0.5, 0)
-outerGlow.AnchorPoint = Vector2.new(0, 0.5)
-outerGlow.BackgroundColor3 = THEME.GOLD
-outerGlow.BackgroundTransparency = 0.85
-outerGlow.BorderSizePixel = 0
-outerGlow.ZIndex = 0
-outerGlow.Parent = gui
-Instance.new("UICorner", outerGlow).CornerRadius = UDim.new(0, 22)
-
--- Pulse the outer glow
-task.spawn(function()
-	while outerGlow.Parent do
-		TweenService:Create(outerGlow, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-			BackgroundTransparency = 0.75,
-			Size = UDim2.new(0, 100, 0, 390)
-		}):Play()
-		task.wait(2.5)
-		TweenService:Create(outerGlow, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-			BackgroundTransparency = 0.9,
-			Size = UDim2.new(0, 95, 0, 385)
-		}):Play()
-		task.wait(2.5)
-	end
-end)
-
 -- Main container with layered depth
 local container = Instance.new("Frame")
 container.Name = "Container"
-container.Size = UDim2.new(0, 80, 0, 370)
-container.Position = UDim2.new(0, 18, 0.5, 0)
+container.Size = UDim2.new(0, 97, 0, 474)
+container.Position = UDim2.new(0, 19, 0.5, 25)
 container.AnchorPoint = Vector2.new(0, 0.5)
 container.BackgroundColor3 = THEME.BG_DARK
 container.BorderSizePixel = 0
 container.ZIndex = 1
 container.Parent = gui
 
-Instance.new("UICorner", container).CornerRadius = UDim.new(0, 16)
+Instance.new("UICorner", container).CornerRadius = UDim.new(0, 14)
 
--- Inner panel (creates depth)
+-- Clean thin gold stroke on container
+local containerStroke = Instance.new("UIStroke")
+containerStroke.Thickness = 3
+containerStroke.Color = THEME.GOLD_DARK
+containerStroke.Transparency = 0.3
+containerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+containerStroke.Parent = container
+
+-- Inner panel
 local innerPanel = Instance.new("Frame")
 innerPanel.Name = "InnerPanel"
-innerPanel.Size = UDim2.new(1, -8, 1, -8)
+innerPanel.Size = UDim2.new(1, -6, 1, -6)
 innerPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
 innerPanel.AnchorPoint = Vector2.new(0.5, 0.5)
 innerPanel.BackgroundColor3 = THEME.BG_MID
@@ -97,7 +81,7 @@ innerPanel.BorderSizePixel = 0
 innerPanel.ZIndex = 2
 innerPanel.Parent = container
 
-Instance.new("UICorner", innerPanel).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", innerPanel).CornerRadius = UDim.new(0, 11)
 
 -- Gradient overlay for premium feel
 local innerGrad = Instance.new("UIGradient")
@@ -117,55 +101,6 @@ innerStroke.Transparency = 0.5
 innerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 innerStroke.Parent = innerPanel
 
--- Animated accent line (top)
-local topLine = Instance.new("Frame")
-topLine.Name = "TopLine"
-topLine.Size = UDim2.new(0.5, 0, 0, 2)
-topLine.Position = UDim2.new(0.25, 0, 0, 12)
-topLine.BackgroundColor3 = THEME.GOLD
-topLine.BorderSizePixel = 0
-topLine.ZIndex = 5
-topLine.Parent = innerPanel
-Instance.new("UICorner", topLine).CornerRadius = UDim.new(1, 0)
-
--- Top line glow
-local topLineGlow = Instance.new("Frame")
-topLineGlow.Size = UDim2.new(1, 6, 1, 6)
-topLineGlow.Position = UDim2.new(0.5, 0, 0.5, 0)
-topLineGlow.AnchorPoint = Vector2.new(0.5, 0.5)
-topLineGlow.BackgroundColor3 = THEME.GOLD
-topLineGlow.BackgroundTransparency = 0.6
-topLineGlow.BorderSizePixel = 0
-topLineGlow.ZIndex = 4
-topLineGlow.Parent = topLine
-Instance.new("UICorner", topLineGlow).CornerRadius = UDim.new(1, 0)
-
--- Animate top line
-task.spawn(function()
-	while topLine.Parent do
-		TweenService:Create(topLine, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
-			Size = UDim2.new(0.6, 0, 0, 2)
-		}):Play()
-		TweenService:Create(topLineGlow, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
-			BackgroundTransparency = 0.4
-		}):Play()
-		task.wait(1.5)
-		TweenService:Create(topLine, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
-			Size = UDim2.new(0.4, 0, 0, 2)
-		}):Play()
-		TweenService:Create(topLineGlow, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
-			BackgroundTransparency = 0.7
-		}):Play()
-		task.wait(1.5)
-	end
-end)
-
--- Bottom accent line
-local botLine = topLine:Clone()
-botLine.Name = "BotLine"
-botLine.Position = UDim2.new(0.25, 0, 1, -14)
-botLine.Parent = innerPanel
-
 -- Button container
 local buttonContainer = Instance.new("Frame")
 buttonContainer.Name = "ButtonContainer"
@@ -177,69 +112,57 @@ buttonContainer.ZIndex = 3
 buttonContainer.Parent = innerPanel
 
 local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 22)
+layout.Padding = UDim.new(0, 4)
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.VerticalAlignment = Enum.VerticalAlignment.Center
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = buttonContainer
 
 -- Premium button creation
-local function createButton(name, iconId, order, callback, customIconSize)
+local function createButton(name, iconId, order, callback, customIconSize, iconYOffset)
 	local colors = BUTTON_COLORS[order] or BUTTON_COLORS[1]
 	local mainColor = colors.main
 	local darkColor = colors.dark
 	
-	-- Outer wrapper
+	-- Outer wrapper (colored border with rotating gradient)
 	local wrapper = Instance.new("Frame")
 	wrapper.Name = name
-	wrapper.Size = UDim2.new(0, 56, 0, 56)
-	wrapper.BackgroundTransparency = 1
+	wrapper.Size = UDim2.new(0, 89, 0, 89)
+	wrapper.BackgroundColor3 = Color3.new(1, 1, 1) -- white so gradient colors are pure
+	wrapper.BackgroundTransparency = 0
+	wrapper.BorderSizePixel = 0
 	wrapper.LayoutOrder = order
 	wrapper.ZIndex = 3
 	wrapper.Parent = buttonContainer
 	
-	-- Glow layer (behind button)
-	local glow = Instance.new("Frame")
-	glow.Name = "Glow"
-	glow.Size = UDim2.new(1, 20, 1, 20)
-	glow.Position = UDim2.new(0.5, 0, 0.5, 0)
-	glow.AnchorPoint = Vector2.new(0.5, 0.5)
-	glow.BackgroundColor3 = mainColor
-	glow.BackgroundTransparency = 0.85
-	glow.BorderSizePixel = 0
-	glow.ZIndex = 2
-	glow.Parent = wrapper
-	Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 18)
+	Instance.new("UICorner", wrapper).CornerRadius = UDim.new(0, 14)
 	
-	-- Second glow layer for depth
-	local glow2 = Instance.new("Frame")
-	glow2.Name = "Glow2"
-	glow2.Size = UDim2.new(1, 30, 1, 30)
-	glow2.Position = UDim2.new(0.5, 0, 0.5, 0)
-	glow2.AnchorPoint = Vector2.new(0.5, 0.5)
-	glow2.BackgroundColor3 = mainColor
-	glow2.BackgroundTransparency = 0.95
-	glow2.BorderSizePixel = 0
-	glow2.ZIndex = 1
-	glow2.Parent = wrapper
-	Instance.new("UICorner", glow2).CornerRadius = UDim.new(0, 22)
+	-- Rotating gradient on wrapper (the visible colored border)
+	local borderGrad = Instance.new("UIGradient")
+	borderGrad.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, mainColor),
+		ColorSequenceKeypoint.new(0.3, darkColor),
+		ColorSequenceKeypoint.new(0.7, mainColor),
+		ColorSequenceKeypoint.new(1, darkColor)
+	}
+	borderGrad.Parent = wrapper
 	
-	-- Button base (dark layer)
-	local btnBase = Instance.new("Frame")
-	btnBase.Name = "ButtonBase"
-	btnBase.Size = UDim2.new(1, 0, 1, 0)
-	btnBase.Position = UDim2.new(0, 0, 0, 3)
-	btnBase.BackgroundColor3 = darkColor
-	btnBase.BorderSizePixel = 0
-	btnBase.ZIndex = 3
-	btnBase.Parent = wrapper
-	Instance.new("UICorner", btnBase).CornerRadius = UDim.new(0, 14)
+	-- Animate border rotation
+	task.spawn(function()
+		local rot = 0
+		while borderGrad.Parent do
+			rot = (rot + 2) % 360
+			borderGrad.Rotation = rot
+			RunService.Heartbeat:Wait()
+		end
+	end)
 	
-	-- Main button
+	-- Main button (inset inside wrapper so color border shows)
 	local btn = Instance.new("TextButton")
 	btn.Name = "Button"
-	btn.Size = UDim2.new(1, 0, 1, 0)
-	btn.Position = UDim2.new(0, 0, 0, 0)
+	btn.Size = UDim2.new(1, -6, 1, -6)
+	btn.Position = UDim2.new(0.5, 0, 0.5, 0)
+	btn.AnchorPoint = Vector2.new(0.5, 0.5)
 	btn.BackgroundColor3 = THEME.BG_LIGHT
 	btn.Text = ""
 	btn.AutoButtonColor = false
@@ -247,42 +170,20 @@ local function createButton(name, iconId, order, callback, customIconSize)
 	btn.ZIndex = 4
 	btn.Parent = wrapper
 	
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 14)
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
 	
 	-- Button gradient
 	local btnGrad = Instance.new("UIGradient")
 	btnGrad.Rotation = 135
 	btnGrad.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(55, 55, 75)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(38, 38, 55)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(28, 28, 42))
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 50, 68)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(32, 32, 48)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(22, 22, 35))
 	}
 	btnGrad.Parent = btn
 	
-	-- Animated border stroke
-	local btnStroke = Instance.new("UIStroke")
-	btnStroke.Thickness = 2
-	btnStroke.Transparency = 0.4
-	btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	btnStroke.Parent = btn
 	
-	local strokeGrad = Instance.new("UIGradient")
-	strokeGrad.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0, mainColor),
-		ColorSequenceKeypoint.new(0.5, darkColor),
-		ColorSequenceKeypoint.new(1, mainColor)
-	}
-	strokeGrad.Parent = btnStroke
-	
-	-- Animate stroke rotation
-	task.spawn(function()
-		local rot = 0
-		while strokeGrad.Parent do
-			rot = (rot + 1.5) % 360
-			strokeGrad.Rotation = rot
-			RunService.Heartbeat:Wait()
-		end
-	end)
+
 	
 	-- Shine highlight
 	local shine = Instance.new("Frame")
@@ -310,9 +211,10 @@ local function createButton(name, iconId, order, callback, customIconSize)
 	-- Icon glow
 	local iconGlow = Instance.new("ImageLabel")
 	local size = customIconSize or 36
+	local yOff = iconYOffset or 0
 	iconGlow.Name = "IconGlow"
 	iconGlow.Size = UDim2.new(0, size + 8, 0, size + 8)
-	iconGlow.Position = UDim2.new(0.5, 0, 0.5, 0)
+	iconGlow.Position = UDim2.new(0.5, 0, 0.5, yOff)
 	iconGlow.AnchorPoint = Vector2.new(0.5, 0.5)
 	iconGlow.BackgroundTransparency = 1
 	iconGlow.Image = iconId
@@ -326,7 +228,7 @@ local function createButton(name, iconId, order, callback, customIconSize)
 	local icon = Instance.new("ImageLabel")
 	icon.Name = "Icon"
 	icon.Size = UDim2.new(0, size, 0, size)
-	icon.Position = UDim2.new(0.5, 0, 0.5, 0)
+	icon.Position = UDim2.new(0.5, 0, 0.5, yOff)
 	icon.AnchorPoint = Vector2.new(0.5, 0.5)
 	icon.BackgroundTransparency = 1
 	icon.Image = iconId
@@ -335,98 +237,36 @@ local function createButton(name, iconId, order, callback, customIconSize)
 	icon.ZIndex = 6
 	icon.Parent = btn
 	
-	-- Hover indicator dot
-	local indicator = Instance.new("Frame")
-	indicator.Name = "Indicator"
-	indicator.Size = UDim2.new(0, 0, 0, 4)
-	indicator.Position = UDim2.new(0.5, 0, 1, -8)
-	indicator.AnchorPoint = Vector2.new(0.5, 0)
-	indicator.BackgroundColor3 = mainColor
-	indicator.BorderSizePixel = 0
-	indicator.ZIndex = 6
-	indicator.Parent = btn
-	Instance.new("UICorner", indicator).CornerRadius = UDim.new(1, 0)
-	
 	-- Hover effects
 	btn.MouseEnter:Connect(function()
-		TweenService:Create(wrapper, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, 64, 0, 64)
-		}):Play()
-		
-		TweenService:Create(glow, TweenInfo.new(0.25), {
-			BackgroundTransparency = 0.5,
-			Size = UDim2.new(1, 28, 1, 28)
-		}):Play()
-		
-		TweenService:Create(glow2, TweenInfo.new(0.25), {
-			BackgroundTransparency = 0.8,
-			Size = UDim2.new(1, 40, 1, 40)
-		}):Play()
-		
-		TweenService:Create(btnStroke, TweenInfo.new(0.2), {
-			Transparency = 0,
-			Thickness = 2.5
+		TweenService:Create(wrapper, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, 95, 0, 95)
 		}):Play()
 		
 		TweenService:Create(iconGlow, TweenInfo.new(0.2), {
 			ImageTransparency = 0.4
 		}):Play()
-		
-		TweenService:Create(indicator, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, 20, 0, 4)
-		}):Play()
 	end)
 	
 	btn.MouseLeave:Connect(function()
-		TweenService:Create(wrapper, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-			Size = UDim2.new(0, 56, 0, 56)
+		TweenService:Create(wrapper, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
+			Size = UDim2.new(0, 89, 0, 89)
 		}):Play()
 		
-		TweenService:Create(glow, TweenInfo.new(0.2), {
-			BackgroundTransparency = 0.85,
-			Size = UDim2.new(1, 20, 1, 20)
-		}):Play()
-		
-		TweenService:Create(glow2, TweenInfo.new(0.2), {
-			BackgroundTransparency = 0.95,
-			Size = UDim2.new(1, 30, 1, 30)
-		}):Play()
-		
-		TweenService:Create(btnStroke, TweenInfo.new(0.2), {
-			Transparency = 0.4,
-			Thickness = 2
-		}):Play()
-		
-		TweenService:Create(iconGlow, TweenInfo.new(0.2), {
+		TweenService:Create(iconGlow, TweenInfo.new(0.15), {
 			ImageTransparency = 0.7
-		}):Play()
-		
-		TweenService:Create(indicator, TweenInfo.new(0.15), {
-			Size = UDim2.new(0, 0, 0, 4)
 		}):Play()
 	end)
 	
 	btn.MouseButton1Down:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.06), {
-			Position = UDim2.new(0, 0, 0, 3)
-		}):Play()
 		TweenService:Create(wrapper, TweenInfo.new(0.06), {
-			Size = UDim2.new(0, 60, 0, 60)
-		}):Play()
-		TweenService:Create(glow, TweenInfo.new(0.06), {
-			BackgroundTransparency = 0.3
+			Size = UDim2.new(0, 85, 0, 85)
 		}):Play()
 	end)
 	
 	btn.MouseButton1Up:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.12, Enum.EasingStyle.Back), {
-			Position = UDim2.new(0, 0, 0, 0)
-		}):Play()
-		TweenService:Create(wrapper, TweenInfo.new(0.15, Enum.EasingStyle.Back), {
-			Size = UDim2.new(0, 64, 0, 64)
-		}):Play()
-		TweenService:Create(glow, TweenInfo.new(0.12), {
-			BackgroundTransparency = 0.5
+		TweenService:Create(wrapper, TweenInfo.new(0.12, Enum.EasingStyle.Back), {
+			Size = UDim2.new(0, 95, 0, 95)
 		}):Play()
 	end)
 	
@@ -436,18 +276,10 @@ local function createButton(name, iconId, order, callback, customIconSize)
 	
 	-- Staggered entrance
 	wrapper.Size = UDim2.new(0, 0, 0, 0)
-	glow.BackgroundTransparency = 1
-	glow2.BackgroundTransparency = 1
 	
-	task.delay(0.3 + order * 0.12, function()
-		TweenService:Create(wrapper, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, 56, 0, 56)
-		}):Play()
-		TweenService:Create(glow, TweenInfo.new(0.5), {
-			BackgroundTransparency = 0.85
-		}):Play()
-		TweenService:Create(glow2, TweenInfo.new(0.6), {
-			BackgroundTransparency = 0.95
+	task.delay(0.3 + order * 0.1, function()
+		TweenService:Create(wrapper, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, 89, 0, 89)
 		}):Play()
 	end)
 	
@@ -481,7 +313,7 @@ createButton("InventoryBtn", ICONS.INVENTORY, 1, function()
 	else
 		warn("Inventory API not found in _G.MatrixInventory")
 	end
-end, 51)
+end, 85)
 
 createButton("QuestsBtn", ICONS.QUESTS, 2, function()
 	if _G.MatrixQuest and _G.MatrixQuest.toggleUI then
@@ -493,7 +325,7 @@ createButton("QuestsBtn", ICONS.QUESTS, 2, function()
 	else
 		warn("Quest API not found in _G.MatrixQuest")
 	end
-end, 46)
+end, 141)
 
 createButton("ShopBtn", ICONS.SHOP, 3, function()
 	if _G.MatrixShop and _G.MatrixShop.Toggle then
@@ -505,7 +337,7 @@ createButton("ShopBtn", ICONS.SHOP, 3, function()
 	else
 		warn("Shop API not found in _G.MatrixShop")
 	end
-end, 46)
+end, 143, 2)
 
 createButton("HeadquartersBtn", ICONS.HEADQUARTERS, 4, function()
 	if _G.MatrixHeadquarters and _G.MatrixHeadquarters.Toggle then
@@ -517,26 +349,77 @@ createButton("HeadquartersBtn", ICONS.HEADQUARTERS, 4, function()
 	else
 		warn("Headquarters API not found in _G.MatrixHeadquarters")
 	end
-end, 42)
+end, 141, 3)
 
-createButton("SettingsBtn", ICONS.SETTINGS, 5, function()
-	print("Settings clicked")
-end, 40)
+createButton("AbyssBtn", ICONS.ABYSS, 5, function()
+	closeAllMenus()
+	-- Find AbyssSpawn attachment in workspace
+	local function findAbyssSpawn(parent)
+		for _, child in parent:GetChildren() do
+			if child:IsA("Attachment") and child.Name == "AbyssSpawn" then
+				return child
+			end
+			local found = findAbyssSpawn(child)
+			if found then return found end
+		end
+		return nil
+	end
+	local attach = findAbyssSpawn(workspace)
+	if attach then
+		local char = player.Character
+		if char then
+			local root = char:FindFirstChild("HumanoidRootPart")
+			if root then
+				root.CFrame = CFrame.new(attach.WorldPosition) + Vector3.new(0, 3, 0)
+				print("[SideMenu] Teleported to Abyss")
+				-- Notify server so AbyssPvP can register the player immediately
+				local remotes = Rs:WaitForChild("RemoteEvents", 10)
+				if not remotes then
+					warn("[SideMenu] ❌ RemoteEvents folder NOT FOUND in ReplicatedStorage!")
+				else
+					local abyssTeleportRE = remotes:WaitForChild("AbyssTeleport", 10)
+					if abyssTeleportRE then
+						warn("[SideMenu] ✅ Firing AbyssTeleport to server!")
+						abyssTeleportRE:FireServer()
+					else
+						warn("[SideMenu] ❌ AbyssTeleport RemoteEvent NOT FOUND in RemoteEvents!")
+						-- List what IS in RemoteEvents for debugging
+						for _, child in remotes:GetChildren() do
+							warn("  -> RemoteEvents child:", child.Name, child.ClassName)
+						end
+					end
+				end
+			end
+		end
+	else
+		warn("[SideMenu] AbyssSpawn attachment not found in workspace")
+	end
+end, 141, 2)
 
 -- Container entrance
-container.Position = UDim2.new(0, -100, 0.5, 0)
-outerGlow.Position = UDim2.new(0, -100, 0.5, 0)
-outerGlow.BackgroundTransparency = 1
+container.Position = UDim2.new(0, -110, 0.5, 25)
 
 task.delay(0.1, function()
 	TweenService:Create(container, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.new(0, 18, 0.5, 0)
-	}):Play()
-	TweenService:Create(outerGlow, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.new(0, 10, 0.5, 0)
-	}):Play()
-	task.wait(0.3)
-	TweenService:Create(outerGlow, TweenInfo.new(0.8), {
-		BackgroundTransparency = 0.85
+		Position = UDim2.new(0, 19, 0.5, 25)
 	}):Play()
 end)
+
+-- === ZINDEX OVERRIDES ===
+-- Edit these numbers to change layering. Higher = renders on top.
+for _, wrapper in buttonContainer:GetChildren() do
+	if wrapper:IsA("Frame") then
+		wrapper.ZIndex = 5           -- colored border frame (gradient)
+		local btn = wrapper:FindFirstChild("Button")
+		if btn then
+			btn.ZIndex = 3           -- dark button face
+			local shine = btn:FindFirstChild("Shine")
+			if shine then shine.ZIndex = 7 end
+		end
+		local iconGlow = wrapper:FindFirstChild("IconGlow")
+		if iconGlow then iconGlow.ZIndex = 5 end  -- icon glow (behind border)
+		local icon = wrapper:FindFirstChild("Icon")
+		if icon then icon.ZIndex = 4 end           -- icon image (behind border)
+	end
+end
+--

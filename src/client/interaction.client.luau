@@ -571,8 +571,8 @@ local function createBillboard(targetPlayer: Player, targetChar: Model): Billboa
 		sep.BackgroundTransparency = 0.3 + (1 - pulse01) * 0.3
 
 		-- BUTTON STROKES: color cycle
-		for _, bs in ipairs(btnStrokes) do
-			local btnColorT = (math.sin(t * 2 + bs.stroke.LayoutOrder * 1.5) + 1) / 2
+		for i, bs in ipairs(btnStrokes) do
+			local btnColorT = (math.sin(t * 2 + i * 1.5) + 1) / 2
 			-- Only animate if not hovered (check transparency to detect hover state)
 			if bs.stroke.Transparency > 0.1 then
 				bs.stroke.Color = bs.color:Lerp(bs.glow, btnColorT)

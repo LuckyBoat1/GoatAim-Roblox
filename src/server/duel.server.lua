@@ -16,17 +16,26 @@ if not DuelEvent then
 	print("✅ [Duel] Created DuelEvent in ReplicatedStorage")
 end
 
---------------------------------------------------------------------------
--- ARENA SPAWNS (optional — if they exist, players teleport there)
---------------------------------------------------------------------------
-local arenaFolder = workspace:FindFirstChild("DuelArenaSpawns")
-local spawn1 = arenaFolder and arenaFolder:FindFirstChild("ArenaSpawn1")
-local spawn2 = arenaFolder and arenaFolder:FindFirstChild("ArenaSpawn2")
+-- PvP Countdown remote (fires countdown numbers to clients)
+local PvpCountdownEvent = ReplicatedStorage:FindFirstChild("PvpCountdownEvent")
+if not PvpCountdownEvent then
+	PvpCountdownEvent = Instance.new("RemoteEvent")
+	PvpCountdownEvent.Name = "PvpCountdownEvent"
+	PvpCountdownEvent.Parent = ReplicatedStorage
+	print("✅ [Duel] Created PvpCountdownEvent in ReplicatedStorage")
+end
 
-if arenaFolder and spawn1 and spawn2 then
-	print("✅ [Duel] Arena spawns found — players will teleport on duel start")
+--------------------------------------------------------------------------
+-- ARENA SPAWNS — uses workspace.Pvp with spawn parts "1" and "2"
+--------------------------------------------------------------------------
+local pvpArena = workspace:FindFirstChild("Pvp")
+local spawn1 = pvpArena and pvpArena:FindFirstChild("1")
+local spawn2 = pvpArena and pvpArena:FindFirstChild("2")
+
+if pvpArena and spawn1 and spawn2 then
+	print("✅ [Duel] Pvp arena found with spawn points 1 and 2")
 else
-	warn("⚠️ [Duel] DuelArenaSpawns not found — duels will work but no teleport. Add Workspace > DuelArenaSpawns > ArenaSpawn1 + ArenaSpawn2 to enable.")
+	warn("⚠️ [Duel] Pvp arena or spawn points not found — duels will work but no teleport. Add Workspace > Pvp > 1 + 2 (Parts) to enable.")
 end
 
 --------------------------------------------------------------------------
@@ -38,10 +47,15 @@ local DUEL_COOLDOWN = 3 -- seconds between duel requests
 local lastRequest: { [Player]: number } = {}
 local INVINCIBILITY_TIME = 5
 local COUNTDOWN_TIME = 3
+local FIGHT_DURATION = 60 -- seconds for the actual PvP fight
+local PVP_MAX_HEARTS = 3 -- hits to kill (headshot = instant)
 
 --------------------------------------------------------------------------
 -- HELPERS
 --------------------------------------------------------------------------
+local duelTimers: { [Player]: thread } = {} -- coroutine handle for active fight timers
+local preDuelPositions: { [Player]: CFrame } = {} -- saved positions to return players after duel
+
 local function isAlive(plr: Player): boolean
 	local char = plr.Character
 	if not char then return false end
@@ -49,24 +63,252 @@ local function isAlive(plr: Player): boolean
 	return hum ~= nil and hum.Health > 0
 end
 
-local function teleportToArena(player1: Player, player2: Player)
-	if not spawn1 or not spawn2 then return end
-	if not isAlive(player1) or not isAlive(player2) then return end
-
-	player1.Character:PivotTo(CFrame.new(spawn1.Position + Vector3.new(0, 3, 0)))
-	player2.Character:PivotTo(CFrame.new(spawn2.Position + Vector3.new(0, 3, 0)))
-end
-
 local function grantInvincibility(plr: Player)
 	if not isAlive(plr) then return end
-	local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+	local char = plr.Character
+	local hum = char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
+
+	-- Use Roblox's native ForceField — blocks ALL damage sources
+	local existingFF = char:FindFirstChildOfClass("ForceField")
+	if existingFF then existingFF:Destroy() end
+
+	local ff = Instance.new("ForceField")
+	ff.Name = "DuelForceField"
+	ff.Visible = true -- players see the shield bubble
+	ff.Parent = char
+
+	-- Also set custom attribute for scripts that check it
 	hum:SetAttribute("Invincible", true)
+
+	-- Heal to full
+	hum.Health = hum.MaxHealth
+	print(("🛡️ [Duel] ForceField + full heal for %s (Health: %d/%d)"):format(plr.Name, hum.Health, hum.MaxHealth))
+
 	task.delay(INVINCIBILITY_TIME, function()
+		if ff and ff.Parent then ff:Destroy() end
 		if hum and hum.Parent then
 			hum:SetAttribute("Invincible", false)
 		end
+		print(("🛡️ [Duel] Invincibility ended for %s"):format(plr.Name))
 	end)
+end
+
+local function safeTeleport(plr: Player, spawnPart: BasePart)
+	local char = plr.Character
+	if not char then
+		warn("❌ [Duel] safeTeleport: No character for", plr.Name)
+		return
+	end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		warn("❌ [Duel] safeTeleport: No humanoid for", plr.Name)
+		return
+	end
+	local rootPart = char:FindFirstChild("HumanoidRootPart")
+	if not rootPart then
+		warn("❌ [Duel] safeTeleport: No HumanoidRootPart for", plr.Name)
+		return
+	end
+
+	-- Place player 3 studs above the TOP surface of the spawn part
+	local halfHeight = spawnPart.Size.Y / 2
+	local targetPos = spawnPart.Position + Vector3.new(0, halfHeight + 3, 0)
+
+	print(("🏟️ [Duel] Teleporting %s to %s (pos: %s)"):format(plr.Name, spawnPart.Name, tostring(targetPos)))
+
+	-- STEP 1: Anchor the root part BEFORE teleporting (prevents falling/void)
+	rootPart.Anchored = true
+
+	-- STEP 2: Teleport while anchored
+	char:PivotTo(CFrame.new(targetPos))
+
+	-- STEP 3: Zero out any velocity
+	rootPart.AssemblyLinearVelocity = Vector3.zero
+	rootPart.AssemblyAngularVelocity = Vector3.zero
+
+	-- STEP 4: Heal to full & ensure alive
+	hum.Health = hum.MaxHealth
+
+	-- STEP 5: Wait a frame for position to replicate, then unanchor
+	task.delay(0.2, function()
+		if rootPart and rootPart.Parent then
+			rootPart.Anchored = false
+			-- Force into running state so they can move
+			if hum and hum.Parent then
+				hum:ChangeState(Enum.HumanoidStateType.Running)
+			end
+			print(("✅ [Duel] %s unanchored at %s"):format(plr.Name, tostring(rootPart.Position)))
+		end
+	end)
+end
+
+-- End a duel cleanly: clear state, stop timer, award stats/gold, tell clients
+-- winner: the Player who won, or nil for a draw
+local function endDuel(plr1: Player, plr2: Player, reason: string, winner: Player?)
+	activeDuels[plr1] = nil
+	activeDuels[plr2] = nil
+
+	-- Clear PvP hearts attributes
+	if plr1.Character then plr1.Character:SetAttribute("PvpHearts", nil) end
+	if plr2.Character then plr2.Character:SetAttribute("PvpHearts", nil) end
+
+	-- Cancel fight timer coroutine
+	if duelTimers[plr1] then task.cancel(duelTimers[plr1]); duelTimers[plr1] = nil end
+	if duelTimers[plr2] then task.cancel(duelTimers[plr2]); duelTimers[plr2] = nil end
+
+	--------------------------------------------------------------------------
+	-- STATS & GOLD REWARDS
+	--------------------------------------------------------------------------
+	local BASE_GOLD = 1000
+	local STREAK_BONUS_PERCENT = 0.10 -- 10% per winstreak
+	local MAX_STREAK_BONUS = 2.00    -- 200% cap (20 wins)
+
+	if winner and _G.getData then
+		local loser = (winner == plr1) and plr2 or plr1
+
+		-- Update winner stats
+		local winnerData = _G.getData(winner)
+		if winnerData then
+			winnerData.wins = (winnerData.wins or 0) + 1
+			winnerData.winstreak = (winnerData.winstreak or 0) + 1
+
+			-- Gold reward: 1000 base + 10% per winstreak, max 200% bonus (3k total)
+			local streakBonus = math.min((winnerData.winstreak - 1) * STREAK_BONUS_PERCENT, MAX_STREAK_BONUS)
+			local goldReward = math.floor(BASE_GOLD * (1 + streakBonus))
+			if _G.addMoney then
+				_G.addMoney(winner, goldReward)
+			end
+
+			print(("🏆 [Duel] %s WINS! +%d gold (streak: %d, bonus: %d%%) | W:%d L:%d"):format(
+				winner.Name, goldReward, winnerData.winstreak,
+				math.floor(streakBonus * 100),
+				winnerData.wins, winnerData.losses or 0
+			))
+
+			-- Notify winner of gold earned
+			PvpCountdownEvent:FireClient(winner, "FightEnd",
+				reason .. (" | +%d Gold (Streak: %d)"):format(goldReward, winnerData.winstreak))
+		else
+			PvpCountdownEvent:FireClient(winner, "FightEnd", reason)
+		end
+
+		-- Update loser stats
+		if loser.Parent then -- still in game
+			local loserData = _G.getData(loser)
+			if loserData then
+				loserData.losses = (loserData.losses or 0) + 1
+				loserData.winstreak = 0 -- reset streak on loss
+				print(("📉 [Duel] %s LOST — streak reset | W:%d L:%d"):format(
+					loser.Name, loserData.wins or 0, loserData.losses
+				))
+			end
+			PvpCountdownEvent:FireClient(loser, "FightEnd", reason)
+		end
+	else
+		-- Draw or no data system — just notify both
+		PvpCountdownEvent:FireClient(plr1, "FightEnd", reason)
+		PvpCountdownEvent:FireClient(plr2, "FightEnd", reason)
+	end
+
+	print(("🏁 [Duel] Fight ended: %s vs %s — %s"):format(plr1.Name, plr2.Name, reason))
+
+	-- Return players to their pre-duel positions after a short delay (let death/respawn settle)
+	task.delay(1, function()
+		for _, plr in { plr1, plr2 } do
+			local savedCF = preDuelPositions[plr]
+			preDuelPositions[plr] = nil
+			if savedCF and plr.Parent and isAlive(plr) then
+				local char = plr.Character
+				local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+				if rootPart then
+					rootPart.Anchored = true
+					char:PivotTo(savedCF)
+					rootPart.AssemblyLinearVelocity = Vector3.zero
+					rootPart.AssemblyAngularVelocity = Vector3.zero
+					task.delay(0.2, function()
+						if rootPart and rootPart.Parent then
+							rootPart.Anchored = false
+							local hum = char:FindFirstChildOfClass("Humanoid")
+							if hum and hum.Parent then
+								hum:ChangeState(Enum.HumanoidStateType.Running)
+							end
+						end
+					end)
+					print(("🔙 [Duel] Returned %s to pre-duel position"):format(plr.Name))
+				end
+			end
+		end
+	end)
+end
+
+-- Start the 60-second fight timer; fires every second to both clients
+local function startFightTimer(player1: Player, player2: Player)
+	local timerThread = task.spawn(function()
+		-- Tell clients to show fight timer & hide Stats
+		PvpCountdownEvent:FireClient(player1, "FightStart", FIGHT_DURATION)
+		PvpCountdownEvent:FireClient(player2, "FightStart", FIGHT_DURATION)
+
+		for t = FIGHT_DURATION, 1, -1 do
+			-- Check duel still active
+			if not activeDuels[player1] or not activeDuels[player2] then return end
+
+			PvpCountdownEvent:FireClient(player1, "FightTimer", t)
+			PvpCountdownEvent:FireClient(player2, "FightTimer", t)
+			task.wait(1)
+		end
+
+		-- Timer expired — draw
+		if activeDuels[player1] and activeDuels[player2] then
+			endDuel(player1, player2, "Time's up — Draw!", nil)
+		end
+	end)
+
+	duelTimers[player1] = timerThread
+	duelTimers[player2] = timerThread
+end
+
+local function teleportToArena(player1: Player, player2: Player)
+	if not spawn1 or not spawn2 then
+		warn("❌ [Duel] ABORTED — spawn points not found!")
+		return
+	end
+	if not isAlive(player1) or not isAlive(player2) then
+		warn("❌ [Duel] ABORTED — a player is dead!")
+		return
+	end
+
+	print(("🏟️ [Duel] Teleporting %s vs %s to arena"):format(player1.Name, player2.Name))
+
+	-- Save pre-duel positions so we can return them after the fight
+	if player1.Character and player1.Character:FindFirstChild("HumanoidRootPart") then
+		preDuelPositions[player1] = player1.Character:GetPivot()
+		print(("📍 [Duel] Saved %s position"):format(player1.Name))
+	end
+	if player2.Character and player2.Character:FindFirstChild("HumanoidRootPart") then
+		preDuelPositions[player2] = player2.Character:GetPivot()
+		print(("📍 [Duel] Saved %s position"):format(player2.Name))
+	end
+
+	-- Grant invincibility BEFORE teleporting
+	grantInvincibility(player1)
+	grantInvincibility(player2)
+
+	-- Teleport both players (anchored during teleport to prevent void/fall death)
+	safeTeleport(player1, spawn1)
+	safeTeleport(player2, spawn2)
+
+	-- Set PvP hearts on both characters
+	if player1.Character then player1.Character:SetAttribute("PvpHearts", PVP_MAX_HEARTS) end
+	if player2.Character then player2.Character:SetAttribute("PvpHearts", PVP_MAX_HEARTS) end
+
+	-- Notify clients of initial hearts
+	PvpCountdownEvent:FireClient(player1, "HeartsUpdate", PVP_MAX_HEARTS)
+	PvpCountdownEvent:FireClient(player2, "HeartsUpdate", PVP_MAX_HEARTS)
+	print(("❤️ [Duel] Both players set to %d hearts"):format(PVP_MAX_HEARTS))
+
+	-- Start the 60-second fight timer after teleport
+	startFightTimer(player1, player2)
 end
 
 --------------------------------------------------------------------------
@@ -115,19 +357,31 @@ DuelEvent.OnServerEvent:Connect(function(player: Player, action: string, targetP
 			activeDuels[player] = targetPlayer
 			activeDuels[targetPlayer] = player
 
-			-- Notify both
+			-- Notify both that duel was accepted
 			DuelEvent:FireClient(player, "Message", targetPlayer)
 			DuelEvent:FireClient(targetPlayer, "Message", player)
 			print(("✅ [Duel] %s vs %s — ACCEPTED! Teleporting in %ds..."):format(
 				player.Name, targetPlayer.Name, COUNTDOWN_TIME
 			))
 
-			-- Countdown then teleport
-			task.delay(COUNTDOWN_TIME, function()
+			-- Animated countdown — fire each second to both clients
+			task.spawn(function()
+				-- Show the countdown UI (fires "show" first)
+				PvpCountdownEvent:FireClient(player, "Show", targetPlayer.Name)
+				PvpCountdownEvent:FireClient(targetPlayer, "Show", player.Name)
+
+				for t = COUNTDOWN_TIME, 1, -1 do
+					PvpCountdownEvent:FireClient(player, "Countdown", t)
+					PvpCountdownEvent:FireClient(targetPlayer, "Countdown", t)
+					task.wait(1)
+				end
+
+				-- Fire 0 to hide UI
+				PvpCountdownEvent:FireClient(player, "Countdown", 0)
+				PvpCountdownEvent:FireClient(targetPlayer, "Countdown", 0)
+
 				if isAlive(player) and isAlive(targetPlayer) then
 					teleportToArena(player, targetPlayer)
-					grantInvincibility(player)
-					grantInvincibility(targetPlayer)
 					print(("🏟️ [Duel] %s vs %s — FIGHT!"):format(player.Name, targetPlayer.Name))
 				else
 					-- One died during countdown, cancel
@@ -146,20 +400,83 @@ end)
 local function onPlayerDied(plr: Player)
 	local opponent = activeDuels[plr]
 	if opponent then
-		activeDuels[plr] = nil
-		activeDuels[opponent] = nil
-		print(("💀 [Duel] %s died — duel with %s ended"):format(plr.Name, opponent.Name))
+		endDuel(plr, opponent, plr.Name .. " was defeated!", opponent)
 	end
 end
 
 local function onPlayerAdded(plr: Player)
 	plr.CharacterAdded:Connect(function(char)
 		local hum = char:WaitForChild("Humanoid", 10)
-		if hum then
-			hum.Died:Connect(function()
-				onPlayerDied(plr)
-			end)
-		end
+		if not hum then return end
+
+		-- ====== DEATH DETECTIVE — logs everything when a player dies ======
+		local lastHealth = hum.MaxHealth
+		local lastDamageSource = "unknown"
+		local lastDamageTime = 0
+
+		-- Track every health change so we know what hit them
+		hum.HealthChanged:Connect(function(newHealth)
+			if newHealth < lastHealth then
+				local dmg = lastHealth - newHealth
+				local rootPart = char:FindFirstChild("HumanoidRootPart")
+				local pos = rootPart and rootPart.Position or Vector3.zero
+				local hasFF = char:FindFirstChildOfClass("ForceField") ~= nil
+				local isAnchored = rootPart and rootPart.Anchored or false
+				local inDuel = activeDuels[plr] ~= nil
+
+				lastDamageSource = string.format(
+					"%.1f dmg at pos(%.1f, %.1f, %.1f) FF:%s Anchored:%s InDuel:%s",
+					dmg, pos.X, pos.Y, pos.Z,
+					tostring(hasFF), tostring(isAnchored), tostring(inDuel)
+				)
+				lastDamageTime = tick()
+				warn(("🔍 [DeathDetective] %s took %.1f damage! Health: %.1f→%.1f | %s"):format(
+					plr.Name, dmg, lastHealth, newHealth, lastDamageSource
+				))
+			end
+			lastHealth = newHealth
+		end)
+
+		hum.Died:Connect(function()
+			local rootPart = char:FindFirstChild("HumanoidRootPart")
+			local pos = rootPart and rootPart.Position or Vector3.zero
+			local hasFF = char:FindFirstChildOfClass("ForceField") ~= nil
+			local isAnchored = rootPart and rootPart.Anchored or false
+			local inDuel = activeDuels[plr] ~= nil
+			local fallenHeight = workspace.FallenPartsDestroyHeight
+
+			-- Check if position is below the void threshold
+			local belowVoid = pos.Y <= fallenHeight
+
+			-- Distance to arena spawns
+			local distToSpawn1 = spawn1 and (pos - spawn1.Position).Magnitude or -1
+			local distToSpawn2 = spawn2 and (pos - spawn2.Position).Magnitude or -1
+
+			warn("💀💀💀 [DeathDetective] ========== DEATH REPORT ==========")
+			warn(("💀 [DeathDetective] Player: %s"):format(plr.Name))
+			warn(("💀 [DeathDetective] Position at death: (%.1f, %.1f, %.1f)"):format(pos.X, pos.Y, pos.Z))
+			warn(("💀 [DeathDetective] FallenPartsDestroyHeight: %.1f"):format(fallenHeight))
+			warn(("💀 [DeathDetective] Below void? %s"):format(tostring(belowVoid)))
+			warn(("💀 [DeathDetective] Had ForceField? %s"):format(tostring(hasFF)))
+			warn(("💀 [DeathDetective] Was anchored? %s"):format(tostring(isAnchored)))
+			warn(("💀 [DeathDetective] In active duel? %s"):format(tostring(inDuel)))
+			warn(("💀 [DeathDetective] Dist to spawn1: %.1f | Dist to spawn2: %.1f"):format(distToSpawn1, distToSpawn2))
+			warn(("💀 [DeathDetective] Last damage: %s (%.1fs ago)"):format(lastDamageSource, tick() - lastDamageTime))
+			warn("💀💀💀 [DeathDetective] ================================")
+
+			onPlayerDied(plr)
+		end)
+
+		-- Also detect state changes that might cause death
+		hum.StateChanged:Connect(function(_, newState)
+			if newState == Enum.HumanoidStateType.Dead then
+				local rootPart = char:FindFirstChild("HumanoidRootPart")
+				local pos = rootPart and rootPart.Position or Vector3.zero
+				warn(("☠️ [DeathDetective] %s entered Dead state at pos(%.1f, %.1f, %.1f)"):format(
+					plr.Name, pos.X, pos.Y, pos.Z
+				))
+			end
+		end)
 	end)
 end
 
@@ -172,6 +489,7 @@ Players.PlayerRemoving:Connect(function(plr)
 	-- Clean up any pending/active duels
 	pendingDuels[plr] = nil
 	lastRequest[plr] = nil
+	preDuelPositions[plr] = nil
 
 	-- Remove as target from pending
 	for target, requester in pairs(pendingDuels) do
@@ -183,9 +501,75 @@ Players.PlayerRemoving:Connect(function(plr)
 	-- End active duel
 	local opponent = activeDuels[plr]
 	if opponent then
-		activeDuels[plr] = nil
-		activeDuels[opponent] = nil
+		endDuel(plr, opponent, plr.Name .. " left the game", opponent)
 	end
 end)
 
 print("✅ [Duel] Server script loaded")
+
+--------------------------------------------------------------------------
+-- GLOBAL API — so GameShooting.lua can check PvP state & deal hearts damage
+--------------------------------------------------------------------------
+_G.PvpDuel = {
+	-- Check if a player is in an active duel
+	isInDuel = function(plr: Player): boolean
+		return activeDuels[plr] ~= nil
+	end,
+
+	-- Get the opponent of a dueling player
+	getOpponent = function(plr: Player): Player?
+		return activeDuels[plr]
+	end,
+
+	-- Deal 1 heart of damage (headshot = kill instantly)
+	-- Returns true if handled as PvP hit, false if not a PvP scenario
+	dealPvpHit = function(shooter: Player, victim: Player, isHeadshot: boolean): boolean
+		-- Both must be in a duel with each other
+		if activeDuels[shooter] ~= victim then return false end
+
+		local victimChar = victim.Character
+		if not victimChar then return false end
+
+		local victimHum = victimChar:FindFirstChildOfClass("Humanoid")
+		if not victimHum or victimHum.Health <= 0 then return false end
+
+		-- Check ForceField (invincibility period)
+		if victimChar:FindFirstChildOfClass("ForceField") then
+			print(("🛡️ [Duel] %s hit %s but ForceField is active"):format(shooter.Name, victim.Name))
+			return true -- Still counts as "handled" so GameShooting doesn't do anything else
+		end
+
+		local currentHearts = victimChar:GetAttribute("PvpHearts") or 0
+
+		if isHeadshot then
+			-- Instant kill
+			currentHearts = 0
+			print(("🎯 [Duel] HEADSHOT! %s → %s — instant kill!"):format(shooter.Name, victim.Name))
+		else
+			currentHearts = currentHearts - 1
+			print(("💔 [Duel] %s hit %s — %d hearts remaining"):format(shooter.Name, victim.Name, currentHearts))
+		end
+
+		victimChar:SetAttribute("PvpHearts", math.max(0, currentHearts))
+
+		-- Notify both clients of hearts update
+		PvpCountdownEvent:FireClient(victim, "HeartsUpdate", math.max(0, currentHearts))
+		PvpCountdownEvent:FireClient(shooter, "OpponentHeartsUpdate", math.max(0, currentHearts))
+
+		-- Notify shooter of the hit type
+		if isHeadshot then
+			PvpCountdownEvent:FireClient(shooter, "HitMarker", "headshot")
+		else
+			PvpCountdownEvent:FireClient(shooter, "HitMarker", "body")
+		end
+
+		if currentHearts <= 0 then
+			-- Kill the victim
+			victimHum.Health = 0
+			-- endDuel is called via the Died connection
+		end
+
+		return true
+	end,
+}
+print("✅ [Duel] Global _G.PvpDuel API registered")

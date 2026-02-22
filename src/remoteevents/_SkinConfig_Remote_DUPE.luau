@@ -86,7 +86,7 @@ function SkinConfig.GetAllSkinsForWeapon(weaponName)
 end
 
 function SkinConfig.HasSkin(playerDataTable, skinId)
-	return playerDataTable and playerDataTable.skins and playerDataTable.skins[skinId] == true
+	return playerDataTable and playerDataTable.skins and playerDataTable.skins[skinId] ~= nil
 end
 
 -- Icons
