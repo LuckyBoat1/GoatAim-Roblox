@@ -53,28 +53,71 @@ end
 warn("[AbyssPvP] ✅ AbyssTeleportRE ready:", AbyssTeleportRE:GetFullName())
 
 --------------------------------------------------------------------------
--- ABYSS CENTER (for exit-distance detection)
+-- ABYSS ZONE DETECTION (all hitbox parts)
 --------------------------------------------------------------------------
 local abyssCenter: Vector3? = nil
+local abyssHitBoxParts: {BasePart} = {}
+
+-- Buffer added to each part's bounds to cover gaps between the 4 parts.
+local ABYSS_OBB_BUFFER = 12 -- studs of padding on X and Z edges
+-- How many consecutive seconds outside ALL parts before exiting.
+local ABYSS_EXIT_DELAY = 2.5
+
+-- Returns true if `position` is inside ANY of the AbyssHitBox parts (with buffer).
+-- Falls back to center+radius if no parts are found.
+local function isInsideAbyss(position: Vector3): boolean
+	if #abyssHitBoxParts > 0 then
+		for _, part in ipairs(abyssHitBoxParts) do
+			local localPos = part.CFrame:PointToObjectSpace(position)
+			local half = part.Size / 2
+			if math.abs(localPos.X) <= half.X + ABYSS_OBB_BUFFER
+				and math.abs(localPos.Z) <= half.Z + ABYSS_OBB_BUFFER
+				and localPos.Y >= -half.Y - 20
+				and localPos.Y <= half.Y + 40 then
+				return true
+			end
+		end
+		return false
+	end
+	-- Fallback: center + radius
+	if abyssCenter then
+		return (position - abyssCenter).Magnitude <= ABYSS_EXIT_RADIUS
+	end
+	return true -- can't determine, assume still inside
+end
+
+-- Track when each player first went outside (nil = currently inside)
+local playerOutsideSince: {[Player]: number} = {}
 
 local function findAbyssCenter()
-	-- Try AbyssSpawn attachment first (same thing the client teleports to)
+	-- Collect ALL BaseParts from the AbyssHitBox model
+	abyssHitBoxParts = {}
+	local hitbox = Workspace:FindFirstChild("AbyssHitBox", true)
+	if hitbox then
+		if hitbox:IsA("BasePart") then
+			table.insert(abyssHitBoxParts, hitbox)
+		else
+			for _, child in ipairs(hitbox:GetDescendants()) do
+				if child:IsA("BasePart") then
+					table.insert(abyssHitBoxParts, child)
+				end
+			end
+		end
+		if #abyssHitBoxParts > 0 then
+			-- Compute centroid for logging / fallback
+			local sum = Vector3.zero
+			for _, p in ipairs(abyssHitBoxParts) do sum = sum + p.Position end
+			abyssCenter = sum / #abyssHitBoxParts
+			print(("[AbyssPvP] Abyss zone: %d parts, centroid %s"):format(#abyssHitBoxParts, tostring(abyssCenter)))
+			return
+		end
+	end
+	-- Try AbyssSpawn attachment as fallback
 	local attach = Workspace:FindFirstChild("AbyssSpawn", true)
 	if attach and attach:IsA("Attachment") then
 		abyssCenter = attach.WorldPosition
 		print(("[AbyssPvP] Abyss center from AbyssSpawn: %s"):format(tostring(abyssCenter)))
 		return
-	end
-	-- Try AbyssHitBox
-	local hitbox = Workspace:FindFirstChild("AbyssHitBox", true)
-	if hitbox then
-		local part = hitbox:IsA("BasePart") and hitbox
-			or hitbox:FindFirstChildWhichIsA("BasePart", true)
-		if part then
-			abyssCenter = part.Position
-			print(("[AbyssPvP] Abyss center from AbyssHitBox: %s"):format(tostring(abyssCenter)))
-			return
-		end
 	end
 	warn("[AbyssPvP] Could not find abyss center – will set on first teleport")
 end
@@ -97,6 +140,9 @@ local playerEntryTime: { [Player]: number } = {} -- tick() when they entered (gr
 local lastKillTime: { [Player]: number } = {}
 local ENTRY_GRACE_PERIOD = 5.0 -- seconds before distance-check can kick a player
 
+-- Forward declaration so enterAbyss can reference exitAbyss in its Died callback.
+local exitAbyss: (Player) -> ()
+
 --------------------------------------------------------------------------
 -- ENTER / EXIT
 --------------------------------------------------------------------------
@@ -114,6 +160,29 @@ local function enterAbyss(plr: Player)
 		end
 	end
 
+	-- Ensure all character parts are raycast-queryable so Abyss PvP hitscan works
+	if char then
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanQuery = true
+			end
+		end
+	end
+
+	-- Hook the current character's Humanoid.Died so that PvE deaths (NPC hitbox
+	-- killing the player without going through handleAbyssKill) still clean up
+	-- the abyss state immediately.  exitAbyss has a guard so double-calls are safe.
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.Died:Connect(function()
+			task.wait(0.05) -- tiny delay so other Died handlers run first
+			if playersInAbyss[plr] then
+				warn(("[AbyssPvP] PvE death detected for %s — auto-exiting abyss"):format(plr.Name))
+				exitAbyss(plr)
+			end
+		end)
+	end
+
 	if _G.HealthManager and _G.HealthManager.EnableHealthMode then
 		_G.HealthManager.EnableHealthMode(plr, "Abyss")
 	end
@@ -128,11 +197,12 @@ local function enterAbyss(plr: Player)
 		plr.Name, #names, table.concat(names, ", ")))
 end
 
-local function exitAbyss(plr: Player)
+exitAbyss = function(plr: Player)
 	if not playersInAbyss[plr] then return end
 	playersInAbyss[plr] = nil
 	playerEntryPos[plr] = nil
 	playerEntryTime[plr] = nil
+	playerOutsideSince[plr] = nil
 
 	if _G.HealthManager and _G.HealthManager.DisableHealthMode then
 		_G.HealthManager.DisableHealthMode(plr)
@@ -176,12 +246,21 @@ task.spawn(function()
 			-- Grace period: don't kick players who just entered (position may not have replicated)
 			local entryTime = playerEntryTime[plr]
 			if entryTime and (tick() - entryTime) < ENTRY_GRACE_PERIOD then
+				playerOutsideSince[plr] = nil -- reset outside timer during grace
 				continue
 			end
 
-			local center = abyssCenter or playerEntryPos[plr]
-			if center and (root.Position - center).Magnitude > ABYSS_EXIT_RADIUS then
-				exitAbyss(plr)
+			if isInsideAbyss(root.Position) then
+				-- Back inside — cancel any pending exit
+				playerOutsideSince[plr] = nil
+			else
+				-- Outside — start / check delay timer
+				if not playerOutsideSince[plr] then
+					playerOutsideSince[plr] = tick()
+				elseif tick() - playerOutsideSince[plr] >= ABYSS_EXIT_DELAY then
+					playerOutsideSince[plr] = nil
+					exitAbyss(plr)
+				end
 			end
 		end
 	end
@@ -363,7 +442,8 @@ handleAbyssKill = function(killer: Player, victim: Player)
 		AbyssPvPEvent:FireClient(killer, "Kill", victim.Name, KILL_GOLD_REWARD, skinsStolen, cratesStolen)
 	end
 	if victimData then
-		victimData.death = (victimData.death or 0) + 1
+		-- NOTE: death stat is already incremented by HealthManager.handlePlayerDeath
+		-- so we do NOT increment it here to avoid double-counting
 		AbyssPvPEvent:FireClient(victim, "Killed", killer.Name, skinsStolen, cratesStolen)
 	end
 

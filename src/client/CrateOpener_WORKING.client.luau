@@ -11,6 +11,19 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 -- Import configs
 local CrateConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CrateConfig"))
+local SkinConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SkinConfig"))
+local MythicEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MythicEffects"))
+local LegendaryAura = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("LegendaryAura"))
+local EpicAura = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EpicAura"))
+local RareAura = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RareAura"))
+local CommonAura = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CommonAura"))
+local PlayerDataRF = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("PlayerDataRF")
+
+-- Helper: convert rarity string to number (1=common, 2=rare, 3=epic, 4=legendary, 5=mythic)
+local function getRarityValue(rarityStr)
+	local rarityMap = {common=1, rare=2, epic=3, legendary=4, mythic=5}
+	return rarityMap[(rarityStr or "common"):lower()] or 1
+end
 
 -- Create main GUI with enhanced background effects and screen distortion
 local gui = Instance.new("ScreenGui")
@@ -786,6 +799,25 @@ local closeGlowCorner = Instance.new("UICorner")
 closeGlowCorner.CornerRadius = UDim.new(0, 16)
 closeGlowCorner.Parent = closeBtnGlow
 
+-- Won weapon name label (below reel, hidden until reveal)
+local wonNameLabel = Instance.new("TextLabel")
+wonNameLabel.Name = "WonNameLabel"
+wonNameLabel.Size = UDim2.new(0.6, 0, 0, 50)
+wonNameLabel.Position = UDim2.new(0.2, 0, 0.72, 0)
+wonNameLabel.AnchorPoint = Vector2.new(0, 0)
+wonNameLabel.BackgroundTransparency = 1
+wonNameLabel.Text = ""
+wonNameLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+wonNameLabel.TextSize = 32
+wonNameLabel.Font = Enum.Font.FredokaOne
+wonNameLabel.TextScaled = true
+wonNameLabel.TextStrokeTransparency = 0
+wonNameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+wonNameLabel.TextXAlignment = Enum.TextXAlignment.Center
+wonNameLabel.Visible = false
+wonNameLabel.ZIndex = 20
+wonNameLabel.Parent = main
+
 -- Variables
 local isOpening = false
 local wonItem = nil
@@ -807,15 +839,334 @@ local function getVisualSize(part)
 	return size
 end
 
--- Exact setupViewport from inventory (enhanced with spinning and much closer zoom)
+-- Viewport rotation lookup (matching Inventory setupViewport exactly, priority-resolved)
+local VIEWPORT_ITEM_ROTATIONS = {
+	-- test4: CFrame.Angles(90, 0, 270)
+	["FN2000"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	["Compact Nine"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	["Alpine"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	["Black kite"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	-- test5: CFrame.Angles(180, 0, 90)
+	["AS-VAL"] = CFrame.Angles(math.rad(180), math.rad(0), math.rad(90)),
+	-- test44: CFrame.Angles(90, -90, 90)
+	["Ocean Wave"] = CFrame.Angles(math.rad(90), math.rad(-90), math.rad(90)),
+	["Frozen Fang"] = CFrame.Angles(math.rad(90), math.rad(-90), math.rad(90)),
+	["Frost Fury"] = CFrame.Angles(math.rad(90), math.rad(-90), math.rad(90)),
+	["Patriot"] = CFrame.Angles(math.rad(90), math.rad(-90), math.rad(90)),
+	-- test45: CFrame.Angles(0, 90, 0)
+	["Quick Exit"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	-- test46: CFrame.Angles(0, -90, 0)
+	["Carpenter"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	-- test47: CFrame.Angles(0, 0, 270)
+	["Flame"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(270)),
+	-- test48: CFrame.Angles(0, -90, 0)
+	["Bull Rush"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Grand Strike"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	-- test49: CFrame.Angles(180, 0, 180)
+	["Holy Fire"] = CFrame.Angles(math.rad(180), math.rad(0), math.rad(180)),
+	-- test50: CFrame.Angles(0, 90, 0)
+	["Viper Tooth"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Rainbow Bite"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	-- test7: CFrame.Angles(0, 0, 270) — also gets CFrame.new(0,1,0) offset (see TEST7_OFFSET_ITEMS)
+	["Blizzard"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(270)),
+	["Power"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(270)),
+	["Ego"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(270)),
+	-- test8: CFrame.Angles(0, -90, 0)
+	["Blood&Bones"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Cyborg"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Death"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Leviathan"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Sun"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Monster"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Heat"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	-- test15: CFrame.Angles(90, 0, 270)
+	["Thunder Bolt"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	["Swiss Guard"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	["Short Barrel"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	["Pocket Blast"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	["Makarov"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	["L85"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	["Soviet Classic"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	["Elite Marksman"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(270)),
+	-- test16: CFrame.Angles(90, 0, 90)
+	["Pocket Mag"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(90)),
+	["Tactical Boom"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(90)),
+	["Marksman"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(90)),
+	["Fort"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(90)),
+	-- test17: CFrame.Angles(0, 0, 90)
+	["Just give me my money"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	-- test18: CFrame.Angles(360, 0, -90)
+	["Rocket Rain"] = CFrame.Angles(math.rad(360), math.rad(0), math.rad(-90)),
+	-- test19: CFrame.Angles(-90, 0, 90)
+	["Emergency Surgery"] = CFrame.Angles(math.rad(-90), math.rad(0), math.rad(90)),
+	-- test20: CFrame.Angles(0, 0, 360)
+	["Gangster"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(360)),
+	-- Chaser: CFrame.Angles(90, 180, 90)
+	["Chaser"] = CFrame.Angles(math.rad(90), math.rad(180), math.rad(90)),
+	-- test21: CFrame.Angles(0, 90, 0) — blade skins
+	["Retro Pixel"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Sphere Strike"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Default"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Warning Strike"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Mac Attack"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Chroma"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Prism Edge"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Cash"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Sharp"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Whity"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Sight"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Jaz"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Somber"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Cool"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Poison"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Shade"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Sugar Swag"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Walking Stick"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Butcher"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["SAPPHIRE"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["RUBY"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Sapphire"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Ruby"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	-- test22: CFrame.Angles(0, 0, -90)
+	["Knife"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(-90)),
+	-- test23: CFrame.Angles(0, 0, 360)
+	["MP5"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(360)),
+	-- test24: CFrame.Angles(-90, 0, 90)
+	["Med Saw"] = CFrame.Angles(math.rad(-90), math.rad(0), math.rad(90)),
+	-- test26: CFrame.Angles(90, 0, 90)
+	["Classic Shot"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(90)),
+	-- test27: CFrame.Angles(0, 0, -90)
+	["Tactical Three"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(-90)),
+	-- test28: CFrame.Angles(180, 0, 180)
+	["Prototype X"] = CFrame.Angles(math.rad(180), math.rad(0), math.rad(180)),
+	-- test29: CFrame.Angles(360, 180, 30)
+	["Imperial"] = CFrame.Angles(math.rad(360), math.rad(180), math.rad(30)),
+	-- test30: CFrame.Angles(360, 0, 90)
+	["Heavy Storm"] = CFrame.Angles(math.rad(360), math.rad(0), math.rad(90)),
+	-- test31: CFrame.Angles(0, -90, 0)
+	["Sharp Point"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	-- test33: CFrame.Angles(0, 0, 270)
+	["Whisper"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(270)),
+	-- test34: CFrame.Angles(90, 0, -90)
+	["Serpent"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(-90)),
+	-- test35: CFrame.Angles(90, 0, 90)
+	["Stinger"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(90)),
+	-- test36: CFrame.Angles(90, 0, 90)
+	["Rapid Shot"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(90)),
+	-- test39: CFrame.Angles(0, 90, 0)
+	["UltraZooka"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Pow"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["casoh"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Back Blast"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Bye"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Astroid"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Biggie"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Medievel Sword"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Bulky"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Grenade"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Sky Rocket"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Classic Jumper"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Freedom"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Wild Shot"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Classic Rocket"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Panic Button"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Pretty Gun"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Backup"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Rocket Launcher"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Quick Shot"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Guard"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Controller"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	["Side Arm"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+	-- test40: CFrame.Angles(0, 0, 90)
+	["Cannon Ball"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	-- test41: CFrame.Angles(0, 0, 90)
+	["trump"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Power Shot"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Cyan"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Sweet Strike"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Ginger Man"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Lime Shot"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Knife Box 2 Kit"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Light Beam"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Classic Gun"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Scarlet Shot"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Ocean Hunter"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Winter Crystal"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	-- test42: CFrame.Angles(0, 180, 90)
+	["Raven"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Blueberry"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Snow Blaster!"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Shark Bite"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Frozen Touch"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Black Matter"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Happy Hour"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Forever Edge"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Infinite Power"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Cookie Cutter"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Spooky Edge"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Ghost Blade"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Golden Sweet"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Midnight"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Sunset Vision"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Halloween King"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Mystic Vision"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Crimson Ghost"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Blood Vision"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Buzz Cut"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Vision Blade"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Horror"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Sweet Tooth"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Cyber Strike"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	["Golden Vision"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(90)),
+	-- test43: CFrame.Angles(0, 90, 180)
+	["Work"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(180)),
+	["Crystal Cold"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(180)),
+	["Pixel"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(180)),
+	["Web Weaver"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(180)),
+	["Holiday Cheer"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(180)),
+	-- leftRotation: CFrame.Angles(0, 0, 90)
+	["Fire Touch"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Alpha Sapphire"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Copper"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Apple"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Bubble"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["BlackIron Revolver"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Cheese"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Zone"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Cube Squared"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Spoon"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Dreams of Gold"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Engraved Revolver"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Fabulous Revolver"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Neon Revolver"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Gold Revolver"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["HyperRed Revolver"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Infiltrator Revolver"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["MS Revolver"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["McDonald Revolver"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Atomic Shot"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["All Seeing"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["First Shot"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Moon Hunter"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Warp Shot"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Spectrum Six"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Thorn Blossom"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Fate Shot"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Desert Wind"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Glitter Blast"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["MVP"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Double Tap"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Laser Beam"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Liberty Six"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	["Tech Six"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(90)),
+	-- testItems (test1): CFrame.Angles(0, -90, 0)
+	["AK-Chaos"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Sea Bone"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["AK-Jungle"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	-- test2Items: CFrame.Angles(0, -90, 0)
+	["Handgun"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Pyranna"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Fishing Rod"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Light Rifle"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Hardscope"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Arrow Launcher"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Diamond Six"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Law Bringer"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Signal Blast"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Wild West"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Hot Shot"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Stranger"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Life Drain"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Machine Snipe"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Heavy Spin"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Overheater"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Fast Heal"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Silent Scope"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	["Vacuum"] = CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
+	-- specialY: CFrame.Angles(360, 0, 0)
+	["LMG AE"] = CFrame.Angles(math.rad(360), math.rad(0), math.rad(0)),
+	-- specialXZ: CFrame.Angles(0, 0, 360)
+	["Enfield Bren"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(360)),
+}
+
+-- Items that get a CFrame.new(0,1,0) offset before rotation (test7 items in Inventory)
+local TEST7_OFFSET_ITEMS = { ["Blizzard"] = true, ["Power"] = true, ["Ego"] = true }
+
+-- Per-item FOV overrides matching Inventory (default 60; spear 12; goblin 65)
+local VIEWPORT_ITEM_FOV = {
+	["Tactical Boom"] = 65, ["Chaser"] = 60, ["Rainbow Bite"] = 65, ["Viper Tooth"] = 65,
+	["Flame"] = 84, ["Ego"] = 35, ["Power"] = 35, ["Blizzard"] = 35, ["Flash"] = 43,
+	["UltraZooka"] = 65, ["Hotdog"] = 65, ["Skull Basher"] = 65, ["Bye"] = 65,
+	["Pow"] = 55, ["Back Blast"] = 55, ["Caveman"] = 70, ["Caveman Gone Wrong"] = 70,
+	["Balanced"] = 55, ["Shovel"] = 65, ["Sky Rocket"] = 65, ["Royal Guard"] = 65,
+	["Handgun"] = 55, ["Quick Shot"] = 55, ["Pretty Gun"] = 40,
+	["Holy Fire"] = 65, ["Solar Staff"] = 65, ["Side Arm"] = 45, ["Lash"] = 65,
+	["casoh"] = 65, ["Blood Rush"] = 65, ["Highland"] = 65, ["Astroid"] = 65,
+	["Doom"] = 65, ["Twin Boom"] = 65, ["Hook"] = 65, ["Wolf Cry"] = 65,
+	["Grenade"] = 65, ["Classic Jumper"] = 65, ["Cannon Ball"] = 65,
+	["Wild Shot"] = 65, ["Mid"] = 65, ["Classic Rocket"] = 65,
+	["Panic Button"] = 65, ["Red Jewel"] = 65, ["Fire Strike"] = 65,
+	["Bone Slicer"] = 65, ["War"] = 65,
+	["Ginger Man"] = 35, ["Lime Shot"] = 35, ["Classic Gun"] = 35, ["Scarlet Shot"] = 35,
+	["Pixel"] = 8,
+	["Blueberry"] = 25, ["Work"] = 25, ["Frozen Fang"] = 25,
+	["Sunset Vision"] = 25, ["Mystic Vision"] = 25, ["Blood Vision"] = 25,
+	["Vision Blade"] = 25, ["Golden Vision"] = 25,
+	["Ocean Hunter"] = 50, ["Ocean Wave"] = 30, ["Cyber Strike"] = 35,
+	["Spooky Edge"] = 45, ["Ghost Blade"] = 45, ["Crimson Ghost"] = 45,
+	["Crystal Cold"] = 38, ["Winter Crystal"] = 38, ["Holiday Cheer"] = 38,
+	["Frost Fury"] = 45, ["Carpenter"] = 42, ["Patriot"] = 42,
+	["Midnight"] = 50, ["Halloween King"] = 50, ["Buzz Cut"] = 45,
+	["Web Weaver"] = 40, ["Ultimate Frost"] = 45, ["Horror"] = 50,
+	["Shark Bite"] = 33, ["Black Matter"] = 33, ["Happy Hour"] = 33, ["Cookie Cutter"] = 33,
+	["Forever Edge"] = 53, ["Infinite Power"] = 53,
+	["Snow Blaster!"] = 28, ["Golden Sweet"] = 28, ["Sweet Tooth"] = 28,
+	["Raven"] = 40, ["Frozen Touch"] = 40,
+}
+
+-- setupViewport matching Inventory exactly (rotations, FOV, camera) + 50% zoom
 local function setupViewport(vp, source, opts)
 	opts = opts or {}
-	local fitFactor = opts.fitFactor or 0.6 -- Much closer zoom
-	local minDist   = opts.minDist   or 5   -- Very close minimum distance
+
+	-- Detect item type (matching Inventory logic)
+	local sourceName = source and source.Name or ""
+	local skinMeta = SkinConfig and SkinConfig.GetSkinMeta and SkinConfig.GetSkinMeta(sourceName) or nil
+
+	local isMeshesSource = string.sub(sourceName, 1, 6) == "Meshes" or sourceName == "beginner's protector" or sourceName == "beginner's protector 2"
+	local isWepsItem = false
+	local isOtherMeshesItem = false
+	if isMeshesSource then
+		for _, wp in ipairs({"weps1", "weps2"}) do
+			if string.find(sourceName, wp) then isWepsItem = true; break end
+		end
+		if not isWepsItem then isOtherMeshesItem = true end
+	end
+
+	local isGoblinItem = (string.find(sourceName, "Goblin_") ~= nil) or (skinMeta and skinMeta.isGoblin)
+
+	-- Renamed spear items (formerly Meshes/...)
+	if skinMeta and skinMeta.weapon == "Spear" and not isGoblinItem then
+		isOtherMeshesItem = true
+	end
+
+	-- Camera defaults (matching Inventory)
+	local fitFactor = 1.6
+	local minDist = 12
+	if isOtherMeshesItem then minDist = 0 end
 
 	for _,c in ipairs(vp:GetChildren()) do c:Destroy() end
 	local world = Instance.new("WorldModel"); world.Parent = vp
-	local cam = Instance.new("Camera"); cam.FieldOfView=70; cam.Parent=vp; vp.CurrentCamera = cam -- Even wider field of view
+	local cam = Instance.new("Camera")
+
+	-- FOV per item type (matching Inventory exactly)
+	if isOtherMeshesItem then
+		cam.FieldOfView = 12
+	elseif isGoblinItem then
+		cam.FieldOfView = 65
+	else
+		cam.FieldOfView = VIEWPORT_ITEM_FOV[sourceName] or 60
+	end
+	cam.Parent = vp; vp.CurrentCamera = cam
 
 	if not source or not (source:IsA("Model") or source:IsA("BasePart")) then
 		return nil
@@ -828,13 +1179,42 @@ local function setupViewport(vp, source, opts)
 		if not clone.PrimaryPart then for _,bp in ipairs(iterBaseParts(clone)) do clone.PrimaryPart=bp; break end end
 	end
 	for _,bp in ipairs(iterBaseParts(clone)) do bp.Anchored=true; bp.CanCollide=false; bp.Massless=true end
-	if clone:IsA("Model") and clone.PrimaryPart then
-		clone:SetPrimaryPartCFrame(CFrame.new())
-	elseif clone:IsA("BasePart") then
-		clone.CFrame = CFrame.new()
+
+	-- Apply rotation (matching Inventory setupViewport exactly)
+	local itemRotation = VIEWPORT_ITEM_ROTATIONS[sourceName]
+	if itemRotation then
+		-- Specific item rotation: applied relative to model's current CFrame (like Inventory)
+		local offset = TEST7_OFFSET_ITEMS[sourceName] and CFrame.new(0, 1, 0) or CFrame.new()
+		if clone:IsA("Model") and clone.PrimaryPart then
+			clone:SetPrimaryPartCFrame(clone.PrimaryPart.CFrame * offset * itemRotation)
+		elseif clone:IsA("BasePart") then
+			clone.CFrame = clone.CFrame * offset * itemRotation
+		end
+	elseif isGoblinItem then
+		-- Goblin fallback: 180° Z rotation (relative to current CFrame)
+		local goblinRotation = CFrame.Angles(math.rad(0), math.rad(0), math.rad(180))
+		if clone:IsA("Model") and clone.PrimaryPart then
+			clone:SetPrimaryPartCFrame(clone.PrimaryPart.CFrame * goblinRotation)
+		elseif clone:IsA("BasePart") then
+			clone.CFrame = clone.CFrame * goblinRotation
+		end
+	elseif isOtherMeshesItem then
+		-- Spear fallback: 90° X rotation (reset to origin, like Inventory)
+		if clone:IsA("Model") and clone.PrimaryPart then
+			clone:SetPrimaryPartCFrame(CFrame.new() * CFrame.Angles(math.rad(90), 0, 0))
+		elseif clone:IsA("BasePart") then
+			clone.CFrame = CFrame.new() * CFrame.Angles(math.rad(90), 0, 0)
+		end
+	else
+		-- No rotation (reset to origin)
+		if clone:IsA("Model") and clone.PrimaryPart then
+			clone:SetPrimaryPartCFrame(CFrame.new())
+		elseif clone:IsA("BasePart") then
+			clone.CFrame = CFrame.new()
+		end
 	end
 
-	-- Fit camera
+	-- Fit camera (matching Inventory)
 	local min, max = Vector3.new(1e9,1e9,1e9), Vector3.new(-1e9,-1e9,-1e9)
 	for _,bp in ipairs(iterBaseParts(clone)) do
 		local s=getVisualSize(bp); local cf=bp.CFrame; local h=s*0.5
@@ -852,180 +1232,121 @@ local function setupViewport(vp, source, opts)
 	end
 	local center=(min+max)/2
 	local span = (max-min).Magnitude
-	local dist = math.max(minDist, span*fitFactor)
-	local camPos = center + Vector3.new(0,0,dist)
-	cam.CFrame = CFrame.new(camPos, center)
-	vp.Ambient = Color3.new(0.7,0.7,0.7) -- Very bright lighting
-	vp.LightDirection = Vector3.new(-1,-1,-1)
-	vp.LightColor = Color3.new(1, 1, 1) -- Bright white light
 
-	-- Add spinning animation to the model - ensure it works with RunService
-	local connection
-	if clone:IsA("Model") and clone.PrimaryPart then
-		local startTime = tick()
-		connection = game:GetService("RunService").Heartbeat:Connect(function()
-			local elapsed = tick() - startTime
-			local rotation = (elapsed * 90) % 360 -- 90 degrees per second (4 second full rotation)
-			clone:SetPrimaryPartCFrame(CFrame.new() * CFrame.Angles(0, math.rad(rotation), 0))
-		end)
-	elseif clone:IsA("BasePart") then
-		local startTime = tick()
-		connection = game:GetService("RunService").Heartbeat:Connect(function()
-			local elapsed = tick() - startTime
-			local rotation = (elapsed * 90) % 360 -- 90 degrees per second (4 second full rotation)
-			clone.CFrame = CFrame.new() * CFrame.Angles(0, math.rad(rotation), 0)
-		end)
+	-- Camera distance and target (matching Inventory + 50% zoom)
+	local dist, camTarget
+	if isOtherMeshesItem then
+		dist = span * fitFactor * 2 * 0.375 -- Spear distance (75% closer)
+		camTarget = Vector3.new(center.X, max.Y - 4, center.Z) -- Look near top like Inventory small viewport
+	else
+		dist = math.max(minDist, span * fitFactor) * 0.375 -- Normal distance (75% closer)
+		camTarget = center
 	end
 
-	return clone, connection
+	local camPos = center + Vector3.new(0, 0, dist)
+	cam.CFrame = CFrame.new(camPos, camTarget)
+
+	vp.Ambient = Color3.new(0.7, 0.7, 0.7)
+	vp.LightDirection = Vector3.new(-1,-1,-1)
+	vp.LightColor = Color3.new(1, 1, 1)
+
+	-- Legendary brightness boost (matching Inventory)
+	local skinData = SkinConfig and SkinConfig.GetSkinMeta and SkinConfig.GetSkinMeta(sourceName)
+	if skinData and skinData.rarity == "legendary" then
+		vp.Ambient = Color3.new(0.9, 0.9, 0.9)
+		vp.LightColor = Color3.new(0.9, 0.9, 0.9)
+	end
+
+	return clone
 end
 
--- Create reel item with viewport (enhanced styling and spinning items)
+-- Create reel item with viewport (styled like Inventory slots)
 local function createReelItem(itemData, index)
+	local rarityColor = CrateConfig.GetRarityColor(itemData.rarity or "common")
+
 	local itemFrame = Instance.new("Frame")
 	itemFrame.Name = "Item_" .. index
-	itemFrame.Size = UDim2.new(0, 190, 1, -20) -- Wider for name display
+	itemFrame.Size = UDim2.new(0, 190, 1, -20)
 	itemFrame.Position = UDim2.new(0, 0, 0, 10)
-	itemFrame.BackgroundColor3 = Color3.fromRGB(25, 30, 35)
+	itemFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 18)
+	itemFrame.BackgroundTransparency = 0.15
 	itemFrame.BorderSizePixel = 0
 	itemFrame.LayoutOrder = index
 	itemFrame.Visible = true
 	itemFrame.Parent = reel
 
-	-- Enhanced rarity border with gradient
-	local rarityStroke = Instance.new("UIStroke")
-	rarityStroke.Color = CrateConfig.GetRarityColor(itemData.rarity or "common")
-	rarityStroke.Thickness = 4
-	rarityStroke.Transparency = 0.1
-	rarityStroke.Parent = itemFrame
-
 	local itemCorner = Instance.new("UICorner")
 	itemCorner.CornerRadius = UDim.new(0, 12)
 	itemCorner.Parent = itemFrame
 
-	-- Add inner glow effect
-	local innerGlow = Instance.new("Frame")
-	innerGlow.Size = UDim2.new(1, -6, 1, -6)
-	innerGlow.Position = UDim2.new(0, 3, 0, 3)
-	innerGlow.BackgroundColor3 = CrateConfig.GetRarityColor(itemData.rarity or "common")
-	innerGlow.BackgroundTransparency = 0.85
-	innerGlow.BorderSizePixel = 0
-	innerGlow.ZIndex = -1
-	innerGlow.Parent = itemFrame
-	
-	local glowCorner = Instance.new("UICorner")
-	glowCorner.CornerRadius = UDim.new(0, 10)
-	glowCorner.Parent = innerGlow
+	-- Rarity border stroke
+	local rarityStroke = Instance.new("UIStroke")
+	rarityStroke.Color = rarityColor
+	rarityStroke.Thickness = 2
+	rarityStroke.Transparency = 0.3
+	rarityStroke.Parent = itemFrame
 
-	-- Try to create viewport with 3D model (enhanced with spinning)
+	-- Viewport container (matching Inventory viewportContainer)
+	local viewportContainer = Instance.new("Frame")
+	viewportContainer.Size = UDim2.new(0, 115, 0, 115)
+	viewportContainer.Position = UDim2.new(0.5, 0, 0.41, 0)
+	viewportContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+	viewportContainer.BackgroundTransparency = 1
+	viewportContainer.BorderSizePixel = 0
+	viewportContainer.ZIndex = 2
+	viewportContainer.Parent = itemFrame
+
+	local vcCorner = Instance.new("UICorner")
+	vcCorner.CornerRadius = UDim.new(0, 8)
+	vcCorner.Parent = viewportContainer
+
+	-- Viewport for 3D model (matching Inventory viewport size)
+	local viewport = Instance.new("ViewportFrame")
+	viewport.Size = UDim2.fromOffset(160, 135)
+	viewport.Position = UDim2.fromScale(0.5, 0.5)
+	viewport.AnchorPoint = Vector2.new(0.5, 0.5)
+	viewport.BackgroundTransparency = 1
+	viewport.BorderSizePixel = 0
+	viewport.ZIndex = 3
+	viewport.Parent = viewportContainer
+
 	local skinLib = ReplicatedStorage:FindFirstChild("SkinLibrary")
 	if skinLib then
-		local skinModel = skinLib:FindFirstChild(itemData.name)
+		local skinModel = skinLib:FindFirstChild(itemData.name, true) -- recursive, matches Inventory
 		if skinModel then
-			-- Create viewport for 3D model (70% of frame)
-			local viewport = Instance.new("ViewportFrame")
-			viewport.Size = UDim2.new(1, -10, 0.65, 0) -- 65% height for 3D model
-			viewport.Position = UDim2.new(0, 5, 0, 5)
-			viewport.BackgroundTransparency = 1
-			viewport.BorderSizePixel = 0
-			viewport.Parent = itemFrame
-
-			-- Setup viewport with spinning 3D model and very close zoom
-			local _clone, _connection = setupViewport(viewport, skinModel, {fitFactor = 0.6, minDist = 5})
-			
-			-- Add subtle background effect to viewport
-			local viewportBg = Instance.new("Frame")
-			viewportBg.Size = UDim2.new(1, 0, 1, 0)
-			viewportBg.Position = UDim2.new(0, 0, 0, 0)
-			viewportBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-			viewportBg.BackgroundTransparency = 0.7
-			viewportBg.BorderSizePixel = 0
-			viewportBg.ZIndex = -2
-			viewportBg.Parent = viewport
-			
-			local bgCorner = Instance.new("UICorner")
-			bgCorner.CornerRadius = UDim.new(0, 8)
-			bgCorner.Parent = viewportBg
-
-			-- Item name container (35% of frame at bottom)
-			local nameContainer = Instance.new("Frame")
-			nameContainer.Size = UDim2.new(1, -10, 0.3, -5)
-			nameContainer.Position = UDim2.new(0, 5, 0.7, 0)
-			nameContainer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-			nameContainer.BackgroundTransparency = 0.4
-			nameContainer.BorderSizePixel = 0
-			nameContainer.Parent = itemFrame
-
-			local nameCorner = Instance.new("UICorner")
-			nameCorner.CornerRadius = UDim.new(0, 6)
-			nameCorner.Parent = nameContainer
-
-			-- Rarity indicator bar
-			local rarityBar = Instance.new("Frame")
-			rarityBar.Size = UDim2.new(1, 0, 0, 3)
-			rarityBar.Position = UDim2.new(0, 0, 0, 0)
-			rarityBar.BackgroundColor3 = CrateConfig.GetRarityColor(itemData.rarity or "common")
-			rarityBar.BorderSizePixel = 0
-			rarityBar.Parent = nameContainer
-
-			-- Item name label with premium styling
-			local itemNameLabel = Instance.new("TextLabel")
-			itemNameLabel.Size = UDim2.new(1, -8, 1, -8)
-			itemNameLabel.Position = UDim2.new(0, 4, 0, 4)
-			itemNameLabel.BackgroundTransparency = 1
-			itemNameLabel.Text = itemData.name or "Unknown"
-			itemNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-			itemNameLabel.TextSize = 11
-			itemNameLabel.Font = Enum.Font.GothamBold
-			itemNameLabel.TextScaled = true
-			itemNameLabel.TextStrokeTransparency = 0.2
-			itemNameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-			itemNameLabel.TextWrapped = true
-			itemNameLabel.Parent = nameContainer
-
-			-- Name glow effect
-			local nameShadow = Instance.new("TextLabel")
-			nameShadow.Size = itemNameLabel.Size
-			nameShadow.Position = UDim2.new(0, 1, 0, 1)
-			nameShadow.BackgroundTransparency = 1
-			nameShadow.Text = itemNameLabel.Text
-			nameShadow.TextColor3 = CrateConfig.GetRarityColor(itemData.rarity or "common")
-			nameShadow.TextSize = itemNameLabel.TextSize
-			nameShadow.Font = itemNameLabel.Font
-			nameShadow.TextScaled = true
-			nameShadow.TextTransparency = 0.7
-			nameShadow.TextWrapped = true
-			nameShadow.ZIndex = -1
-			nameShadow.Parent = nameContainer
-		else
-			-- Fallback: Enhanced text label if no model found
-			local itemLabel = Instance.new("TextLabel")
-			itemLabel.Size = UDim2.new(0.9, 0, 0.9, 0)
-			itemLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
-			itemLabel.BackgroundTransparency = 1
-			itemLabel.Text = itemData.name or "Unknown"
-			itemLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-			itemLabel.TextScaled = true
-			itemLabel.Font = Enum.Font.GothamBold
-			itemLabel.TextStrokeTransparency = 0.5
-			itemLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-			itemLabel.Parent = itemFrame
+			setupViewport(viewport, skinModel)
 		end
-	else
-		-- Fallback: Enhanced text label if no SkinLibrary
-		local itemLabel = Instance.new("TextLabel")
-		itemLabel.Size = UDim2.new(0.9, 0, 0.9, 0)
-		itemLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
-		itemLabel.BackgroundTransparency = 1
-		itemLabel.Text = itemData.name or "Unknown"
-		itemLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-		itemLabel.TextScaled = true
-		itemLabel.Font = Enum.Font.GothamBold
-		itemLabel.TextStrokeTransparency = 0.5
-		itemLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-		itemLabel.Parent = itemFrame
 	end
-	
+
+	-- Name label (matching Inventory nameLabel style)
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(1, -10, 0, 25)
+	nameLabel.Position = UDim2.new(0.5, 0, 1, -45)
+	nameLabel.AnchorPoint = Vector2.new(0.5, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Font = Enum.Font.FredokaOne
+	nameLabel.Text = itemData.name or "Unknown"
+	nameLabel.TextSize = 21
+	nameLabel.TextColor3 = rarityColor
+	nameLabel.TextWrapped = true
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	nameLabel.ZIndex = 10
+	nameLabel.Parent = itemFrame
+
+	-- Apply rarity aura effects (matching Inventory frames)
+	local rarityValue = getRarityValue(itemData.rarity)
+	if rarityValue == 5 and MythicEffects then
+		MythicEffects.ApplyMythicFrameEffects(itemFrame)
+	elseif rarityValue == 4 and LegendaryAura then
+		LegendaryAura.ApplyLegendaryAuraEffect(itemFrame, reel)
+	elseif rarityValue == 3 and EpicAura then
+		EpicAura.ApplyEpicAuraEffect(itemFrame, reel)
+	elseif rarityValue == 2 and RareAura then
+		RareAura.ApplyRareAuraEffect(itemFrame, reel)
+	elseif rarityValue == 1 and CommonAura then
+		CommonAura.ApplyCommonAuraEffect(itemFrame, reel)
+	end
+
 	return itemFrame
 end
 
@@ -1040,59 +1361,57 @@ local function generateReelItems(crateType, winningItem, winningPosition)
 		end
 	end
 	
-	-- Get valid skins from SkinLibrary
-	local validSkins = {}
+	-- Get the rarity this crate drops
+	local crateRarity = CrateConfig.GetCrateRarity(crateType)
+	
+	-- Full pool from SkinConfig (used for rolling the winner server-side)
+	local allSkins = CrateConfig.GetSkinsForRarity(crateRarity)
+
+	-- Visual pool: only skins that have a model in SkinLibrary (so every reel slot shows a 3D weapon)
 	local skinLib = ReplicatedStorage:FindFirstChild("SkinLibrary")
-	if skinLib then
-		for _, skinModel in pairs(skinLib:GetChildren()) do
-			if skinModel:IsA("Model") or skinModel:IsA("BasePart") then
-				table.insert(validSkins, {
-					type = "skin",
-					name = skinModel.Name,
-					rarity = "common" -- You can set rarity based on skin name patterns if needed
-				})
-			end
+	local visualSkins = {}
+	for _, entry in ipairs(allSkins) do
+		if skinLib and skinLib:FindFirstChild(entry.name, true) then
+			table.insert(visualSkins, entry)
 		end
 	end
-	
-	print("Found", #validSkins, "valid skins in SkinLibrary")
-	
-	-- Ensure we have valid skins
-	if #validSkins == 0 then
-		warn("No valid skins found in SkinLibrary!")
+
+	-- Fall back to full pool if no models found at all
+	if #visualSkins == 0 then
+		visualSkins = allSkins
+	end
+
+	print(string.format("[CrateOpener] %s pool: %d total, %d with models (visual)", crateRarity, #allSkins, #visualSkins))
+
+	if #visualSkins == 0 then
+		warn("No skins found for", crateType, "- cannot generate reel")
 		return
 	end
-	
-	-- Validate winning item exists in SkinLibrary
-	local _winningItemValid = false
-	if winningItem and skinLib then
-		local winningModel = skinLib:FindFirstChild(winningItem.name)
-		if winningModel then
-			_winningItemValid = true
-		else
-			-- Replace with random valid skin if winning item is fake
-			winningItem = validSkins[math.random(1, #validSkins)]
-			print("Winning item was fake, replaced with:", winningItem.name)
-		end
-	else
-		-- No winning item, pick random valid one
-		winningItem = validSkins[math.random(1, #validSkins)]
+
+	-- For display: if the winning item has no model, show a substitute in the winning slot visually
+	-- (the actual skin was already granted server-side before this runs)
+	local winningDisplay = winningItem
+	if winningItem and skinLib and not skinLib:FindFirstChild(winningItem.name, true) then
+		winningDisplay = visualSkins[math.random(1, #visualSkins)]
+		warn("[CrateOpener] Won skin has no model:", winningItem.name, "→ displaying", winningDisplay.name, "in reel")
+	end
+	if not winningDisplay then
+		winningDisplay = visualSkins[math.random(1, #visualSkins)]
 	end
 	
 	local totalItems = 50
 	
-	-- Generate items (only from valid skins)
+	-- Generate items: winning slot uses winningDisplay, all others random from visualSkins
 	for i = 1, totalItems do
 		local itemData
 		if i == winningPosition then
-			itemData = winningItem
+			itemData = winningDisplay
 		else
-			-- Pick random valid skin
-			itemData = validSkins[math.random(1, #validSkins)]
+			itemData = visualSkins[math.random(1, #visualSkins)]
 		end
 		
 		createReelItem(itemData, i)
-		if i <= 5 then -- Debug first few items
+		if i <= 5 then
 			print("Created item", i, ":", itemData.name)
 		end
 	end
@@ -1120,23 +1439,20 @@ local function animateReel(winningPosition)
 	print("Container width:", containerWidth, "Item width:", itemWidth)
 	
 	-- Calculate final position to center winning item
-	local finalX = -(winningPosition * itemWidth - centerOffset + itemWidth/2)
+	-- Item N (1-indexed) starts at x = (N-1)*itemWidth, center is at (N-1)*itemWidth + itemWidth/2
+	local finalX = -((winningPosition - 1) * itemWidth + itemWidth/2 - centerOffset)
 	
 	print("Final X position will be:", finalX)
 	
 	-- Start position (from far left for dramatic entrance)
 	reel.Position = UDim2.new(0, -500, 0, 0)
 	
-	-- SPECTACULAR ROLLING EFFECTS DURING ANIMATION
+	-- SPECTACULAR ROLLING EFFECTS DURING ANIMATION (no lightning)
 	spawn(function()
 		for i = 1, 8 do -- Multiple effects during roll
 			wait(i * 0.5)
 			_createScreenFlash()
 			_createParticleBurst(UDim2.new(0.5, 0, 0.4, 0))
-			
-			if i % 2 == 0 then
-				_createLightning()
-			end
 			
 			if i % 3 == 0 then
 				_createScreenShake(5)
@@ -1144,150 +1460,141 @@ local function animateReel(winningPosition)
 		end
 	end)
 	
-	-- Multi-stage animation for more realistic rolling
-	local initialInfo = TweenInfo.new(
-		3.2, -- Enhanced duration for more effects
-		Enum.EasingStyle.Quad,
+	-- Single smooth animation - no 2-phase stop/start
+	local smoothInfo = TweenInfo.new(
+		5.0, -- Total duration for the full roll
+		Enum.EasingStyle.Quint,
 		Enum.EasingDirection.Out
 	)
 	
-	-- First phase: Fast roll to near the target
-	local nearTarget = finalX + itemWidth * 2 -- Overshoot a bit
-	local initialTween = TweenService:Create(reel, initialInfo, {
-		Position = UDim2.new(0, nearTarget, 0, 0)
+	local smoothTween = TweenService:Create(reel, smoothInfo, {
+		Position = UDim2.new(0, finalX, 0, 0)
 	})
 	
-	print("Starting initial tween to position:", nearTarget)
-	initialTween:Play()
+	print("Starting smooth tween to position:", finalX)
+	smoothTween:Play()
 	
-	initialTween.Completed:Connect(function()
-		print("Initial tween completed, starting final tween to:", finalX)
+	smoothTween.Completed:Connect(function()
+		print("Smooth tween completed!")
 		
-		-- Second phase: Slow down and settle on target
-		local finalInfo = TweenInfo.new(
-			1.8, -- Longer for more anticipation
-			Enum.EasingStyle.Quart,
-			Enum.EasingDirection.Out
+		-- ULTIMATE REVEAL SEQUENCE WITH MAXIMUM EFFECTS (no lightning)
+		_createScreenFlash() -- Bright flash
+		_createScreenShake(20) -- Strongest shake
+		_createParticleBurst() -- Rainbow explosion
+		_createEnergyWave() -- Energy blast
+		
+		-- Multiple energy waves for epic reveal
+		spawn(function()
+			for i = 1, 4 do
+				wait(i * 0.2)
+				_createEnergyWave()
+			end
+		end)
+		
+		-- Victory particle storm
+		spawn(function()
+			for i = 1, 10 do
+				wait(i * 0.1)
+				_createParticleBurst(UDim2.new(0.5, 0, 0.4, 0))
+			end
+		end)
+		
+		-- Final title update
+		title.Text = "🏆 LEGENDARY WEAPON UNLOCKED! 🏆"
+		titleShadow.Text = title.Text
+
+		-- Show won weapon name below the reel
+		if wonItem then
+			local rarityColor = CrateConfig.GetRarityColor(wonItem.rarity or "common")
+			wonNameLabel.Text = wonItem.name
+			wonNameLabel.TextColor3 = rarityColor
+			wonNameLabel.Visible = true
+		end
+		
+		-- Enhanced final title effects
+		local finalTitleTween = TweenService:Create(title, 
+			TweenInfo.new(0.5, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), 
+			{
+				TextSize = 38,
+				TextColor3 = Color3.fromRGB(255, 215, 0) -- Gold
+			}
 		)
+		finalTitleTween:Play()
 		
-		local finalTween = TweenService:Create(reel, finalInfo, {
-			Position = UDim2.new(0, finalX, 0, 0)
-		})
-		
-		finalTween:Play()
-		
-		finalTween.Completed:Connect(function()
-			print("Final tween completed!")
+		-- Highlight winning item with SPECTACULAR glow
+		local winningFrame = reel:FindFirstChild("Item_" .. winningPosition)
+		if winningFrame then
+			print("Found winning frame, adding ULTIMATE glow effect")
 			
-			-- ULTIMATE REVEAL SEQUENCE WITH MAXIMUM EFFECTS
-			_createScreenFlash() -- Bright flash
-			_createScreenShake(20) -- Strongest shake
-			_createParticleBurst() -- Rainbow explosion
-			_createEnergyWave() -- Energy blast
-			_createLightning() -- Lightning strike
+			-- Multiple enhanced glow layers
+			local outerGlow = Instance.new("Frame")
+			outerGlow.Size = UDim2.new(1, 30, 1, 30) -- Bigger glow
+			outerGlow.Position = UDim2.new(0.5, -15, 0.5, -15)
+			outerGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+			outerGlow.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- Gold glow
+			outerGlow.BackgroundTransparency = 0.5
+			outerGlow.BorderSizePixel = 0
+			outerGlow.ZIndex = -1
+			outerGlow.Parent = winningFrame
 			
-			-- Multiple energy waves for epic reveal
-			spawn(function()
-				for i = 1, 4 do
-					wait(i * 0.2)
-					_createEnergyWave()
-				end
-			end)
+			local middleGlow = Instance.new("Frame")
+			middleGlow.Size = UDim2.new(1, 20, 1, 20)
+			middleGlow.Position = UDim2.new(0.5, -10, 0.5, -10)
+			middleGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+			middleGlow.BackgroundColor3 = Color3.fromRGB(255, 255, 100) -- Bright yellow
+			middleGlow.BackgroundTransparency = 0.3
+			middleGlow.BorderSizePixel = 0
+			middleGlow.ZIndex = -1
+			middleGlow.Parent = winningFrame
 			
-			-- Victory particle storm
-			spawn(function()
-				for i = 1, 10 do
-					wait(i * 0.1)
-					_createParticleBurst(UDim2.new(0.5, 0, 0.4, 0))
-				end
-			end)
+			local innerGlow = Instance.new("Frame")
+			innerGlow.Size = UDim2.new(1, 8, 1, 8)
+			innerGlow.Position = UDim2.new(0.5, -4, 0.5, -4)
+			innerGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+			innerGlow.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- Pure white core
+			innerGlow.BackgroundTransparency = 0.2
+			innerGlow.BorderSizePixel = 0
+			innerGlow.ZIndex = -1
+			innerGlow.Parent = winningFrame
 			
-			-- Final title update
-			title.Text = "🏆 LEGENDARY WEAPON UNLOCKED! 🏆"
-			titleShadow.Text = title.Text
-			
-			-- Enhanced final title effects
-			local finalTitleTween = TweenService:Create(title, 
-				TweenInfo.new(0.5, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), 
-				{
-					TextSize = 38,
-					TextColor3 = Color3.fromRGB(255, 215, 0) -- Gold
-				}
-			)
-			finalTitleTween:Play()
-			
-			-- Highlight winning item with SPECTACULAR glow
-			local winningFrame = reel:FindFirstChild("Item_" .. winningPosition)
-			if winningFrame then
-				print("Found winning frame, adding ULTIMATE glow effect")
-				
-				-- Multiple enhanced glow layers
-				local outerGlow = Instance.new("Frame")
-				outerGlow.Size = UDim2.new(1, 30, 1, 30) -- Bigger glow
-				outerGlow.Position = UDim2.new(0.5, -15, 0.5, -15)
-				outerGlow.AnchorPoint = Vector2.new(0.5, 0.5)
-				outerGlow.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- Gold glow
-				outerGlow.BackgroundTransparency = 0.5
-				outerGlow.BorderSizePixel = 0
-				outerGlow.ZIndex = -1
-				outerGlow.Parent = winningFrame
-				
-				local middleGlow = Instance.new("Frame")
-				middleGlow.Size = UDim2.new(1, 20, 1, 20)
-				middleGlow.Position = UDim2.new(0.5, -10, 0.5, -10)
-				middleGlow.AnchorPoint = Vector2.new(0.5, 0.5)
-				middleGlow.BackgroundColor3 = Color3.fromRGB(255, 255, 100) -- Bright yellow
-				middleGlow.BackgroundTransparency = 0.3
-				middleGlow.BorderSizePixel = 0
-				middleGlow.ZIndex = -1
-				middleGlow.Parent = winningFrame
-				
-				local innerGlow = Instance.new("Frame")
-				innerGlow.Size = UDim2.new(1, 8, 1, 8)
-				innerGlow.Position = UDim2.new(0.5, -4, 0.5, -4)
-				innerGlow.AnchorPoint = Vector2.new(0.5, 0.5)
-				innerGlow.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- Pure white core
-				innerGlow.BackgroundTransparency = 0.2
-				innerGlow.BorderSizePixel = 0
-				innerGlow.ZIndex = -1
-				innerGlow.Parent = winningFrame
-				
-				-- Rounded corners for all glows
-				for _, glow in pairs({outerGlow, middleGlow, innerGlow}) do
-					local corner = Instance.new("UICorner")
-					corner.CornerRadius = UDim.new(0, 20)
-					corner.Parent = glow
-				end
-				
-				-- INTENSE pulsing animation for the glow
-				local pulseInfo = TweenInfo.new(
-					0.6, -- Faster pulse
-					Enum.EasingStyle.Sine,
-					Enum.EasingDirection.InOut,
-					-1, -- Repeat infinitely
-					true -- Reverse
-				)
-				
-				local outerPulse = TweenService:Create(outerGlow, pulseInfo, {
-					BackgroundTransparency = 0.8,
-					Size = UDim2.new(1, 40, 1, 40)
-				})
-				local middlePulse = TweenService:Create(middleGlow, pulseInfo, {
-					BackgroundTransparency = 0.7
-				})
-				local innerPulse = TweenService:Create(innerGlow, pulseInfo, {
-					BackgroundTransparency = 0.5
-				})
-				
-				outerPulse:Play()
-				middlePulse:Play()
-				innerPulse:Play()
-			else
-				print("Could not find winning frame with name:", "Item_" .. winningPosition)
+			-- Rounded corners for all glows
+			for _, glow in pairs({outerGlow, middleGlow, innerGlow}) do
+				local corner = Instance.new("UICorner")
+				corner.CornerRadius = UDim.new(0, 20)
+				corner.Parent = glow
 			end
 			
-			print("Won item:", wonItem.name)
-		end)
+			-- INTENSE pulsing animation for the glow
+			local pulseInfo = TweenInfo.new(
+				0.6, -- Faster pulse
+				Enum.EasingStyle.Sine,
+				Enum.EasingDirection.InOut,
+				-1, -- Repeat infinitely
+				true -- Reverse
+			)
+			
+			local outerPulse = TweenService:Create(outerGlow, pulseInfo, {
+				BackgroundTransparency = 0.8,
+				Size = UDim2.new(1, 40, 1, 40)
+			})
+			local middlePulse = TweenService:Create(middleGlow, pulseInfo, {
+				BackgroundTransparency = 0.7
+			})
+			local innerPulse = TweenService:Create(innerGlow, pulseInfo, {
+				BackgroundTransparency = 0.5
+			})
+			
+			outerPulse:Play()
+			middlePulse:Play()
+			innerPulse:Play()
+		else
+			print("Could not find winning frame with name:", "Item_" .. winningPosition)
+		end
+		
+		print("Won item:", wonItem and wonItem.name or "(nil - already closed)")
+
+		-- Skin was already granted right after roll. Nothing to do here.
+		-- (Kept as a no-op block so future debugging is easy to add)
 	end)
 end
 
@@ -1304,34 +1611,46 @@ function _G.OpenCrate(crateType)
 	
 	isOpening = true
 	
-	-- Get valid skins from SkinLibrary first
-	local validSkins = {}
-	local skinLib = ReplicatedStorage:FindFirstChild("SkinLibrary")
-	if skinLib then
-		for _, skinModel in pairs(skinLib:GetChildren()) do
-			if skinModel:IsA("Model") or skinModel:IsA("BasePart") then
-				table.insert(validSkins, {
-					type = "skin",
-					name = skinModel.Name,
-					rarity = "common"
-				})
-			end
-		end
-	end
+	-- Get the rarity this crate drops
+	local crateRarity = CrateConfig.GetCrateRarity(crateType)
 	
+	-- Get valid skins from SkinConfig pool (full configured list, not limited to SkinLibrary models)
+	local validSkins = CrateConfig.GetSkinsForRarity(crateRarity)
+
 	-- Ensure we have valid skins
 	if #validSkins == 0 then
-		warn("No valid skins found in SkinLibrary! Cannot open crate.")
+		warn("No valid skins found in SkinConfig pool for rarity:", crateRarity)
 		isOpening = false
 		return
 	end
-	
-	-- Roll for winning item, but validate it exists
+
+	-- Roll for winning item from full SkinConfig pool
 	wonItem = CrateConfig.RollCrate(crateType)
-	if not wonItem or not skinLib or not skinLib:FindFirstChild(wonItem.name) then
-		-- Pick random valid skin if rolled item is fake
+	if not wonItem then
 		wonItem = validSkins[math.random(1, #validSkins)]
-		print("Rolled item was fake, using valid skin:", wonItem.name)
+		print("RollCrate returned nil, picked fallback:", wonItem.name)
+	end
+
+	-- ⚑ GRANT IMMEDIATELY after rolling — synchronous so the skin is saved
+	-- before the animation even starts, and certainly before close can race it.
+	local _grantedItem = wonItem -- capture in local so UI cleanup can't nil it
+	do
+		local ok, grantResult = pcall(function()
+			return PlayerDataRF:InvokeServer("AddCrateItem", {
+				name = _grantedItem.name,
+				rarity = _grantedItem.rarity or "common"
+			})
+		end)
+		if ok and grantResult and grantResult.success then
+			-- Server may have substituted a different valid skin; update wonItem so UI shows correct name
+			if grantResult.grantedName and grantResult.grantedName ~= _grantedItem.name then
+				warn("[CrateOpener] Server substituted skin:", _grantedItem.name, "->", grantResult.grantedName)
+				wonItem = { name = grantResult.grantedName, rarity = _grantedItem.rarity, type = "skin" }
+			end
+			print("[CrateOpener] ✅ Skin granted:", grantResult.grantedName or _grantedItem.name)
+		else
+			warn("[CrateOpener] ❌ Failed to grant skin:", _grantedItem.name)
+		end
 	end
 	
 	-- Set up UI with SPECTACULAR ENTRANCE EFFECTS
@@ -1351,14 +1670,6 @@ function _G.OpenCrate(crateType)
 		_createEnergyWave()
 		wait(0.5)
 		_createEnergyWave()
-	end)
-	
-	-- Lightning storm effect
-	spawn(function()
-		for i = 1, 5 do
-			wait(i * 0.1)
-			_createLightning()
-		end
 	end)
 	
 	-- Dramatic entrance animation
@@ -1434,8 +1745,9 @@ function _G.OpenCrate(crateType)
 	local winningPosition = math.random(20, 30)
 	generateReelItems(crateType, wonItem, winningPosition)
 	
-	-- Start animation
-	task.wait(0.1)
+	-- Wait for entrance tween to finish so container has final size
+	entranceTween.Completed:Wait()
+	task.wait(0.05) -- Let layout engine update
 	animateReel(winningPosition)
 end
 
@@ -1488,10 +1800,16 @@ local function closeCrateOpener()
 		end
 	end
 	
+	wonNameLabel.Visible = false
+	wonNameLabel.Text = ""
 	isOpening = false
 	wonItem = nil
 	_currentCrateType = nil
 	_G.UIMouseEnabler = false
+	-- Refresh the inventory grid so the newly won skin appears immediately
+	if _G.MatrixInventory and _G.MatrixInventory.Refresh then
+		task.spawn(_G.MatrixInventory.Refresh)
+	end
 end
 
 -- Button connections

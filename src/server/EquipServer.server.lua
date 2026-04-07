@@ -583,6 +583,39 @@ local FINAL_ROTATION_ADJUSTMENTS = {
     -- ["wrangler"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),
     ["Dark Samurai"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
     ["Neon Annihilator"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
+
+    -- Renamed skins from SkinConfig update (missing rotation entries)
+    ["Blizzard"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),              -- OLD: "Blizzard"
+    ["Blood"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(90)),                 -- OLD: "Blood"
+    ["Zone"] = CFrame.Angles(math.rad(270), math.rad(180), math.rad(0)),                -- OLD: "ComputerBlaster Revolver"
+    ["Flame"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),                 -- OLD: "Flame"
+    ["Just give me my money"] = CFrame.Angles(math.rad(270), math.rad(180), math.rad(0)), -- OLD: "Elite Revolver"
+    ["Drip"] = CFrame.Angles(math.rad(90), math.rad(180), math.rad(0)),                 -- OLD: "Fabric Storm"
+    ["Hot Cheetoz"] = CFrame.Angles(math.rad(90), math.rad(270), math.rad(0)),          -- OLD: "Gear"
+    ["Genesis"] = CFrame.Angles(math.rad(90), math.rad(270), math.rad(0)),              -- OLD: "Genesis"
+    ["Basic Camo"] = CFrame.Angles(math.rad(90), math.rad(180), math.rad(0)),           -- OLD: "Grand Prix"
+    ["Knife"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),                 -- OLD: "Knife"
+    ["Sharp"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),                 -- OLD: "Linked"
+    ["Wild West"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),             -- OLD: "frontier"
+    ["Ego"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),                   -- OLD: "Ego"
+    ["Tech Six"] = CFrame.Angles(math.rad(180), math.rad(180), math.rad(0)),            -- OLD: "iRevolver"
+    ["Alpine"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),                -- OLD: "Sig220"
+    ["Stinger"] = CFrame.Angles(math.rad(90), math.rad(0), math.rad(0)),                -- OLD: "vita"
+    ["Heavy Spin"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),            -- OLD: "natach"
+    ["Viper Tooth"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),             -- OLD: "Fang"
+    ["Quick Shot"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),            -- OLD: "shortstop"
+    ["Quick Escape"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),           -- OLD: "escape"
+    ["Rocket Launcher"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),         -- OLD: "sc" (launcher)
+    ["Walking Stick"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),          -- OLD: "cane"
+    ["Butcher"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),                -- OLD: "cleaver"
+    ["Astroid"] = CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),                 -- OLD: "cowmangler" (launcher)
+    ["Shovel"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),                 -- OLD: "gardener"
+    ["Solar Staff"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),            -- OLD: "sunstick"
+    ["Side Arm"] = CFrame.Angles(math.rad(0), math.rad(270), math.rad(0)),              -- OLD: "winger" (pistol)
+    ["Burner"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),                -- OLD: "wrap" (flamethrower)
+    ["Hotdog"] = CFrame.Angles(math.rad(0), math.rad(180), math.rad(0)),                -- OLD: "atomizor" (flamethrower)
+    ["Shadow Strike"] = CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),          -- OLD: "zato"
+    ["Pretty Gun"] = CFrame.Angles(math.rad(0), math.rad(270), math.rad(0)),            -- OLD: "prettyboys" (pistol)
 }
 
 -- Specific grip adjustments for different weapon types (POSITIONING)
@@ -1131,6 +1164,25 @@ local GRIP_ADJUSTMENTS = {
     ["123Cowboy"] = CFrame.new(0, -0.70, 0.9),
     ["123Dark Samurai"] = CFrame.new(0, -4.1, 0.3),
     ["123Neon Annihilator"] = CFrame.new(0, -1.70, -0.2),
+
+    -- New skin names from SkinConfig update (missing grip entries)
+    ["Alpine"] = CFrame.new(0, 0, 0.5),             -- OLD: "Sig220"
+    ["Tech Six"] = CFrame.new(0, 0, 0.9),           -- OLD: "iRevolver"
+    ["Stinger"] = CFrame.new(0, -0.3, 0.7),         -- OLD: "vita"
+    ["Heavy Spin"] = CFrame.new(0, -0.2, 3.3),      -- OLD: "natach"
+    ["Quick Shot"] = CFrame.new(0, -0.40, 0.6),     -- OLD: "shortstop"
+    ["Quick Escape"] = CFrame.new(0, -1.1, 0.7),    -- OLD: "escape"
+    ["Rocket Launcher"] = CFrame.new(0, -0.5, 1.1), -- OLD: "sc" (launcher)
+    ["Walking Stick"] = CFrame.new(0, -1.8, -0.1),  -- OLD: "cane"
+    ["Butcher"] = CFrame.new(0, -0.9, 0.3),         -- OLD: "cleaver"
+    ["Astroid"] = CFrame.new(0, -0.5, 1.1),         -- OLD: "cowmangler" (launcher)
+    ["Shovel"] = CFrame.new(0, -1.0, 0),            -- OLD: "gardener"
+    ["Solar Staff"] = CFrame.new(0, -2.1, 0),       -- OLD: "sunstick"
+    ["Side Arm"] = CFrame.new(0, 0, 0.4),           -- OLD: "winger" (pistol)
+    ["Burner"] = CFrame.new(0, 0.1, 0.5),           -- OLD: "wrap" (flamethrower)
+    ["Hotdog"] = CFrame.new(0, 0.1, 0.5),           -- OLD: "atomizor" (flamethrower)
+    ["Shadow Strike"] = CFrame.new(0, -1.2, 0.3),   -- OLD: "zato"
+    ["Pretty Gun"] = CFrame.new(0, 0, 0.4),         -- OLD: "prettyboys" (pistol)
 }
 
 local function getEquippedWeaponRotation(weaponName, skinId)

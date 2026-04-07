@@ -77,12 +77,12 @@ reel.Position = UDim2.new(0, 0, 0, 0)
 reel.BackgroundTransparency = 1
 reel.Parent = reelContainer
 
--- Winner indicator
+-- Winner indicator (hidden — user wants no red line)
 local winnerIndicator = Instance.new("Frame")
 winnerIndicator.Name = "WinnerIndicator"
 winnerIndicator.Size = UDim2.new(0, 4, 1, 0)
 winnerIndicator.Position = UDim2.new(0.5, -2, 0, 0)
-winnerIndicator.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+winnerIndicator.BackgroundTransparency = 1
 winnerIndicator.BorderSizePixel = 0
 winnerIndicator.Parent = reelContainer
 

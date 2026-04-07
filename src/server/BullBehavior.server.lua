@@ -70,6 +70,8 @@ local RUN_ANIMATION_ID = "rbxassetid://89751156154012"
 local CHARGE_ANIMATION_ID = "rbxassetid://117848803109655"
 local UP_ANIMATION_ID = "rbxassetid://94030278906722"
 local HEADBUTT_ANIMATION_ID = "rbxassetid://120738414090672"
+local DOUBLE_KICK_ANIMATION_ID = "rbxassetid://100417901484520"  -- Double Kick
+local NEW_HEADBUTT_ANIMATION_ID = "rbxassetid://135183937522828" -- New Headbutt
 local WALK_SPEED = 24 -- Increased to 24
 
 -- Load Animation
@@ -83,6 +85,10 @@ local upAnim = Instance.new("Animation")
 upAnim.AnimationId = UP_ANIMATION_ID
 local headbuttAnim = Instance.new("Animation")
 headbuttAnim.AnimationId = HEADBUTT_ANIMATION_ID
+local doubleKickAnim = Instance.new("Animation")
+doubleKickAnim.AnimationId = DOUBLE_KICK_ANIMATION_ID
+local newHeadbuttAnim = Instance.new("Animation")
+newHeadbuttAnim.AnimationId = NEW_HEADBUTT_ANIMATION_ID
 
 local animator = animController:FindFirstChild("Animator")
 if not animator then
@@ -95,6 +101,9 @@ local runTrack
 local chargeTrack
 local upTrack
 local headbuttTrack
+local doubleKickTrack
+local newHeadbuttTrack
+local currentAttackTrack -- randomly chosen each thrash cycle
 if animator then
 	track = animator:LoadAnimation(walkAnim)
 	track.Looped = true
@@ -111,6 +120,12 @@ if animator then
 	headbuttTrack = animator:LoadAnimation(headbuttAnim)
 	headbuttTrack.Priority = Enum.AnimationPriority.Action
 	headbuttTrack.Looped = false
+	doubleKickTrack = animator:LoadAnimation(doubleKickAnim)
+	doubleKickTrack.Priority = Enum.AnimationPriority.Action
+	doubleKickTrack.Looped = false
+	newHeadbuttTrack = animator:LoadAnimation(newHeadbuttAnim)
+	newHeadbuttTrack.Priority = Enum.AnimationPriority.Action
+	newHeadbuttTrack.Looped = false
 end
 
 -- ==========================================
@@ -373,6 +388,9 @@ local function stopAttack()
 	if chargeTrack then chargeTrack:Stop() end
 	if runTrack then runTrack:Stop() end
 	if headbuttTrack then headbuttTrack:Stop() end
+	if doubleKickTrack then doubleKickTrack:Stop() end
+	if newHeadbuttTrack then newHeadbuttTrack:Stop() end
+	currentAttackTrack = nil
 end
 
 local function startAttack()
@@ -547,28 +565,35 @@ local function startAttack()
 					-- State machine: idle -> rotating (walk anim) -> headbutting -> idle
 					
 					if isWaitingForHeadbutt then
-						-- Wait for headbutt animation to finish completely
-						if not headbuttTrack or not headbuttTrack.IsPlaying then
+						-- Wait for the chosen attack animation to finish completely
+						if not currentAttackTrack or not currentAttackTrack.IsPlaying then
 							isWaitingForHeadbutt = false
-							showDamageZone(false) -- Hide damage zone when headbutt ends
+							currentAttackTrack = nil
+							showDamageZone(false) -- Hide damage zone when attack ends
 							nextThrashTime = os.clock() + 0.5 -- Short delay before next rotation
-							print("[BullBehavior] 🐂 Headbutt finished, ready for next rotation")
+							print("[BullBehavior] 🐂 Attack finished, ready for next rotation")
 						end
 					elseif isRotating then
 						-- Currently rotating - check if rotation is complete
 						local rotationElapsed = os.clock() - rotationStartTime
 						if rotationElapsed >= ROTATION_DURATION then
-							-- Rotation complete, stop walk and start headbutt
+							-- Rotation complete: pick a random attack from the 3 options
 							isRotating = false
 							if track and track.IsPlaying then track:Stop(0.1) end
 							
-							-- Play headbutt animation
-							if headbuttTrack and not headbuttTrack.IsPlaying then
-								headbuttTrack:Play(0.1)
-								headbuttTrack:AdjustSpeed(1.1) -- 10% faster
-								showDamageZone(true) -- Show damage zone when headbutt starts
+							-- Randomly choose: original headbutt, double kick, or new headbutt
+							local attackOptions = {headbuttTrack, doubleKickTrack, newHeadbuttTrack}
+							local chosen = attackOptions[math.random(1, #attackOptions)]
+							if chosen and not chosen.IsPlaying then
+								currentAttackTrack = chosen
+								currentAttackTrack:Play(0.1)
+								currentAttackTrack:AdjustSpeed(1.1) -- 10% faster
+								showDamageZone(true) -- Show damage zone when attack starts
+							if chosen == newHeadbuttTrack then
+								bull:SetAttribute("EmitBullEffect", os.clock()) -- Signal clients to play BullEffect
+							end
 								isWaitingForHeadbutt = true
-								print("[BullBehavior] 🐂 Starting headbutt animation")
+								print("[BullBehavior] 🐂 Starting random attack animation")
 							end
 						end
 						-- Continue rotating during rotation phase (lerp happens below)

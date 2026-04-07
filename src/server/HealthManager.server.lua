@@ -168,9 +168,8 @@ function handleAbyssDeath(player, killer)
 	-- For now, just respawn after delay
 	task.wait(HEALTH_CONFIG.RESPAWN_DELAY)
 	
-	-- Kick player out of Abyss or respawn them
-	-- This will be handled by the Abyss mode manager
-	disableHealthMode(player)
+	-- Reset health and armor, re-enable regen
+	respawnPlayer(player)
 end
 
 -- Respawn player with health
@@ -193,10 +192,19 @@ function respawnPlayer(player)
 		print(string.format("[HealthManager] Respawned %s with %.1f HP", player.Name, respawnHealth))
 	end
 	
+	-- Reset armor to max
+	if _G.getMaxArmor and _G.setArmor then
+		local maxArmor = _G.getMaxArmor(player)
+		_G.setArmor(player, maxArmor)
+	end
+	
 	-- Respawn character
 	pcall(function()
 		player:LoadCharacter()
 	end)
+	
+	-- Re-enable health mode so regen loop keeps running
+	enableHealthMode(player, "PvE")
 end
 
 -- ===============================
@@ -219,7 +227,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 				local timeSinceRegen = currentTime - modeData.lastRegenTime
 				
 				if timeSinceRegen >= 1.0 then
-					-- Apply regeneration
+					-- Apply health regeneration
 					if _G.getHealth and _G.getMaxHealth and _G.healPlayer then
 						local currentHealth = _G.getHealth(player)
 						local maxHealth = _G.getMaxHealth(player)
@@ -233,10 +241,10 @@ RunService.Heartbeat:Connect(function(deltaTime)
 								maxHealth = maxHealth,
 								regen = true
 							})
-							
-							modeData.lastRegenTime = currentTime
 						end
 					end
+					
+					modeData.lastRegenTime = currentTime
 				end
 			end
 		else

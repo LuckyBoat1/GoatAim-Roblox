@@ -11,7 +11,7 @@ local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 
-print("[NPCHealthBars] Initializing...")
+--print("[NPCHealthBars] Initializing...")
 
 -- Configuration
 local CONFIG = {
@@ -77,20 +77,20 @@ local function isNPC(model)
 	local modelNameLower = model.Name:lower()
 	for _, npcName in ipairs(NPC_NAMES) do
 		if modelNameLower == npcName:lower() or modelNameLower:match("^" .. npcName:lower()) then
-			print("[NPCHealthBars] Detected NPC by name:", model.Name)
+			--print("[NPCHealthBars] Detected NPC by name:", model.Name)
 			return true
 		end
 	end
 	
 	-- Check for NPC attributes (set by NPC spawners)
 	if model:GetAttribute("SpawnX") or model:GetAttribute("IsNPC") then
-		print("[NPCHealthBars] Detected NPC by attribute:", model.Name)
+		--print("[NPCHealthBars] Detected NPC by attribute:", model.Name)
 		return true
 	end
 	
 	-- Any model with a Humanoid directly in Workspace (not player) is likely an NPC
 	if humanoid and model.Parent == Workspace then
-		print("[NPCHealthBars] Detected NPC (Humanoid in Workspace):", model.Name)
+		--print("[NPCHealthBars] Detected NPC (Humanoid in Workspace):", model.Name)
 		return true
 	end
 	
@@ -124,7 +124,7 @@ local function createHealthBar(npcModel)
 		or npcModel:FindFirstChildWhichIsA("BasePart")
 	
 	if not attachPart then
-		warn("[NPCHealthBars] No part to attach health bar for:", npcModel.Name)
+		--warn("[NPCHealthBars] No part to attach health bar for:", npcModel.Name)
 		return
 	end
 	
@@ -284,18 +284,30 @@ local function createHealthBar(npcModel)
 	
 	-- For attribute-based health, we'll poll in the update loop
 	
-	print("[NPCHealthBars] Created health bar for:", npcModel.Name)
+	--print("[NPCHealthBars] Created health bar for:", npcModel.Name)
 	return healthBarData
 end
 
 -- Update health bar visuals
 function updateHealthBar(data, currentHealth, maxHealth)
 	if not data or not data.billboard.Parent then return end
-	
+
+	-- Guard against math.huge (Roblox default before server sets MaxHealth)
+	-- and against 0 / nil which would cause division-by-zero.
+	if not maxHealth or maxHealth == math.huge or maxHealth <= 0 then
+		maxHealth = data.maxHealth
+	end
+	if not maxHealth or maxHealth == math.huge or maxHealth <= 0 then
+		maxHealth = math.max(currentHealth, 1)
+	else
+		-- Cache any valid (finite, positive) maxHealth we receive
+		data.maxHealth = maxHealth
+	end
+
 	local percent = math.clamp(currentHealth / maxHealth, 0, 1)
 	local targetSize = UDim2.new(percent, -4, 1, -4)
 	local targetColor = getHealthColor(percent)
-	
+
 	-- Check if damage was taken
 	if currentHealth < data.lastHealth then
 		-- Flash effect
@@ -304,15 +316,15 @@ function updateHealthBar(data, currentHealth, maxHealth)
 			BackgroundTransparency = 1
 		}):Play()
 	end
-	
+
 	data.lastHealth = currentHealth
-	
+
 	-- Animate health bar
 	TweenService:Create(data.healthFill, TweenInfo.new(CONFIG.HEALTH_TWEEN_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Size = targetSize,
 		BackgroundColor3 = targetColor
 	}):Play()
-	
+
 	-- Update text
 	data.healthText.Text = math.floor(currentHealth) .. " / " .. math.floor(maxHealth)
 end
@@ -325,13 +337,13 @@ function removeHealthBar(npcModel)
 			data.billboard:Destroy()
 		end
 		healthBars[npcModel] = nil
-		print("[NPCHealthBars] Removed health bar for:", npcModel.Name)
+		--print("[NPCHealthBars] Removed health bar for:", npcModel.Name)
 	end
 end
 
 -- Scan for NPCs and create health bars
 local function scanForNPCs()
-	print("[NPCHealthBars] Scanning workspace for NPCs...")
+	--print("[NPCHealthBars] Scanning workspace for NPCs...")
 	local foundCount = 0
 	
 	for _, obj in ipairs(Workspace:GetDescendants()) do
@@ -339,7 +351,7 @@ local function scanForNPCs()
 			-- Debug: Check models with humanoids
 			local hum = obj:FindFirstChildOfClass("Humanoid")
 			if hum and not Players:GetPlayerFromCharacter(obj) then
-				print("[NPCHealthBars] Found model with Humanoid:", obj.Name, "Parent:", obj.Parent and obj.Parent.Name or "nil")
+				--print("[NPCHealthBars] Found model with Humanoid:", obj.Name, "Parent:", obj.Parent and obj.Parent.Name or "nil")
 			end
 			
 			if isNPC(obj) and not healthBars[obj] then
@@ -349,7 +361,7 @@ local function scanForNPCs()
 		end
 	end
 	
-	print("[NPCHealthBars] Scan complete. Found", foundCount, "NPCs")
+	--print("[NPCHealthBars] Scan complete. Found", foundCount, "NPCs")
 end
 
 -- Initial scan (with delay to let NPCs spawn)
@@ -424,4 +436,4 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
-print("[NPCHealthBars] Ready! Tracking", #NPC_NAMES, "NPC types")
+--print("[NPCHealthBars] Ready! Tracking", #NPC_NAMES, "NPC types")

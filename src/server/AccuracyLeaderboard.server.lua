@@ -1,82 +1,118 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+-- AccuracyLeaderboard.server.lua
+-- Shows all-time top 10 from OrderedDataStore, always merged with live online player data.
+-- PlayerDataManager writes to the ordered stores on every save (join, 30s autosave, leave).
+
+local ReplicatedStorage  = game:GetService("ReplicatedStorage")
+local DataStoreService   = game:GetService("DataStoreService")
+local Players            = game:GetService("Players")
 
 local LeaderboardUpdateEvent = Instance.new("RemoteEvent")
-LeaderboardUpdateEvent.Name = "LeaderboardUpdateEvent"
+LeaderboardUpdateEvent.Name   = "LeaderboardUpdateEvent"
 LeaderboardUpdateEvent.Parent = ReplicatedStorage
 
-local leaderboard = {
-	ClassicScore = "runHits",
-	BullsyeScore = "bullseyeScore"
-}
+-- Same OrderedDataStore names that PlayerDataManager writes to
+local LB_ClassicScore  = DataStoreService:GetOrderedDataStore("LB_ClassicScore")
+local LB_BullseyeScore = DataStoreService:GetOrderedDataStore("LB_BullseyeScore")
 
-local updateInterval = 1
+local MAX_ENTRIES     = 10
+local UPDATE_INTERVAL = 60 -- seconds; respect DataStore rate limits
 
--- Fix: Added null check and proper error handling
-local function buildLeaderboard(statKey)
-	local entries = {}
-	for _, player in pairs(Players:GetPlayers()) do
-		local success, data = pcall(function() 
-			-- Make sure _G.getData exists before calling it
-			if _G.getData then
-				return _G.getData(player)
+-- Fetch top entries from an OrderedDataStore → { [userId] = value }
+local function fetchFromStore(store)
+	local map = {}
+	local ok, pages = pcall(function()
+		return store:GetSortedAsync(false, MAX_ENTRIES)
+	end)
+	if not ok or not pages then return map end
+	local ok2, page = pcall(function() return pages:GetCurrentPage() end)
+	if not ok2 or not page then return map end
+	for _, item in ipairs(page) do
+		local uid = tonumber(item.key)
+		if uid then map[uid] = item.value or 0 end
+	end
+	return map
+end
+
+-- Merge live online player stats into a userId->value map
+local function mergeLivePlayers(map, statKey)
+	for _, player in ipairs(Players:GetPlayers()) do
+		if _G.getData then
+			local ok, data = pcall(_G.getData, player)
+			if ok and data then
+				local v = data[statKey] or 0
+				-- Take the higher of stored vs live (live is most current)
+				if v > (map[player.UserId] or 0) then
+					map[player.UserId] = v
+				end
 			end
-			return nil
-		end)
-
-		if success and player and data and data[statKey] ~= nil then
-			table.insert(entries, { 
-				Name = player.Name,
-				Value = data[statKey],
-				UserId = player.UserId
-			})
-		else
-			-- Add default entry if data isn't available
-			table.insert(entries, { 
-				Name = player.Name,
-				Value = 0,
-				UserId = player.UserId
-			})
 		end
 	end
+	return map
+end
 
-	table.sort(entries, function(a, b)
-		return a.Value > b.Value
-	end)
+-- Resolve display names (cache to avoid repeated async calls)
+local nameCache = {}
+local function getName(userId)
+	if nameCache[userId] then return nameCache[userId] end
+	-- Check if they're online first (free, synchronous)
+	local plr = Players:GetPlayerByUserId(userId)
+	if plr then nameCache[userId] = plr.Name; return plr.Name end
+	-- Async lookup for offline players
+	local ok, name = pcall(function() return Players:GetNameFromUserIdAsync(userId) end)
+	local result = (ok and name) or ("User_" .. userId)
+	nameCache[userId] = result
+	return result
+end
 
-	while #entries > 10 do
-		table.remove(entries)
+-- Build a sorted top-10 entry list from a userId->value map
+local function buildEntries(map)
+	local entries = {}
+	for userId, value in pairs(map) do
+		table.insert(entries, {
+			Name   = getName(userId),
+			UserId = userId,
+			Value  = value,
+		})
 	end
-
+	table.sort(entries, function(a, b) return a.Value > b.Value end)
+	while #entries > MAX_ENTRIES do table.remove(entries) end
 	return entries
 end
 
-local function updateAllLeaderboards(leaderboard)
-	local allData = {}
-	for leaderboardName, statKey in pairs(leaderboard) do
-		allData[leaderboardName] = buildLeaderboard(statKey)
-	end
+local function updateAllLeaderboards()
+	-- Fetch all-time data then layer live online players on top
+	local classicMap  = fetchFromStore(LB_ClassicScore)
+	local bullseyeMap = fetchFromStore(LB_BullseyeScore)
 
-	LeaderboardUpdateEvent:FireAllClients(allData)
+	classicMap  = mergeLivePlayers(classicMap,  "runHits")
+	bullseyeMap = mergeLivePlayers(bullseyeMap, "bullseyeHigh")
+
+	LeaderboardUpdateEvent:FireAllClients({
+		ClassicScore = buildEntries(classicMap),
+		BullsyeScore = buildEntries(bullseyeMap),
+	})
 end
 
-local lastUpdate = 0
+-- Initial delay so PlayerDataManager and DataStores are ready
+task.wait(5)
+pcall(updateAllLeaderboards)
 
--- Add delay before starting to ensure PlayerDataManager is loaded
-wait(2)
-
-RunService.Heartbeat:Connect(function()
-	if tick() - lastUpdate >= updateInterval then
-		lastUpdate = tick()
-
-		-- Add try/catch to prevent errors from breaking the whole leaderboard
-		pcall(function()
-			updateAllLeaderboards(leaderboard)
-		end)
+-- Periodic refresh
+task.spawn(function()
+	while true do
+		task.wait(UPDATE_INTERVAL)
+		pcall(updateAllLeaderboards)
 	end
 end)
 
--- Add a timestamp to show when the module was loaded
-local currentTime = "2025-08-20 22:09:08"
-local currentUser = "Hulk11121"
+-- Also re-broadcast whenever a player joins/leaves so the board updates immediately
+Players.PlayerAdded:Connect(function()
+	task.wait(3) -- let their data load first
+	pcall(updateAllLeaderboards)
+end)
+Players.PlayerRemoving:Connect(function()
+	task.wait(1)
+	pcall(updateAllLeaderboards)
+end)
+
+warn("[AccuracyLeaderboard] ✅ Active — all-time DataStore + live online players")

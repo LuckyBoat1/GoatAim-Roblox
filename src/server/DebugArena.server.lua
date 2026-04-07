@@ -10,7 +10,9 @@ print("=" .. string.rep("=", 50))
 print("🕵️ DEBUG: DUMPING BULL ARENA HIERARCHY")
 print("=" .. string.rep("=", 50))
 
-local arena = workspace:WaitForChild("BullArena", 1)
+local gameFolder = workspace:FindFirstChild("Game")
+local bullArenaFolder = gameFolder and gameFolder:WaitForChild("BullArena", 1)
+local arena = bullArenaFolder and (bullArenaFolder:FindFirstChildWhichIsA("Model") or bullArenaFolder)
 if arena then
 	dumpHierarchy(arena)
 else

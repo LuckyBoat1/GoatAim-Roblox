@@ -1262,7 +1262,8 @@ local nonClusterCounter = 0
 -- Create planets
 for i, planet in ipairs(planets) do
 	local planetObj = createPlanetUI(planet, i)
-	planetObj.front.container.Visible = false
+	-- Start front as visible by default (planets begin in front of sun; RenderStepped corrects later)
+	planetObj.front.container.Visible = true
 	planetObj.back.container.Visible = false
 
 	planetObjs[i] = planetObj
@@ -1287,6 +1288,8 @@ for i, planet in ipairs(planets) do
 		angle = planetAngles[i],
 		tilt = planet.orbitTilt or 0,
 	}
+	-- Wire current to front so first RenderStepped frame positions it immediately
+	planetData[i].obj.current = planetObj.front.container
 
 	local function setupInteraction(container)
 		container.MouseEnter:Connect(function()
@@ -1405,7 +1408,9 @@ connections[#connections+1] = RunService.RenderStepped:Connect(function(dt)
 		local data = planetData[i]
 		-- Radius-based orbit speed: inner faster, outer slower
 		-- speed = base * (refRadius / radius)^exp
-		local orbitRadius = data.radius
+		-- Recompute radius live from current AbsoluteSize so mobile layout delays don't freeze orbits at 0
+		local orbitRadius = (_scale > 0) and math.floor(planet.orbit * CONFIG.ORBIT_RADIUS_SCALE * _scale) or data.radius
+		data.radius = orbitRadius -- keep cache in sync
 		local ref = CONFIG.ORBIT_REF_ORBIT * math.min(abs.X, abs.Y) * CONFIG.ORBIT_RADIUS_SCALE
 	local speedMul = planet.orbitSpeedMul or 1
 		if CONFIG.ORBIT_SPEED_EXP ~= 0 then
@@ -1421,7 +1426,11 @@ connections[#connections+1] = RunService.RenderStepped:Connect(function(dt)
 			(1 - (CONFIG.DEPTH_EFFECT_STRENGTH * 0.15)) or
 			(1 + (CONFIG.DEPTH_EFFECT_STRENGTH * 0.05))
 
-		local baseSize = planet.size * CONFIG.PLANET_SIZE_SCALE
+		-- Scale planet pixel sizes proportionally with _scale so they always occupy
+		-- the same fraction of their orbit (orbit radius already scales with _scale).
+		-- 400 = the reference _scale at which the original sizes were designed (PC baseline).
+		local screenSizeFactor = _scale / 400
+		local baseSize = planet.size * CONFIG.PLANET_SIZE_SCALE * screenSizeFactor
 		local targetSize = data.hovered 
 			and baseSize * CONFIG.PLANET_HOVER_SCALE * depthScale
 			or baseSize * depthScale

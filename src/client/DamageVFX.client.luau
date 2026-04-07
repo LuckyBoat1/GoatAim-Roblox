@@ -36,14 +36,14 @@ local CONFIG = {
 	MEGA_THRESHOLD = 100,
 	WEAK_THRESHOLD = 5,
 	
-	-- Font - BIGGER
+	-- Font
 	FONT = Enum.Font.GothamBlack,
-	BASE_TEXT_SIZE = 32,
-	MAX_TEXT_SIZE = 80,
+	BASE_TEXT_SIZE = 16,
+	MAX_TEXT_SIZE = 40,
 	
-	-- Glow - MORE LAYERS, BIGGER SPREAD
-	GLOW_LAYERS = 7,
-	GLOW_EXPANSION = 10,
+	-- Glow - SUBTLE LAYERS, TIGHT SPREAD
+	GLOW_LAYERS = 3,
+	GLOW_EXPANSION = 2,
 	
 	-- Particles - MORE
 	SPARK_COUNT = 24,
@@ -327,7 +327,7 @@ local function createIndicator()
 	billboard.StudsOffset = Vector3.new(0, 0, 0)
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
-	billboard.MaxDistance = 150
+	billboard.MaxDistance = 3000
 	
 	local container = Instance.new("Frame")
 	container.Name = "Container"
@@ -375,7 +375,7 @@ local function createIndicator()
 	local shadow2 = Instance.new("TextLabel")
 	shadow2.Name = "Shadow2"
 	shadow2.Size = UDim2.new(1, 0, 1, 0)
-	shadow2.Position = UDim2.new(0.5, 6, 0.5, 6)
+	shadow2.Position = UDim2.new(0.5, 2, 0.5, 2)
 	shadow2.AnchorPoint = Vector2.new(0.5, 0.5)
 	shadow2.BackgroundTransparency = 1
 	shadow2.Text = ""
@@ -389,7 +389,7 @@ local function createIndicator()
 	local shadow = Instance.new("TextLabel")
 	shadow.Name = "Shadow"
 	shadow.Size = UDim2.new(1, 0, 1, 0)
-	shadow.Position = UDim2.new(0.5, 3, 0.5, 3)
+	shadow.Position = UDim2.new(0.5, 1, 0.5, 1)
 	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
 	shadow.BackgroundTransparency = 1
 	shadow.Text = ""
@@ -432,13 +432,13 @@ local function createIndicator()
 	-- Double stroke for depth
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(10, 0, 0) -- Near black outline
-	stroke.Thickness = 6
+	stroke.Thickness = 2
 	stroke.Parent = label
 	
 	-- Second stroke on inner core
 	local innerStroke = Instance.new("UIStroke")
 	innerStroke.Color = Color3.fromRGB(80, 0, 10)
-	innerStroke.Thickness = 2
+	innerStroke.Thickness = 1
 	innerStroke.Transparency = 0.5
 	innerStroke.Parent = innerCore
 	
@@ -822,7 +822,7 @@ local function showDamageNumber(position, damage, isCrit, isHeal)
 	
 	if stroke then
 		stroke.Transparency = 0
-		stroke.Thickness = math.clamp(baseTextSize / 5, 4, 7)
+		stroke.Thickness = math.clamp(baseTextSize / 10, 1, 2)
 		stroke.Color = Color3.fromRGB(15, 0, 0) -- Near black stroke
 	end
 	
@@ -1020,6 +1020,68 @@ end
 
 _G.ShowDamageNumber = function(position, damage, isCrit, isHeal)
 	showDamageNumber(position, damage, isCrit or false, isHeal or false)
+end
+
+-- Abyss PvP damage numbers
+do
+	local AbyssPvPEvent = RemoteEvents and RemoteEvents:FindFirstChild("AbyssPvPEvent")
+	if not AbyssPvPEvent then
+		-- Event may not exist yet — wait briefly
+		task.spawn(function()
+			AbyssPvPEvent = RemoteEvents and RemoteEvents:WaitForChild("AbyssPvPEvent", 15)
+			if AbyssPvPEvent then
+				warn("[DamageVFX] Connected to AbyssPvPEvent (delayed)")
+			end
+		end)
+	end
+	if AbyssPvPEvent then
+		warn("[DamageVFX] Connected to AbyssPvPEvent")
+	end
+	-- Wire up once the event is available (may have been assigned above)
+	task.spawn(function()
+		if not AbyssPvPEvent then
+			AbyssPvPEvent = RemoteEvents and RemoteEvents:WaitForChild("AbyssPvPEvent", 20)
+		end
+		if not AbyssPvPEvent then
+			warn("[DamageVFX] AbyssPvPEvent not found — Abyss damage numbers disabled")
+			return
+		end
+		AbyssPvPEvent.OnClientEvent:Connect(function(action, arg1, arg2, arg3)
+			-- arg layout:
+			-- HitMarker  : hitType ("headshot"/"body"), damage
+			-- DamageTaken: shooterName, damage, isHeadshot
+			local function getLocalPos()
+				local char = LocalPlayer.Character
+				local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+				return hrp and (hrp.Position + Vector3.new(0, 4, 0)) or Vector3.new(0, 0, 0)
+			end
+
+			if action == "HitMarker" then
+				-- We (shooter) dealt damage — show it near the crosshair by finding the
+				-- closest other character within camera look direction.
+				local damage   = tonumber(arg2) or 0
+				local isCrit   = (arg1 == "headshot")
+				if damage <= 0 then return end
+				-- Try to find the hit player's character via a short raycast
+				local cam      = Workspace.CurrentCamera
+				local origin   = cam.CFrame.Position
+				local dir      = cam.CFrame.LookVector * 300
+				local params   = RaycastParams.new()
+				local char     = LocalPlayer.Character
+				if char then params.FilterDescendantsInstances = {char} end
+				params.FilterType = Enum.RaycastFilterType.Exclude
+				local result   = Workspace:Raycast(origin, dir, params)
+				local pos      = result and result.Position or (origin + dir * 0.4)
+				showDamageNumber(pos, damage, isCrit, false)
+
+			elseif action == "DamageTaken" then
+				-- We (victim) took damage — show above our own head
+				local damage = tonumber(arg2) or 0
+				if damage <= 0 then return end
+				showDamageNumber(getLocalPos(), damage, (arg3 == true), false)
+			end
+		end)
+	end)
 end
 
 _G.TestDamageVFX = function()

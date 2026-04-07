@@ -93,7 +93,7 @@ titleLabel.BackgroundTransparency = 1
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextSize = 38 -- 20% bigger (32*1.2≈38)
 titleLabel.Font = Enum.Font.GothamBold
-titleLabel.Text = "BULL ARENA"
+titleLabel.Text = "BOSS ARENA"
 titleLabel.TextXAlignment = Enum.TextXAlignment.Center
 titleLabel.Parent = container
 
@@ -134,6 +134,18 @@ gameGui.ResetOnSpawn = false
 gameGui.Enabled = false
 gameGui.Parent = playerGui
 
+-- Shared UIScale for all bull HUD widgets (score, time, light, health)
+local _bullHudCam = workspace.CurrentCamera
+local _bullHudScales = {}
+local function _updateBullHudScales()
+	local vp = _bullHudCam.ViewportSize
+	local s = math.min(1, math.min(vp.X / 1366, vp.Y / 768))
+	for _, uiScale in ipairs(_bullHudScales) do
+		uiScale.Scale = s
+	end
+end
+_bullHudCam:GetPropertyChangedSignal("ViewportSize"):Connect(_updateBullHudScales)
+
 -- Helper to load image safely (supports ImageLabel and Decal)
 local function loadImage(name)
 	local success, img = pcall(function()
@@ -161,6 +173,7 @@ scoreContainer.Size = UDim2.new(0, 320, 0, 100) -- Container size
 scoreContainer.Position = UDim2.new(1, -370, 0, -150) -- Start off screen (Right side)
 scoreContainer.BackgroundTransparency = 1
 scoreContainer.Parent = gameGui
+table.insert(_bullHudScales, Instance.new("UIScale", scoreContainer))
 
 -- Background Bar for Score (Layered behind icon)
 local scoreBg = Instance.new("Frame")
@@ -247,6 +260,7 @@ timeContainer.Size = UDim2.new(0, 320, 0, 100) -- Container size
 timeContainer.Position = UDim2.new(1, -370, 0, -150) -- Start off screen
 timeContainer.BackgroundTransparency = 1
 timeContainer.Parent = gameGui
+table.insert(_bullHudScales, Instance.new("UIScale", timeContainer))
 
 -- Background Bar for Time
 local timeBg = Instance.new("Frame")
@@ -330,10 +344,12 @@ timeIcon.Parent = timeContainer
 local lightContainer = Instance.new("Frame")
 lightContainer.Name = "LightContainer"
 lightContainer.Size = UDim2.new(0, 180, 0, 150) -- 20% bigger (150*1.2=180, 125*1.2=150)
-lightContainer.Position = UDim2.new(1, -300, 0, -180) -- Start off screen, top-right
+lightContainer.Position = UDim2.new(1, -560, 0, -180) -- Start off screen top-right, lands LEFT of score/time
 lightContainer.BackgroundTransparency = 1
 lightContainer.ClipsDescendants = false -- Ensure glow isn't cut off
 lightContainer.Parent = gameGui
+table.insert(_bullHudScales, Instance.new("UIScale", lightContainer))
+_updateBullHudScales() -- apply initial scale to all three widgets
 
 -- Glow for Light
 local lightGlow = Instance.new("ImageLabel")
@@ -379,27 +395,62 @@ task.spawn(function()
 end)
 
 -- Function to show Game HUD
+-- Hides all stat frames except Gold while in the bull arena
+local _hiddenStatFrames = {}
+local NON_GOLD_STAT_KEYS = {
+	"trumpcoin", "trumpcoins", "coins",
+	"w/l", "wl", "arenawins", "arenaloses",
+	"kills", "abysskill", "deaths", "abyssdeath",
+}
+local function hideNonGoldStats()
+	_hiddenStatFrames = {}
+	for _, gui in playerGui:GetChildren() do
+		if gui:IsA("ScreenGui") and gui.Name:lower():find("stats") then
+			for _, frame in gui:GetDescendants() do
+				if frame:IsA("Frame") or frame:IsA("ImageLabel") then
+					local n = frame.Name:lower()
+					for _, key in ipairs(NON_GOLD_STAT_KEYS) do
+						if n == key then
+							frame.Visible = false
+							table.insert(_hiddenStatFrames, frame)
+							break
+						end
+					end
+				end
+			end
+			break
+		end
+	end
+end
+local function restoreNonGoldStats()
+	for _, frame in ipairs(_hiddenStatFrames) do
+		if frame and frame.Parent then frame.Visible = true end
+	end
+	_hiddenStatFrames = {}
+end
+
 local function showGameHUD()
 	gameGui.Enabled = true
 	respawnCooldown = false -- Reset cooldown when teleported to bull arena
 	print("Client: Respawn cooldown reset - player teleported to arena")
-	
-	-- Animate Score
-	scoreContainer.Position = UDim2.new(1, -370, 0, -150)
+	hideNonGoldStats()
+
+	-- Animate Score (further right, tighter spacing)
+	scoreContainer.Position = UDim2.new(1, -220, 0, -150)
 	TweenService:Create(scoreContainer, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.new(1, -370, 0, 115)
+		Position = UDim2.new(1, -220, 0, 57)
 	}):Play()
-	
+
 	-- Animate Time
-	timeContainer.Position = UDim2.new(1, -370, 0, -150)
+	timeContainer.Position = UDim2.new(1, -220, 0, -150)
 	TweenService:Create(timeContainer, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, 0.1), {
-		Position = UDim2.new(1, -370, 0, 0)
+		Position = UDim2.new(1, -220, 0, 0)
 	}):Play()
-	
-	-- Animate Light
-	lightContainer.Position = UDim2.new(1, -300, 0, -180)
+
+	-- Animate Light (left of the score/time stack)
+	lightContainer.Position = UDim2.new(1, -560, 0, -180)
 	TweenService:Create(lightContainer, TweenInfo.new(0.6, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out, 0, false, 0.2), {
-		Position = UDim2.new(1, -300, 0, 230)
+		Position = UDim2.new(1, -560, 0, 0)
 	}):Play()
 end
 
@@ -407,8 +458,26 @@ end
 local function hideGameHUD()
 	gameGui.Enabled = false
 	container.Visible = false
+	restoreNonGoldStats()
 	print("Client: Game HUD hidden")
 end
+
+-- Expose so SpawnButton (and any other LocalScript) can hide the HUD directly
+-- (e.g. after pressing the spawn-teleport button while in the arena)
+_G.HideBullHUD = hideGameHUD
+
+-- Auto-hide game HUD when player is teleported OUT of the bull arena
+-- Bull arenas sit at Y ≈ 500; once below 300 the player is back at ground level
+local ARENA_MIN_Y = 300
+RunService.RenderStepped:Connect(function()
+	if not gameGui.Enabled then return end
+	local char = Players.LocalPlayer.Character
+	local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+	if hrp and hrp.Position.Y < ARENA_MIN_Y then
+		hideGameHUD()
+		print("Client: Player left arena (Y < " .. ARENA_MIN_Y .. ") — hiding bull HUD")
+	end
+end)
 
 -- Animate frame entrance
 local function showFrame()
@@ -852,7 +921,38 @@ local function startBullBehavior(arena)
 		print("Client: New animation started playing")
 		connectToTrack(track)
 	end)
-	
+
+	-- Play BullEffect at head bone Vfx attachment when the bull attacks
+	bull:GetAttributeChangedSignal("EmitBullEffect"):Connect(function()
+		local vfxAtt = bull:FindFirstChild("Vfx", true) -- recursive search (finds it in head bone)
+		local bullEffectTemplate = ReplicatedStorage:FindFirstChild("Effects") and ReplicatedStorage.Effects:FindFirstChild("BullEffect")
+		if not vfxAtt or not bullEffectTemplate then
+			warn("[BullTeleportUI] BullEffect: missing Vfx attachment or BullEffect template")
+			return
+		end
+		-- BullEffect is a Model; find the Part inside it named "BullEffect"
+		local clone = bullEffectTemplate:Clone()
+		clone:PivotTo(CFrame.new(vfxAtt.WorldPosition))
+		clone.Parent = workspace
+		local effectPart = clone:FindFirstChild("BullEffect")
+		if effectPart then
+			effectPart.Anchored = true
+			effectPart.CanCollide = false
+			-- Emit all attachment emitters once; "The Rocks Attachment" emits 10
+			for _, att in effectPart:GetChildren() do
+				if att:IsA("Attachment") then
+					local emitCount = (att.Name == "The Rocks Attachment") and 10 or 1
+					for _, emitter in att:GetChildren() do
+						if emitter:IsA("ParticleEmitter") then
+							emitter:Emit(emitCount)
+						end
+					end
+				end
+			end
+		end
+		game:GetService("Debris"):AddItem(clone, 5)
+	end)
+
 	print("Client: Bull behavior started - Burst Movement (DISABLED - MOVED TO SERVER)")
 	
 	local isMoving = false
@@ -1201,6 +1301,10 @@ task.spawn(function()
 	
 	if bullHealthGui then
 		bullHealthGui.Enabled = false
+		-- Scale BullHealth ScreenGui for mobile
+		local _bhs = Instance.new("UIScale", bullHealthGui)
+		table.insert(_bullHudScales, _bhs)
+		_updateBullHudScales()
 		print("Client: BullHealth UI found and hidden initially.")
 	else
 		warn("Client: BullHealth UI NOT found in PlayerGui after 10s!")
@@ -1227,6 +1331,13 @@ task.spawn(function()
 		hideGameHUD()
 		if healthConnection then healthConnection:Disconnect() healthConnection = nil end
 		currentBull = nil
+	end
+
+	-- Re-export _G.HideBullHUD now that hideBullHealthUI is in scope,
+	-- so SpawnButton's single call hides everything (health bar + score HUD).
+	_G.HideBullHUD = function()
+		respawnCooldown = true   -- stop the poll loop from re-showing the health bar
+		hideBullHealthUI()
 	end
 	
 	-- Listen for respawn - ALWAYS hide bull GUI on respawn
@@ -1289,16 +1400,25 @@ task.spawn(function()
 		
 		-- 1. Find the Bull targeting this player
 		local foundBull = nil
-		for _, arena in ipairs(workspace:GetChildren()) do
-			if arena.Name:match("BullArena") then
-				local b = arena:FindFirstChild("bull")
-				if b then
-					local target = b:FindFirstChild("TargetPlayer")
-					-- Check by UserId for consistency across respawns
-					if target and target.Value and target.Value.UserId == currentPlayer.UserId then
-						foundBull = b
-						break
-					end
+		-- Search workspace root (cloned arenas) and Game folder
+		local arenaList = {}
+		for _, child in ipairs(workspace:GetChildren()) do
+			if child.Name:match("BullArena") then table.insert(arenaList, child) end
+		end
+		local gf = workspace:FindFirstChild("Game")
+		if gf then
+			for _, child in ipairs(gf:GetChildren()) do
+				if child.Name:match("BullArena") then table.insert(arenaList, child) end
+			end
+		end
+		for _, arena in ipairs(arenaList) do
+			local b = arena:FindFirstChild("bull")
+			if b then
+				local target = b:FindFirstChild("TargetPlayer")
+				-- Check by UserId for consistency across respawns
+				if target and target.Value and target.Value.UserId == currentPlayer.UserId then
+					foundBull = b
+					break
 				end
 			end
 		end

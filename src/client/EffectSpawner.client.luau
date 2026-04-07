@@ -922,6 +922,21 @@ local function spawnTreeEffect(effectTemplate, npcModel, targetPosition, spawnDi
 	end
 	
 	local localPlayer = game:GetService("Players").LocalPlayer
+
+	-- Distance guard: only target the local player if they are within 100 studs of the NPC.
+	-- Players farther than 100 studs away are not affected by the World Breaker tree attack.
+	local MAX_TREE_TARGET_RANGE = 100
+	do
+		local localChar = localPlayer and localPlayer.Character
+		local localHRP = localChar and localChar:FindFirstChild("HumanoidRootPart")
+		if localHRP then
+			local dist = (hrp.Position - localHRP.Position).Magnitude
+			if dist > MAX_TREE_TARGET_RANGE then
+				print(("[EffectSpawner] Local player is %.1f studs away from World Breaker — skipping tree spawn (max %d)"):format(dist, MAX_TREE_TARGET_RANGE))
+				return
+			end
+		end
+	end
 	
 	-- Get all tree models from the template
 	local treeModels = {}

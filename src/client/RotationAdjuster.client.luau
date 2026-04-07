@@ -1,6 +1,12 @@
 -- Rotation Adjuster UI - FOR TESTING ONLY
 -- Applies additional rotations on top of server's final grip calculations
 
+------------------------------------------------------------------------
+-- ⚙️  Set to true to enable the Rotation Adjuster UI.
+local ENABLED = false
+------------------------------------------------------------------------
+if not ENABLED then return end
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local _TweenService = game:GetService("TweenService")

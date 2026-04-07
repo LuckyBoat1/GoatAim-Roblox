@@ -3,10 +3,42 @@
 -- Seeds some AK/M4 skins as owned by default so they appear in the Inventory grid.
 -- Provides _G helpers used by Quests (money/coins, box grant/open, skin grant, stats).
 
+------------------------------------------------------------------------
+-- ⚙️  SETTING: Set to true to give EVERY skin to all players.
+--    Set to false to only give the default / earned skins.
+------------------------------------------------------------------------
+local GIVE_ALL_ITEMS = false
+
+------------------------------------------------------------------------
+
 print("!!! DEBUG: PlayerDataManager SYNC CHECK " .. os.time() .. " !!!")
 
-local Players = game:GetService("Players")
+-- ── SETTINGS ──────────────────────────────────────────────────────────────
+-- Set to true only during development to auto-equip the Power skin on spawn.
+local AUTO_EQUIP_POWER = false
+-- Set to true to auto-equip a random owned common weapon on every respawn.
+local AUTO_EQUIP_STARTER = true
+
 local RS = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService")
+
+-- Warn loudly in Studio if API Services are not enabled
+if RunService:IsStudio() then
+	warn("[PlayerDataManager] ⚠️  STUDIO MODE: Make sure 'Enable Studio Access to API Services' is ON in Game Settings → Security or DataStore saves will silently fail!")
+end
+
+-- Persistent storage (version bump this string when data schema changes incompatibly)
+local PlayerStore = DataStoreService:GetDataStore("GoatAimData_v2")  -- bumped to wipe all data
+
+-- OrderedDataStores for global all-time leaderboards (written on every save)
+local LB_ClassicScore  = DataStoreService:GetOrderedDataStore("LB_ClassicScore")
+local LB_BullseyeScore = DataStoreService:GetOrderedDataStore("LB_BullseyeScore")
+local LB_PlaytimeScore = DataStoreService:GetOrderedDataStore("LB_PlaytimeScore")
+local LB_KillsScore    = DataStoreService:GetOrderedDataStore("LB_KillsScore")
+local LB_WinsScore     = DataStoreService:GetOrderedDataStore("LB_WinsScore")
+local LB_GoldScore     = DataStoreService:GetOrderedDataStore("LB_GoldScore")
 
 -- RemoteEvents folder (match project mapping EXACTLY so clients find it)
 local RemoteEvents = RS:FindFirstChild("RemoteEvents")
@@ -37,6 +69,11 @@ if not RS:FindFirstChild("DuelEvent") then
 	ev.Parent = RS
 end
 
+-- Gold earned notification (client floating numbers)
+local GoldChangedRE = RemoteEvents:FindFirstChild("GoldChanged") or Instance.new("RemoteEvent")
+GoldChangedRE.Name = "GoldChanged"
+GoldChangedRE.Parent = RemoteEvents
+
 -- Optional loot box remotes (not used by the new Quests UI, but harmless)
 local LootBoxRE = RS:FindFirstChild("LootBoxRE") or Instance.new("RemoteEvent")
 LootBoxRE.Name = "LootBoxRE"
@@ -54,6 +91,10 @@ end)
 -- Simple Lua tables (kept types implicit for Studio-style simplicity)
 local DATA = {} -- [userId] = player data table
 
+-- If GetAsync errors (not just "new player"), we block all saves for that player.
+-- This prevents blank defaults from being written over real data.
+local LOAD_FAILED = {}  -- [userId] = true  →  load errored, do NOT save
+
 local function deepcopy(t)
 	if type(t) ~= "table" then return t end
 	local o = {}
@@ -68,95 +109,65 @@ local DEFAULT_SKINS = {}
 
 -- Function to populate all skins from SkinConfig
 local function populateDefaultSkins()
-	-- First, add the hardcoded skins
-	local hardcodedSkins = {
-		["M4-Dragoon"]     = true,
-		["M4-Cyborg"]      = true,
-		["M4-Leviathan"]   = true,
-		["M4-Death"]       = true,
-		["M4-Monster"]     = true,
-		["M4-Mind"]        = true,
-		["M4-Blood&Bones"] = true,
-		["M4-Default"]     = true,
-		["M4-Elite"]       = true,
-		["AK-Chaos"]       = true,
-		["AK-Ice"]         = true,
-		["AK-Jungle"]      = true,
-		["Luger-Default"]  = true,
-		["Luger-Gold"]     = true,
-		["Luger-Elite"]    = true,
-	}
-	
-	for skinId, _ in pairs(hardcodedSkins) do
-		DEFAULT_SKINS[skinId] = 1
-	end
-	
-	-- Now scan SkinLibrary directly on the server
-	local skinLibrary = game:GetService("ReplicatedStorage"):FindFirstChild("SkinLibrary")
-	if skinLibrary then
-		warn(string.format("[PlayerDataManager] Found SkinLibrary with %d children", #skinLibrary:GetChildren()))
-		
-		local scannedCount = 0
-		for _, model in ipairs(skinLibrary:GetChildren()) do
-			if model:IsA("Model") or model:IsA("MeshPart") or model:IsA("BasePart") then
-				local skinId = model.Name
-				if not DEFAULT_SKINS[skinId] then -- Don't overwrite hardcoded ones
-					DEFAULT_SKINS[skinId] = 1
-					scannedCount = scannedCount + 1
-					print(string.format("[PlayerDataManager] Added skin from SkinLibrary: %s", skinId))
-				end
-			end
-		end
-		
-		warn(string.format("[PlayerDataManager] Added %d skins from SkinLibrary", scannedCount))
-	else
-		warn("[PlayerDataManager] SkinLibrary not found in ReplicatedStorage")
-	end
-	
-	local totalCount = 0
-	for _ in pairs(DEFAULT_SKINS) do totalCount = totalCount + 1 end
-	warn(string.format("[PlayerDataManager] Total default skins: %d", totalCount))
-	
-	-- Debug: Print first 15 skins to verify
-	local debugCount = 0
-	for skinId, _ in pairs(DEFAULT_SKINS) do
-		debugCount = debugCount + 1
-		if debugCount <= 15 then
-			warn(string.format("[PlayerDataManager] Skin %d: %s", debugCount, skinId))
-		else
-			break
-		end
-	end
-	if totalCount > 15 then
-		warn(string.format("[PlayerDataManager] ... and %d more skins", totalCount - 15))
-	end
+	-- No hardcoded free skins — starter weapon is given via the starterWeaponGiven
+	-- flow in Players.PlayerAdded (1 random common weapon per new account).
+	-- Leaving DEFAULT_SKINS empty here so no mythic/epic skins are silently granted.
 end
 
 -- Call the function to populate default skins
 populateDefaultSkins()
 
+-- Build a whitelist of ONLY the active (uncommented) SkinConfig entries.
+-- This is the single source of truth: commented-out = not released = not given.
+local ACTIVE_SKIN_IDS = {} -- { [skinId] = true }
+if SkinConfig then
+	local allSkins = SkinConfig.GetAllSkins and SkinConfig.GetAllSkins()
+	if allSkins then
+		for _, entry in ipairs(allSkins) do
+			if entry.id then
+				ACTIVE_SKIN_IDS[entry.id] = true
+			end
+		end
+	end
+end
+local activeSkinCount = 0
+for _ in pairs(ACTIVE_SKIN_IDS) do activeSkinCount += 1 end
+warn(string.format("[PlayerDataManager] Active SkinConfig entries (whitelist): %d", activeSkinCount))
+
+-- If GIVE_ALL_ITEMS is on, give every ACTIVE skin to new players.
+if GIVE_ALL_ITEMS then
+	for skinId in pairs(ACTIVE_SKIN_IDS) do
+		DEFAULT_SKINS[skinId] = 1
+	end
+	warn(string.format("[PlayerDataManager] GIVE_ALL_ITEMS: DEFAULT_SKINS now has %d skins", activeSkinCount))
+end
+
 local function ensure(plr)
 	local d = DATA[plr.UserId]
 	if not d then
 		d = {
-			money = 300000,
+			money = 1000,                           -- No starter gold
 			wins = 0,
 			battles = 0,
 			death = 0,
 			losses = 0,
 			winstreak = 0, 
-			trumpCoin = 10,
-			rank = 2, -- Default rank is now 1
-			skins = deepcopy(DEFAULT_SKINS),
+			trumpCoin = 0,
+			exp = 0,                             -- Total EXP (drives rank progression)
+			lvl = 1,                             -- Player level (derived from EXP)
+			rank = 0,                            -- Default rank
+			starterWeaponGiven = false,         -- Will be set true after first weapon is granted
+			skins = {},                          -- No starter skins
 			weaponStats = {},
-			boxes = {BRONZE=1, SILVER=1, SAPPHIRE=1, OMEGA=1, RUBY=1},
+			boxes = {BRONZE=0, SILVER=1, SAPPHIRE=0, OMEGA=0, RUBY=0}, -- 1 free Silver crate only
 			runHits = 0, -- running hit counter for a session
 			bullseyeCurrent = 0, -- current bullseye round score
 			bullseyeHigh = 0, -- highest bullseye score achieved
 			targetHitTimestamps = {}, -- recent target hit timestamps for rank evaluation
 			
 			-- Storage (second inventory accessible from HQ)
-			storage = {}, -- { [skinId] = true }
+			storage = {}, -- { [skinId] = count }
+			crateStorage = {}, -- { [crateType] = count }
 			
 			-- Health & Armor Stats (for PvE and The Abyss)
 			maxHealth = 100, -- Base max health
@@ -174,10 +185,193 @@ local function ensure(plr)
 			abyssGoldBonusLevel = 0, -- Bonus gold from Abyss kills
 			pveGoldBonusLevel = 0, -- Bonus gold from PvE kills
 			playTimeBonusLevel = 0, -- Bonus gold for time spent in game
+			totalPlaytime = 0, -- Total playtime in seconds (across sessions)
+
+			-- Crafting Materials
+			commonMaterials    = 0,
+			rareMaterials      = 0,
+			epicMaterials      = 0,
+			legendaryMaterials = 0,
+			mythicMaterials    = 0,
+
+			-- Supply Drop
+			supplyDropTier        = 1, -- Current tier (1 = Bronze ... 7 = Ruby)
+			supplyDropLastClaimed = 0, -- Unix timestamp of last successful claim
 		}
 		DATA[plr.UserId] = d
 	end
+
+	-- Schema migration: patch any keys added after this player's data was first saved.
+	-- Safe to run on both new and loaded players ("or" won't overwrite existing values).
+	local d = DATA[plr.UserId]
+	d.money               = d.money               or 0
+	d.wins                = d.wins                or 0
+	d.battles             = d.battles             or 0
+	d.death               = d.death               or 0
+	d.losses              = d.losses              or 0
+	d.winstreak           = d.winstreak           or 0
+	d.trumpCoin           = d.trumpCoin           or 0
+	d.exp                 = d.exp                 or 0
+	d.lvl                 = d.lvl                 or 1
+	d.rank                = d.rank                or 0
+	if d.starterWeaponGiven == nil then d.starterWeaponGiven = false end
+	d.skins               = d.skins               or deepcopy(DEFAULT_SKINS)
+	d.weaponStats         = d.weaponStats         or {}
+	d.boxes               = d.boxes               or {BRONZE=0, SILVER=0, SAPPHIRE=0, OMEGA=0, RUBY=0}
+	d.runHits             = d.runHits             or 0
+	d.bullseyeCurrent     = d.bullseyeCurrent     or 0
+	d.bullseyeHigh        = d.bullseyeHigh        or 0
+	d.targetHitTimestamps = d.targetHitTimestamps or {}
+	d.storage             = d.storage             or {}
+	d.crateStorage        = d.crateStorage        or {}
+	d.maxHealth           = d.maxHealth           or 100
+	d.currentHealth       = d.currentHealth       or 100
+	d.armor               = d.armor               or 0
+	d.healthUpgradeLevel  = d.healthUpgradeLevel  or 0
+	d.armorUpgradeLevel   = d.armorUpgradeLevel   or 0
+	d.goldPerSecondLevel  = d.goldPerSecondLevel  or 0
+	d.refinerSpeedLevel   = d.refinerSpeedLevel   or 0
+	d.pvpGoldBonusLevel   = d.pvpGoldBonusLevel   or 0
+	d.abyssGoldBonusLevel = d.abyssGoldBonusLevel or 0
+	d.pveGoldBonusLevel   = d.pveGoldBonusLevel   or 0
+	d.playTimeBonusLevel  = d.playTimeBonusLevel  or 0
+	d.totalPlaytime       = d.totalPlaytime       or 0
+	d.commonMaterials     = d.commonMaterials     or 100
+	d.rareMaterials       = d.rareMaterials       or 100
+	d.epicMaterials       = d.epicMaterials       or 100
+	d.legendaryMaterials  = d.legendaryMaterials  or 100
+	d.mythicMaterials     = d.mythicMaterials     or 100
+	d.supplyDropTier        = d.supplyDropTier        or 1
+	d.supplyDropLastClaimed = d.supplyDropLastClaimed or 0
+
 	return d
+end
+
+-- ── DATASTORE HELPERS ─────────────────────────────────────────────────────
+
+-- Recursively strips any value that Roblox DataStore cannot serialize.
+-- FIX: use explicit type check instead of "and t or nil" so boolean false
+-- is kept (the "and/or" idiom converts false → nil, silently dropping it).
+local function sanitize(v)
+	local t = type(v)
+	if t == "string" or t == "number" or t == "boolean" then
+		return v  -- primitives kept as-is, including false
+	elseif t == "table" then
+		local out = {}
+		for k, child in pairs(v) do
+			if type(k) ~= "string" and type(k) ~= "number" then continue end
+			local sv = sanitize(child)
+			if sv ~= nil then
+				out[k] = sv
+			end
+		end
+		return out
+	end
+	-- Instance, Vector3, function, thread, userdata → drop silently
+	return nil
+end
+
+local function saveData(plr)
+	-- Safety: if loading errored for this player, never write blank defaults over their real data.
+	if LOAD_FAILED[plr.UserId] then
+		warn(string.format("[PlayerDataManager] ⛔ BLOCKED save for %s — their data failed to load (DataStore error). Real data is protected.", plr.Name))
+		return
+	end
+
+	local d = DATA[plr.UserId]
+	if not d then
+		warn("[PlayerDataManager] saveData: no data for", plr.Name)
+		return
+	end
+
+	-- Clean snapshot — never pass live table or non-serializable values to DataStore
+	local snapshot = sanitize(deepcopy(d))
+
+	-- SetAsync is simpler and more predictable for full-table overwrites.
+	-- UpdateAsync's callback can fire multiple times on retry; SetAsync does not.
+	local ok, err = pcall(function()
+		PlayerStore:SetAsync(plr.UserId, snapshot)  -- use number key (consistent)
+	end)
+
+	if ok then
+		warn(string.format("[PlayerDataManager] ✅ SAVED %s | gold=%s | skins=%d | silver_boxes=%s",
+			plr.Name,
+			tostring(snapshot.money),
+			(function() local n = 0; for _ in pairs(snapshot.skins or {}) do n += 1 end; return n end)(),
+			tostring((snapshot.boxes or {}).SILVER)
+		))
+		-- Write to leaderboard OrderedDataStores (positive integers only)
+		task.spawn(function()
+			if (snapshot.runHits or 0) > 0 then
+				pcall(function() LB_ClassicScore:SetAsync(plr.UserId, math.floor(snapshot.runHits)) end)
+			end
+			if (snapshot.bullseyeHigh or 0) > 0 then
+				pcall(function() LB_BullseyeScore:SetAsync(plr.UserId, math.floor(snapshot.bullseyeHigh)) end)
+			end
+			if (snapshot.totalPlaytime or 0) > 0 then
+				pcall(function() LB_PlaytimeScore:SetAsync(plr.UserId, math.floor(snapshot.totalPlaytime)) end)
+			end
+			if (snapshot.battles or 0) > 0 then
+				pcall(function() LB_KillsScore:SetAsync(plr.UserId, math.floor(snapshot.battles)) end)
+			end
+			if (snapshot.wins or 0) > 0 then
+				pcall(function() LB_WinsScore:SetAsync(plr.UserId, math.floor(snapshot.wins)) end)
+			end
+			if (snapshot.money or 0) > 0 then
+				pcall(function() LB_GoldScore:SetAsync(plr.UserId, math.floor(snapshot.money)) end)
+			end
+		end)
+	else
+		warn("[PlayerDataManager] ❌ SAVE FAILED for", plr.Name, "→", tostring(err))
+		warn("[PlayerDataManager] ⚠️  Studio: Game Settings → Security → 'Enable Studio Access to API Services'")
+	end
+end
+
+local function loadData(plr)
+	-- Try number key first (current format)
+	local loadErrored = false
+	local ok, result = pcall(function()
+		return PlayerStore:GetAsync(plr.UserId)
+	end)
+	if not ok then
+		warn("[PlayerDataManager] ❌ LOAD FAILED (number key) for", plr.Name, "→", tostring(result))
+		loadErrored = true
+		result = nil
+	end
+
+	-- Fallback: old string key (pre-fix versions saved with tostring(UserId))
+	if result == nil then
+		local ok2, result2 = pcall(function()
+			return PlayerStore:GetAsync(tostring(plr.UserId))
+		end)
+		if ok2 and result2 ~= nil then
+			warn("[PlayerDataManager] ⚠️  Found data under OLD string key for", plr.Name, "— migrating to number key")
+			result = result2
+			loadErrored = false -- found it under string key, not a real error
+			-- Immediately re-save under the number key so future loads use it
+			local ok3, err3 = pcall(function()
+				PlayerStore:SetAsync(plr.UserId, sanitize(deepcopy(result2)))
+			end)
+			if ok3 then
+				warn("[PlayerDataManager] ✅ Migrated", plr.Name, "to number key")
+			else
+				warn("[PlayerDataManager] ❌ Migration save failed for", plr.Name, "→", tostring(err3))
+			end
+		end
+	end
+
+	if result ~= nil then
+		warn(string.format("[PlayerDataManager] ✅ LOADED %s | gold=%s | skins=%d",
+			plr.Name,
+			tostring(result.money),
+			(function() local n = 0; for _ in pairs(result.skins or {}) do n += 1 end; return n end)()
+		))
+	elseif loadErrored then
+		warn("[PlayerDataManager] ⚠️  LOAD ERRORED for", plr.Name, "— data protected, will retry")
+	else
+		warn("[PlayerDataManager] ℹ️  No save found for", plr.Name, "— fresh account")
+	end
+	return result, loadErrored
 end
 
 -- Function to give all skins to existing players (for testing)
@@ -227,6 +421,20 @@ _G.getDataSnapshot = function(plr) return deepcopy(ensure(plr)) end
 _G.addMoney = function(plr, delta)
 	local d = ensure(plr)
 	d.money = (d.money or 0) + (delta or 0)
+	if (delta or 0) > 0 then
+		pcall(function() GoldChangedRE:FireClient(plr, delta, "reward") end)
+	end
+end
+
+_G.addExp = function(plr, delta)
+	local d = ensure(plr)
+	d.exp = (d.exp or 0) + (delta or 0)
+	d.lvl = d.lvl or 1
+	-- Auto level-up: 100 * currentLevel EXP per level
+	while d.exp >= (100 * d.lvl) do
+		d.exp = d.exp - (100 * d.lvl)
+		d.lvl = d.lvl + 1
+	end
 end
 
 _G.addTrumpCoins = function(plr, delta)
@@ -265,13 +473,13 @@ _G.bumpWeaponStats = function(plr, weaponName, deltaBullets, deltaItems)
 	if deltaItems  then ws.itemsShot   += deltaItems  end
 end
 
--- Loot Boxes (no UI here; Quests can grant and optionally auto-open)
+-- Loot Boxes — each crate gives ONLY its own rarity (100% skin drop)
 local BOXES = {
-	BRONZE  = { skinRate=0.07, weights={common=72, rare=22, epic=6,  legendary=0,  mythic=0} },
-	SILVER  = { skinRate=0.12, weights={common=58, rare=30, epic=10, legendary=2,  mythic=0} },
-	SAPPHIRE = { skinRate=0.25, weights={common=40, rare=32, epic=20, legendary=7,  mythic=1} },
-	OMEGA   = { skinRate=0.38, weights={common=25, rare=35, epic=25, legendary=12, mythic=3} },
-	RUBY    = { skinRate=0.50, weights={common=10, rare=20, epic=30, legendary=25, mythic=15} },
+	BRONZE   = { skinRate=1.0, weights={common=100, rare=0,   epic=0,   legendary=0,   mythic=0}   },  -- Common only
+	SILVER   = { skinRate=1.0, weights={common=0,   rare=100, epic=0,   legendary=0,   mythic=0}   },  -- Rare only
+	SAPPHIRE = { skinRate=1.0, weights={common=0,   rare=0,   epic=100, legendary=0,   mythic=0}   },  -- Epic only
+	OMEGA    = { skinRate=1.0, weights={common=0,   rare=0,   epic=0,   legendary=100, mythic=0}   },  -- Legendary only
+	RUBY     = { skinRate=1.0, weights={common=0,   rare=0,   epic=0,   legendary=0,   mythic=100} },  -- Mythic only
 }
 local _ORDER = {"BRONZE","SILVER","SAPPHIRE","OMEGA","RUBY"} -- unused order list (reserved)
 
@@ -331,16 +539,30 @@ end
 -- Inventory snapshot for client
 GetPlayerDataRF.OnServerInvoke = function(plr)
 	local d = ensure(plr)
+	-- Build a filtered copy for the client — never mutate d.skins in-place.
+	-- Removing skins from the actual DATA table would permanently lose them.
+	local filteredSkins
+	if next(ACTIVE_SKIN_IDS) then -- only filter if whitelist loaded successfully
+		filteredSkins = {}
+		for skinId, qty in pairs(d.skins) do
+			if ACTIVE_SKIN_IDS[skinId] then
+				filteredSkins[skinId] = qty
+			end
+		end
+	else
+		-- Whitelist empty (SkinConfig unavailable) — return all skins unfiltered
+		filteredSkins = d.skins
+	end
 	-- one-time debug log for wiring verification
 	if not script:FindFirstChild("_LoggedFirstInvoke") then
 		local flag = Instance.new("BoolValue")
 		flag.Name = "_LoggedFirstInvoke"
 		flag.Parent = script
-		local count = 0; if type(d.skins) == \"table\" then for _, q in pairs(d.skins) do count += (type(q) == \"number\" and q or 1) end end
+		local count = 0; if type(d.skins) == "table" then for _, q in pairs(d.skins) do count += (type(q) == "number" and q or 1) end end
 		warn(("[PDM] GetPlayerData -> money=%s, coins=%s, rank=%s, skins=%d"):format(tostring(d.money), tostring(d.trumpCoin), tostring(d.rank), count))
 	end
 	-- Compute derived HQ stats
-	local goldPerSec = (d.goldPerSecondLevel or 0) * 2 -- +2 gold/sec per level
+	local goldPerSec = (d.goldPerSecondLevel or 0) * 6 -- +6 gold/sec per level
 	local activeRefiners = 0
 	local refinersFolder = workspace:FindFirstChild("Refiners")
 	if refinersFolder then
@@ -357,8 +579,10 @@ GetPlayerDataRF.OnServerInvoke = function(plr)
 	return {
 		money = d.money,
 		trumpCoin = d.trumpCoin,
+		exp = d.exp or 0,
+		lvl = d.lvl or 1,
 		rank = d.rank,
-		skins = d.skins,
+		skins = filteredSkins,
 		weaponStats = d.weaponStats,
 		boxes = d.boxes,
 		runHits = d.runHits,
@@ -373,6 +597,7 @@ GetPlayerDataRF.OnServerInvoke = function(plr)
 		winstreak = d.winstreak or 0,
 		-- Storage
 		storage = d.storage or {},
+		crateStorage = d.crateStorage or {},
 		-- HQ Stats
 		maxHealth = d.maxHealth or 100,
 		armor = d.armor or 0,
@@ -387,6 +612,13 @@ GetPlayerDataRF.OnServerInvoke = function(plr)
 		abyssGoldBonusLevel = d.abyssGoldBonusLevel or 0,
 		pveGoldBonusLevel = d.pveGoldBonusLevel or 0,
 		playTimeBonusLevel = d.playTimeBonusLevel or 0,
+		totalPlaytime = d.totalPlaytime or 0,
+		-- Crafting Materials
+		commonMaterials    = d.commonMaterials or 0,
+		rareMaterials      = d.rareMaterials or 0,
+		epicMaterials      = d.epicMaterials or 0,
+		legendaryMaterials = d.legendaryMaterials or 0,
+		mythicMaterials    = d.mythicMaterials or 0,
 	}
 end
 
@@ -400,11 +632,39 @@ PlayerDataRF.OnServerInvoke = function(plr, action, data)
 			warn("[PlayerDataRF] AddCrateItem: Invalid item data")
 			return {success = false, error = "Invalid item data"}
 		end
-		
-		-- Add the item to skins (increment count)
-		d.skins[data.name] = (d.skins[data.name] or 0) + 1
-		warn(string.format("[PlayerDataRF] Added crate item to %s: %s (%s)", plr.Name, data.name, data.rarity))
-		return {success = true}
+
+		local targetName = data.name
+
+		-- Validate the skin is active (in SkinConfig's SKINS table).
+		-- SkinLibrary may contain models that are commented-out / unreleased.
+		-- If the rolled skin isn't active, substitute a random active skin of the same rarity.
+		if next(ACTIVE_SKIN_IDS) and not ACTIVE_SKIN_IDS[targetName] then
+			warn(string.format("[PlayerDataRF] AddCrateItem: '%s' not in whitelist, finding substitute", targetName))
+			local targetRarity = (data.rarity or "common"):lower()
+			local pool = SkinConfig and SkinConfig.GetPoolsByRarity and SkinConfig.GetPoolsByRarity()
+			local candidates = pool and pool[targetRarity] or {}
+			if #candidates > 0 then
+				targetName = candidates[math.random(1, #candidates)]
+				warn(string.format("[PlayerDataRF] AddCrateItem: substituted '%s' (%s)", targetName, targetRarity))
+			else
+				-- Last-resort: pick any active skin
+				local anyPool = {}
+				for id in pairs(ACTIVE_SKIN_IDS) do table.insert(anyPool, id) end
+				if #anyPool > 0 then
+					targetName = anyPool[math.random(1, #anyPool)]
+					warn(string.format("[PlayerDataRF] AddCrateItem: last-resort substitute '%s'", targetName))
+				else
+					warn("[PlayerDataRF] AddCrateItem: no valid substitute found")
+					return {success = false, error = "No valid skin available"}
+				end
+			end
+		end
+
+		-- Add the skin to inventory
+		d.skins[targetName] = (d.skins[targetName] or 0) + 1
+		warn(string.format("[PlayerDataRF] Added crate item to %s: %s (requested: %s, rarity: %s)",
+			plr.Name, targetName, data.name, data.rarity or "?"))
+		return {success = true, grantedName = targetName}
 		
 	elseif action == "BuyItem" then
 		local itemKey = data.itemKey
@@ -510,6 +770,42 @@ PlayerDataRF.OnServerInvoke = function(plr, action, data)
 		d.skins[skinId] = (d.skins[skinId] or 0) + 1
 		warn(string.format("[PlayerDataRF] %s moved %s from storage to inventory", plr.Name, skinId))
 		return {success = true}
+
+	elseif action == "MoveCrateToStorage" then
+		-- Move ONE crate from boxes (inventory) to crateStorage
+		if not data or not data.crateType then
+			return {success = false, error = "No crateType provided"}
+		end
+		local crateType = data.crateType
+		if not d.crateStorage then d.crateStorage = {} end
+		-- Consume from boxes first, then legacy crates table
+		if d.boxes and d.boxes[crateType] and d.boxes[crateType] > 0 then
+			d.boxes[crateType] = d.boxes[crateType] - 1
+		elseif d.crates and d.crates[crateType] and d.crates[crateType] > 0 then
+			d.crates[crateType] = d.crates[crateType] - 1
+		else
+			return {success = false, error = "Crate not in inventory"}
+		end
+		d.crateStorage[crateType] = (d.crateStorage[crateType] or 0) + 1
+		warn(string.format("[PlayerDataRF] %s moved crate %s to storage", plr.Name, crateType))
+		return {success = true}
+
+	elseif action == "MoveCrateFromStorage" then
+		-- Move ONE crate from crateStorage back to boxes (inventory)
+		if not data or not data.crateType then
+			return {success = false, error = "No crateType provided"}
+		end
+		local crateType = data.crateType
+		if not d.crateStorage then d.crateStorage = {} end
+		local storedQty = d.crateStorage[crateType] or 0
+		if storedQty <= 0 then
+			return {success = false, error = "Crate not in storage"}
+		end
+		d.crateStorage[crateType] = storedQty - 1
+		if d.crateStorage[crateType] <= 0 then d.crateStorage[crateType] = nil end
+		d.boxes[crateType] = (d.boxes[crateType] or 0) + 1
+		warn(string.format("[PlayerDataRF] %s retrieved crate %s from storage", plr.Name, crateType))
+		return {success = true}
 	
 	elseif action == "HQUpgrade" then
 		-- Headquarters skill tree upgrade system
@@ -598,6 +894,151 @@ PlayerDataRF.OnServerInvoke = function(plr, action, data)
 			cost = cost,
 			newMoney = d.money,
 		}
+	
+	elseif action == "CraftWeapon" then
+		-- Craft a random weapon of the given rarity, consuming 10 materials
+		if not data or not data.rarity then
+			return {success = false, error = "No rarity provided"}
+		end
+		local rarity = data.rarity
+		local MATERIAL_KEYS = {
+			common    = "commonMaterials",
+			rare      = "rareMaterials",
+			epic      = "epicMaterials",
+			legendary = "legendaryMaterials",
+			mythic    = "mythicMaterials",
+		}
+		local matKey = MATERIAL_KEYS[rarity]
+		if not matKey then
+			return {success = false, error = "Invalid rarity"}
+		end
+		local CRAFT_COST = 10
+		local current = d[matKey] or 0
+		if current < CRAFT_COST then
+			return {success = false, error = "Not enough materials", have = current, need = CRAFT_COST}
+		end
+		-- Pick a random skin of this rarity from SkinConfig
+		if not SkinConfig or not SkinConfig.GetPoolsByRarity then
+			return {success = false, error = "SkinConfig not loaded"}
+		end
+		local pools = SkinConfig.GetPoolsByRarity()
+		local pool = pools[rarity] or {}
+		if #pool == 0 then
+			return {success = false, error = "No skins for rarity: " .. rarity}
+		end
+		local skinId = pool[math.random(1, #pool)]
+		-- Deduct materials
+		d[matKey] = current - CRAFT_COST
+		-- Add skin to inventory
+		d.skins[skinId] = (d.skins[skinId] or 0) + 1
+		warn(string.format("[PlayerDataRF] %s crafted %s (%s) for %d %s materials", plr.Name, skinId, rarity, CRAFT_COST, rarity))
+		return {
+			success = true,
+			skinId = skinId,
+			rarity = rarity,
+			materialsLeft = d[matKey],
+		}
+
+	elseif action == "DisassembleWeapon" then
+		-- Disassemble a weapon: gives 2 materials of same grade + 1 of higher grade
+		if not data or not data.skinId then
+			return {success = false, error = "No skinId provided"}
+		end
+		local skinId = data.skinId
+
+		-- Check ownership
+		if not d.skins[skinId] or d.skins[skinId] <= 0 then
+			return {success = false, error = "You don't own this weapon"}
+		end
+
+		-- Get rarity from SkinConfig
+		if not SkinConfig or not SkinConfig.GetSkinMeta then
+			return {success = false, error = "SkinConfig not loaded"}
+		end
+		local meta = SkinConfig.GetSkinMeta(skinId)
+		if not meta or not meta.rarity then
+			return {success = false, error = "Unknown weapon rarity"}
+		end
+		local rarity = meta.rarity:lower()
+
+		local MATERIAL_KEYS = {
+			common    = "commonMaterials",
+			rare      = "rareMaterials",
+			epic      = "epicMaterials",
+			legendary = "legendaryMaterials",
+			mythic    = "mythicMaterials",
+		}
+		-- Higher grade mapping
+		local NEXT_RARITY = {
+			common    = "rare",
+			rare      = "epic",
+			epic      = "legendary",
+			legendary = "mythic",
+			mythic    = "mythic", -- no higher grade, extra mythic instead
+		}
+
+		local sameKey = MATERIAL_KEYS[rarity]
+		local higherRarity = NEXT_RARITY[rarity]
+		local higherKey = MATERIAL_KEYS[higherRarity]
+
+		if not sameKey or not higherKey then
+			return {success = false, error = "Invalid rarity: " .. rarity}
+		end
+
+		-- Remove one copy of the weapon
+		d.skins[skinId] = d.skins[skinId] - 1
+		if d.skins[skinId] <= 0 then
+			d.skins[skinId] = nil
+		end
+
+		-- Award materials: 2 same grade + 1 higher grade
+		d[sameKey] = (d[sameKey] or 0) + 2
+		d[higherKey] = (d[higherKey] or 0) + 1
+
+		warn(string.format("[PlayerDataRF] %s disassembled %s (%s) → +2 %s, +1 %s",
+			plr.Name, skinId, rarity, rarity, higherRarity))
+		return {
+			success = true,
+			skinId = skinId,
+			rarity = rarity,
+			sameGrade = rarity,
+			sameAmount = 2,
+			higherGrade = higherRarity,
+			higherAmount = 1,
+			materialsAfter = {
+				[sameKey] = d[sameKey],
+				[higherKey] = d[higherKey],
+			},
+		}
+	elseif action == "EnsureCommonSkin" then
+		-- Returns a common skinId the player owns.
+		-- If they don't own any common, grants one randomly (free — it's a starter).
+		local commonPool = {}
+		if SkinConfig and SkinConfig.GetPoolsByRarity then
+			local ok, pools = pcall(SkinConfig.GetPoolsByRarity)
+			if ok and pools and pools["common"] then
+				commonPool = pools["common"]
+			end
+		end
+		if #commonPool == 0 then
+			commonPool = { "AK47", "357 Magnum", "870 Express", "Desert Eagle", "AA12", "AS-VAL", "LMG AE", "Apple" }
+		end
+		-- Find any common the player already owns in their inventory
+		local chosen = nil
+		for _, skinId in ipairs(commonPool) do
+			if d.skins[skinId] and d.skins[skinId] > 0 then
+				chosen = skinId
+				break
+			end
+		end
+		-- Grant a random common if they have none
+		if not chosen then
+			chosen = commonPool[math.random(1, #commonPool)]
+			d.skins[chosen] = (d.skins[chosen] or 0) + 1
+			warn(string.format("[PlayerDataRF] EnsureCommonSkin: granted free common '%s' to %s", chosen, plr.Name))
+		end
+		return { success = true, skinId = chosen }
+
 	end
 	
 	warn(string.format("[PlayerDataRF] Unknown action: %s", tostring(action)))
@@ -694,6 +1135,12 @@ _G.getArmor = function(plr)
 	return d.armor or 0
 end
 
+-- Get player's max armor (based on upgrade level)
+_G.getMaxArmor = function(plr)
+	local d = ensure(plr)
+	return (d.armorUpgradeLevel or 0) * 10
+end
+
 -- Set player's current health (clamp between 0 and max)
 _G.setHealth = function(plr, value)
 	local d = ensure(plr)
@@ -708,20 +1155,41 @@ _G.healPlayer = function(plr, amount)
 	return d.currentHealth
 end
 
--- Damage player (subtract from health, apply armor reduction)
+-- Damage player (armor absorbs damage first, then HP)
+-- Armor is disabled in PvP Arena / Arcade PvP (hearts-based duels), but active in Abyss PvP and PvE
 -- Returns: {newHealth, damageDealt, isDead}
 _G.damagePlayer = function(plr, damage, ignoreArmor)
 	local d = ensure(plr)
 	damage = damage or 0
 	
-	-- Apply armor reduction (armor reduces damage by percentage)
-	if not ignoreArmor and d.armor and d.armor > 0 then
-		local reduction = math.min(d.armor / 100, 0.75) -- Max 75% damage reduction
-		damage = damage * (1 - reduction)
+	-- Skip armor if player is in a hearts-based duel (PvP Arena / Arcade PvP)
+	local inDuel = _G.PvpDuel and _G.PvpDuel.isInDuel and _G.PvpDuel.isInDuel(plr)
+	
+	-- Armor absorbs damage first (flat shield, not percentage)
+	if not ignoreArmor and not inDuel and d.armor and d.armor > 0 then
+		local absorbed = math.min(d.armor, damage)
+		d.armor = d.armor - absorbed
+		damage = damage - absorbed
+		-- Sync armor attribute so client bar drops instantly
+		local maxArmor = (d.armorUpgradeLevel or 0) * 10
+		plr:SetAttribute("Armor", d.armor)
+		plr:SetAttribute("MaxArmor", maxArmor)
 	end
 	
 	d.currentHealth = math.max(0, (d.currentHealth or 100) - damage)
 	local isDead = d.currentHealth <= 0
+	
+	-- Only reduce Humanoid health by the damage that got past armor.
+	-- Never overwrite with an absolute value — that causes phantom HP loss when armor absorbs everything.
+	if damage > 0 then
+		local char = plr and plr.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then
+				hum.Health = math.max(0, hum.Health - damage)
+			end
+		end
+	end
 	
 	return {
 		newHealth = d.currentHealth,
@@ -804,12 +1272,43 @@ end
 _G.setArmor = function(plr, value)
 	local d = ensure(plr)
 	d.armor = math.max(0, value or 0)
+	-- Sync attribute so client gets instant update
+	local maxArmor = (d.armorUpgradeLevel or 0) * 10
+	plr:SetAttribute("Armor", d.armor)
+	plr:SetAttribute("MaxArmor", maxArmor)
 	return d.armor
 end
 
 -- ===============================
 -- END HEALTH & ARMOR SYSTEM
 -- ===============================
+
+-- ===============================
+-- ARMOR REGENERATION (runs for ALL players, +1 every 0.1s = 10/s)
+-- ===============================
+local ARMOR_REGEN_INTERVAL = 0.2 -- seconds between +1 armor ticks
+
+task.spawn(function()
+	while true do
+		task.wait(ARMOR_REGEN_INTERVAL)
+		for _, plr in ipairs(Players:GetPlayers()) do
+			pcall(function()
+				local d = DATA[plr.UserId]
+				if not d then return end
+				local maxArmor = (d.armorUpgradeLevel or 0) * 10
+				if maxArmor <= 0 then return end
+				local cur = d.armor or 0
+				if cur >= maxArmor then return end
+				-- Skip regen if player is in a hearts-based duel
+				if _G.PvpDuel and _G.PvpDuel.isInDuel and _G.PvpDuel.isInDuel(plr) then return end
+				d.armor = math.min(maxArmor, cur + 1)
+				-- Push to client via Attributes (instant, no RemoteFunction needed)
+				plr:SetAttribute("Armor", d.armor)
+				plr:SetAttribute("MaxArmor", maxArmor)
+			end)
+		end
+	end
+end)
 
 -- ===============================
 -- GOLD PER SECOND (Passive AFK Income)
@@ -840,9 +1339,12 @@ task.spawn(function()
 			local ok, _ = pcall(function()
 				local d = DATA[plr.UserId]
 				if d then
-					local goldPerSec = (d.goldPerSecondLevel or 0) * 2 -- +2 gold/sec per level
-					if goldPerSec > 0 then
-						d.money = (d.money or 0) + goldPerSec
+					local goldPerSec = (d.goldPerSecondLevel or 0) * 6 -- +6 gold/sec per level (active)
+					local afkGoldPerSec = (d.playTimeBonusLevel or 0) * 2 -- +2 gold/sec per level (AFK)
+					local totalGold = goldPerSec + afkGoldPerSec
+					if totalGold > 0 then
+						d.money = (d.money or 0) + totalGold
+						GoldChangedRE:FireClient(plr, totalGold, "tick")
 					end
 				end
 			end)
@@ -857,24 +1359,110 @@ _G.getRefinerSpeedMultiplier = function(plr)
 end
 
 -- Lifecycle
-Players.PlayerAdded:Connect(function(plr) 
-	ensure(plr) 
-	
-	-- Auto-equip "Power" skin on spawn for testing
-	plr.CharacterAdded:Connect(function(char)
-		-- Wait for humanoid to be ready
+local sessionJoinTimes: { [number]: number } = {} -- UserId -> tick()
+_G.sessionJoinTimes = sessionJoinTimes -- Expose for PlaytimeLeaderboard
+
+-- Keep a live registry of Player objects so BindToClose can always find them
+-- even after PlayerRemoving has fired (DATA is not cleared until after BindToClose).
+local PLAYER_REGISTRY = {} -- [userId] = Player
+
+local function onPlayerAdded(plr)
+	-- Load persisted data before ensure() so the migration patch merges against it
+	local saved, loadErrored = loadData(plr)
+	if type(saved) == "table" then
+		DATA[plr.UserId] = saved
+		LOAD_FAILED[plr.UserId] = nil -- clear any previous failed-load flag
+	elseif loadErrored then
+		-- DataStore errored — protect this player's real data by blocking saves.
+		-- ensure() will give them a temporary session copy that is NEVER written back.
+		LOAD_FAILED[plr.UserId] = true
+		warn(string.format("[PlayerDataManager] 🛑 %s's data failed to load — saves blocked to protect real data!", plr.Name))
+		-- Retry once after 10 seconds in case it was a transient DataStore hiccup
+		task.delay(10, function()
+			if not Players:FindFirstChild(plr.Name) then return end -- player left
+			if not LOAD_FAILED[plr.UserId] then return end -- already recovered
+			warn("[PlayerDataManager] 🔄 Retrying load for", plr.Name, "...")
+			local saved2, err2 = loadData(plr)
+			if type(saved2) == "table" then
+				warn("[PlayerDataManager] ✅ Retry load succeeded for", plr.Name, "— restoring data and unblocking saves")
+				DATA[plr.UserId] = saved2
+				ensure(plr) -- patch schema onto freshly restored data
+				LOAD_FAILED[plr.UserId] = nil
+			elseif not err2 then
+				-- Retry returned nil with no error = genuinely new account
+				warn("[PlayerDataManager] ℹ️  Retry confirmed new account for", plr.Name, "— unblocking saves")
+				LOAD_FAILED[plr.UserId] = nil
+			else
+				warn("[PlayerDataManager] ❌ Retry also failed for", plr.Name, "— saves remain blocked")
+			end
+		end)
+	end
+	ensure(plr)
+	sessionJoinTimes[plr.UserId] = tick()
+	PLAYER_REGISTRY[plr.UserId] = plr
+
+	-- ── STARTER PACK (once per session) ─────────────────────────────────────
+	-- Silver crate + 500 gold are baked into `ensure()` defaults.
+	-- Give 1 random COMMON weapon on every fresh session (synchronous, no defer).
+	do
+		local d = ensure(plr)
+		if not d.starterWeaponGiven then
+			d.starterWeaponGiven = true
+
+			-- Build the common pool from SkinConfig (static SKINS table — no scan needed)
+			local commonPool = {}
+			if SkinConfig and SkinConfig.GetPoolsByRarity then
+				local ok, pools = pcall(SkinConfig.GetPoolsByRarity)
+				if ok and pools and pools["common"] then
+					commonPool = pools["common"]
+				end
+			end
+
+			-- Hardcoded fallback in case SkinConfig fails entirely
+			if #commonPool == 0 then
+				commonPool = {
+					"AK47", "357 Magnum", "870 Express", "Desert Eagle",
+					"AA12", "AS-VAL", "LMG AE", "Apple",
+				}
+				warn("[PlayerDataManager] ⚠ Using hardcoded common pool fallback for", plr.Name)
+			end
+
+			warn(("[PlayerDataManager] Common pool size: %d"):format(#commonPool))
+
+			local skinId = commonPool[math.random(1, #commonPool)]
+			d.skins[skinId] = (d.skins[skinId] or 0) + 1
+			warn(("[PlayerDataManager] ✅ Starter common weapon → %s: %s"):format(plr.Name, skinId))
+		end
+	end
+
+	-- Immediately save after init so we can confirm DataStore is working.
+	-- This fires 2s after join, long before PlayerRemoving/BindToClose.
+	task.delay(2, function()
+		if DATA[plr.UserId] then
+			warn("[PlayerDataManager] 🔄 Initial post-join save for", plr.Name)
+			saveData(plr)
+		end
+	end)
+
+	-- Always restore stored MaxHealth on every respawn
+	local function applyMaxHealth(char)
 		local humanoid = char:WaitForChild("Humanoid", 5)
 		if humanoid then
-			-- Apply stored health from player data
 			local d = ensure(plr)
 			local storedMaxHealth = d.maxHealth or 100
-			
 			humanoid.MaxHealth = storedMaxHealth
-			humanoid.Health = storedMaxHealth -- Full health on spawn
-			
+			humanoid.Health    = storedMaxHealth
 			print("[PlayerDataManager] ✅ Applied MaxHealth: " .. storedMaxHealth .. " to " .. plr.Name)
 		end
-		
+	end
+	plr.CharacterAdded:Connect(applyMaxHealth)
+	-- Handle first spawn: if character already exists before this connection was set up
+	-- (happens because loadData is async and yields for several seconds).
+	if plr.Character then task.spawn(applyMaxHealth, plr.Character) end
+
+	-- Auto-equip "Power" skin on spawn (developer testing only — set AUTO_EQUIP_POWER = true)
+	if AUTO_EQUIP_POWER then
+		plr.CharacterAdded:Connect(function(char)
 		-- Wait for tools to load
 		task.wait(1)
 		
@@ -900,8 +1488,100 @@ Players.PlayerAdded:Connect(function(plr)
 			warn("[PlayerDataManager] Could not find tool to auto-equip Power skin")
 		end
 	end)
+	end -- end AUTO_EQUIP_POWER
+
+	-- Hand tool auto-equip is now handled client-side by AutoEquipHand.client.luau.
+	-- Client-side Humanoid:EquipTool is far more reliable than server-side calls.
+	-- StarterPack already provides the Hand to every player's Backpack on spawn.
+end
+
+-- Wire up lifecycle: connect AND seed players already in-game at script load
+-- (In Studio the test player is present before scripts run, so PlayerAdded never fires for them)
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, plr in ipairs(Players:GetPlayers()) do
+	task.spawn(onPlayerAdded, plr)
+end
+
+local serverClosing = false -- set true when BindToClose fires
+
+local function flushPlaytime(plr)
+	local joinTick = sessionJoinTimes[plr.UserId]
+	if joinTick then
+		local d = DATA[plr.UserId]
+		if d then
+			d.totalPlaytime = (d.totalPlaytime or 0) + math.floor(tick() - joinTick)
+		end
+		sessionJoinTimes[plr.UserId] = nil
+	end
+end
+
+Players.PlayerRemoving:Connect(function(plr)
+	flushPlaytime(plr)
+	-- Save synchronously. Do NOT clear DATA yet — BindToClose may need it
+	-- if the server is shutting down at the same time.
+	saveData(plr)
+	PLAYER_REGISTRY[plr.UserId] = nil
+	LOAD_FAILED[plr.UserId] = nil  -- clean up regardless
+	if not serverClosing then
+		-- Only free memory on a normal leave; keep it during shutdown so
+		-- BindToClose can attempt a second save if UpdateAsync failed above.
+		DATA[plr.UserId] = nil
+	end
 end)
-Players.PlayerRemoving:Connect(function(plr) DATA[plr.UserId] = nil end)
+
+-- BindToClose: guaranteed last-resort save for every entry still in DATA.
+-- Iterates DATA directly (not Players:GetPlayers()) so it catches players
+-- whose PlayerRemoving fired just before shutdown started.
+game:BindToClose(function()
+	serverClosing = true
+	warn("[PlayerDataManager] 🔒 BindToClose: saving all remaining data...")
+
+	local pending = {}
+	for userId, d in pairs(DATA) do
+		local plr = PLAYER_REGISTRY[userId]
+		if plr and d then
+			flushPlaytime(plr)
+			table.insert(pending, plr)
+		end
+	end
+
+	-- Save in parallel
+	local done = 0
+	local total = #pending
+	for _, plr in ipairs(pending) do
+		task.spawn(function()
+			saveData(plr)
+			done += 1
+		end)
+	end
+
+	-- Yield until all saves finish (Roblox gives 30s; we wait up to 25s)
+	local deadline = tick() + 25
+	repeat task.wait(0.1) until done >= total or tick() >= deadline
+
+	warn(string.format("[PlayerDataManager] 🔒 BindToClose: %d/%d saves completed", done, total))
+end)
+
+-- Autosave every 60 seconds to reduce data loss on unexpected crashes
+task.spawn(function()
+	while true do
+		task.wait(30)  -- autosave every 30s
+		for _, plr in ipairs(Players:GetPlayers()) do
+			task.spawn(saveData, plr)
+		end
+	end
+end)
+
+-- _G.testSave(): run from Studio command bar to manually test DataStore
+-- Usage: game:GetService("ServerScriptService"):WaitForChild("...") -- just run in server command bar:
+-- for _,p in ipairs(game.Players:GetPlayers()) do _G.testSave(p) end
+_G.testSave = function(plr)
+	plr = plr or game:GetService('Players'):GetPlayers()[1]
+	if not plr then warn('[testSave] No players in game') return end
+	warn('[testSave] Force-saving', plr.Name, '...')
+	saveData(plr)
+	warn('[testSave] Done. Check output above for ✅ or ❌')
+end
 
 -- FIXED: Use the correct DATA table instead of undefined playerData
 -- REMOVED: _G.getData = function(player) return playerData[player.userId] end

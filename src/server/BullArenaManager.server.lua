@@ -43,11 +43,26 @@ if not TrafficLightRE then
 	TrafficLightRE.Parent = RemoteEvents
 end
 
-print("🔍 Searching for BullArena in Workspace...")
-local templateArena = workspace:WaitForChild("BullArena", 0.1)
+print("🔍 Searching for BullArena in Game.BullArena folder...")
+local gameFolder = workspace:WaitForChild("Game", 30)
+if not gameFolder then
+	error("❌ CRITICAL: Game folder not found in Workspace!")
+end
 
+local bullArenaFolder = gameFolder:WaitForChild("BullArena", 10)
+if not bullArenaFolder then
+	error("❌ CRITICAL: BullArena folder not found in Game folder!")
+end
+
+-- The template arena model is inside the BullArena folder
+local templateArena = bullArenaFolder:FindFirstChildWhichIsA("Model")
 if not templateArena then
-	error("❌ CRITICAL: BullArena not found in Workspace after 0.1 second wait!")
+	-- If the folder itself IS the arena model, use it directly
+	if bullArenaFolder:IsA("Model") and bullArenaFolder:FindFirstChild("bull") then
+		templateArena = bullArenaFolder
+	else
+		error("❌ CRITICAL: No arena model found inside BullArena folder!")
+	end
 end
 
 print("✅ Template arena found: " .. templateArena.Name)
@@ -218,6 +233,7 @@ local function createArenaInstances()
 	
 	-- Arena 1: Use the existing template directly - NO CLONING
 	templateArena.Name = "BullArena_1"
+	templateArena.Parent = workspace -- Move out of BullArena folder to workspace root
 	
 	-- Ensure template is anchored first
 	anchorModel(templateArena)
@@ -478,6 +494,12 @@ local function teleportToArena(player, arenaData)
 				
 				if timeLeft == 0 then
 					print("🏁 Game over for " .. player.Name)
+					-- Signal BullRewards to give rewards and free the arena
+					task.defer(function()
+						if _G.OnBullRunEnd then
+							_G.OnBullRunEnd(player, "timeout")
+						end
+					end)
 					break
 				end
 				

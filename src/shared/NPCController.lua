@@ -1014,7 +1014,11 @@ local function runNPCAI(npc, config, tracks)
 							end
 							
 							local finalDamage = effectDamage or config.damage
-							plHum:TakeDamage(finalDamage)
+							if _G.damagePlayer then
+								_G.damagePlayer(targetPlayer, finalDamage)
+							else
+								plHum:TakeDamage(finalDamage)
+							end
 							print("[NPCController] Applied fallback damage:", finalDamage, "to player:", targetPlayer.Name)
 						end
 					end
@@ -1228,9 +1232,59 @@ function NPCController.init(configName)
 				end
 			end
 			
-			-- Start AI loop
+			-- Start AI loop (self-respawning: boss re-spawns after respawnDelay seconds)
 			task.spawn(function()
-				runNPCAI(npc, config, tracks)
+				local curNpc    = npc
+				local curTracks = tracks
+				while true do
+					runNPCAI(curNpc, config, curTracks)
+
+					-- ── BOSS RESPAWN ────────────────────────────────────────────
+					local bossDelay = config.respawnDelay or 300
+					print(("[NPCController] %s defeated – respawning in %ds"):format(config.modelName, bossDelay))
+					task.wait(bossDelay)
+
+					if not template or not template.Parent then break end
+					local rPart  = spawnParts[math.random(1, #spawnParts)]
+					local rPos   = getSpawnPosition(rPart)
+					local newNpc = template:Clone()
+					newNpc.Parent = Workspace
+					for _, part in ipairs(newNpc:GetDescendants()) do
+						if part:IsA("BasePart") then part.Anchored = false end
+					end
+					if newNpc.PrimaryPart then
+						newNpc:SetPrimaryPartCFrame(CFrame.new(rPos))
+					else
+						newNpc:MoveTo(rPos)
+					end
+					local newHum = newNpc:FindFirstChildOfClass("Humanoid")
+					if not newHum then break end
+					newHum.WalkSpeed = config.walkSpeed
+					local hp = config.health or 100
+					newHum.MaxHealth = hp ; newHum.Health = hp
+					newHum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+					local newAnim = newHum:FindFirstChildOfClass("Animator") or Instance.new("Animator", newHum)
+					newNpc:SetAttribute("SpawnX", rPos.X)
+					newNpc:SetAttribute("SpawnY", rPos.Y)
+					newNpc:SetAttribute("SpawnZ", rPos.Z)
+					local newTracks = {
+						idle    = loadAnimation(newAnim, config.animIdle),
+						walk    = loadAnimation(newAnim, config.animWalk),
+						attacks = {},
+					}
+					newTracks.idle.Looped = true
+					newTracks.walk.Looped = true
+					if config.animForwardDash then newTracks.forwardDash = loadAnimation(newAnim, config.animForwardDash) end
+					if config.animLeftDash    then newTracks.leftDash    = loadAnimation(newAnim, config.animLeftDash)    end
+					if config.animRightDash   then newTracks.rightDash   = loadAnimation(newAnim, config.animRightDash)   end
+					for _, ac in pairs(config.attacks) do
+						if ac.animation and not newTracks.attacks[ac.animation] then
+							newTracks.attacks[ac.animation] = loadAnimation(newAnim, ac.animation)
+						end
+					end
+					curNpc    = newNpc
+					curTracks = newTracks
+				end
 			end)
 			
 			print("[NPCController] Spawned NPC #" .. i)

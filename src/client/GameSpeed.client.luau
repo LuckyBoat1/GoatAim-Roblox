@@ -3,6 +3,12 @@
 -- Controls ALL animations in the game (players + NPCs)
 -- Also has attack selection buttons for End NPC testing
 
+------------------------------------------------------------------------
+-- ⚙️  Set to true to enable the Game Speed / Time Speed adjuster UI.
+local ENABLED = false
+------------------------------------------------------------------------
+if not ENABLED then return end
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")

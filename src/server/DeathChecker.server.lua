@@ -37,28 +37,36 @@ local function onCharacterAdded(character)
 		end
 		
 		-- Check distance to Bull Arena spawn if relevant
-		-- We can try to find the nearest BullArena
-		for _, arena in ipairs(workspace:GetChildren()) do
-			if arena.Name:match("BullArena") then
-				local spawn = arena:FindFirstChild("ArenaPlatform")
-				if spawn then
-					local spawnPos
-					if spawn:IsA("BasePart") then
-						spawnPos = spawn.Position
-					elseif spawn:IsA("Model") then
-						if spawn.PrimaryPart then
-							spawnPos = spawn.PrimaryPart.Position
-						else
-							local part = spawn:FindFirstChildWhichIsA("BasePart", true)
-							if part then spawnPos = part.Position end
-						end
+		-- Search workspace root (cloned arenas) and Game folder
+		local arenaSearchList = {}
+		for _, child in ipairs(workspace:GetChildren()) do
+			if child.Name:match("BullArena") then table.insert(arenaSearchList, child) end
+		end
+		local gameFolder = workspace:FindFirstChild("Game")
+		if gameFolder then
+			for _, child in ipairs(gameFolder:GetChildren()) do
+				if child.Name:match("BullArena") then table.insert(arenaSearchList, child) end
+			end
+		end
+		for _, arena in ipairs(arenaSearchList) do
+			local spawn = arena:FindFirstChild("ArenaPlatform")
+			if spawn then
+				local spawnPos
+				if spawn:IsA("BasePart") then
+					spawnPos = spawn.Position
+				elseif spawn:IsA("Model") then
+					if spawn.PrimaryPart then
+						spawnPos = spawn.PrimaryPart.Position
+					else
+						local part = spawn:FindFirstChildWhichIsA("BasePart", true)
+						if part then spawnPos = part.Position end
 					end
-					
-					if spawnPos then
-						local dist = (rootPart.Position - spawnPos).Magnitude
-						if dist < 100 then
-							print("   🏟️ Died near " .. arena.Name .. " (Distance: " .. math.floor(dist) .. " studs)")
-						end
+				end
+				
+				if spawnPos then
+					local dist = (rootPart.Position - spawnPos).Magnitude
+					if dist < 100 then
+						print("   🏟️ Died near " .. arena.Name .. " (Distance: " .. math.floor(dist) .. " studs)")
 					end
 				end
 			end

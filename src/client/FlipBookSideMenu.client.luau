@@ -72,9 +72,9 @@ local function spawnAt(target: GuiObject)
 		img = img, y = 0, cx = cx, cy = cy, px = px,
 		f = f, ft = 0, age = 0, hd = (math.random() * 2 - 1) * S.Spread,
 	})
-end--
-----
--- Find the SideMenu ScreenGui and hook into each --button
+end
+
+-- Find the SideMenu ScreenGui and hook into each button
 local function hookButtons()
 	local sideMenuGui = pg:WaitForChild("SideMenu", 30)
 	if not sideMenuGui then warn("FlipBookSideMenu: SideMenu GUI not found") return end

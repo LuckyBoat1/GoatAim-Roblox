@@ -1,6 +1,13 @@
 -- GripAdjuster LocalScript - Shows grip adjustment UI when weapon is equipped
 -- Put this in StarterGui or client scripts folder
 
+------------------------------------------------------------------------
+-- ⚙️  Set to true to enable the Grip Adjuster UI.
+local ENABLED = false
+-- NOTE: Even when false, this script must still run to set GripReady = true
+-- on equipped tools. ShootingHandler blocks all shots until GripReady is set.
+------------------------------------------------------------------------
+
 local Players = game:GetService("Players")
 
 local player = Players.LocalPlayer
@@ -15,7 +22,35 @@ local currentTool = nil
 -- Slider references (will be set when UI is created)
 local xSlider, ySlider, zSlider = nil, nil, nil
 
--- Function to update grip in real-time
+-- Returns the attribute name EquipServer sets when grip adjustment is complete.
+-- Must match the pattern used in EquipServer.server.lua: cleanSkinId:gsub("[%s/''&]", "_")
+local function getGripAdjustedAttr(tool)
+    local skinId = tool:GetAttribute("SkinId")
+    if not skinId or skinId == "" then skinId = "default" end
+    local cleanId = skinId:gsub("[%s/'&]", "_")
+    return "GripAdjusted_" .. cleanId
+end
+
+-- Async: waits for EquipServer to finish its rotation + position adjustments
+-- on this tool, then captures tool.Grip as ClientBaseGrip.
+local function captureBaseGrip(tool)
+    local attrName = getGripAdjustedAttr(tool)
+    local t0 = tick()
+    -- Poll until EquipServer signals it's done (or 3s timeout)
+    while tool.Parent and not tool:GetAttribute(attrName) do
+        task.wait(0.05)
+        if tick() - t0 > 3 then
+            warn("[GripAdjuster] Timeout waiting for EquipServer on", tool.Name, "- capturing grip anyway")
+            break
+        end
+    end
+    if not tool.Parent or tool ~= currentTool then return end
+    tool:SetAttribute("ClientBaseGrip", tool.Grip)
+    tool:SetAttribute("GripReady", true)
+    print("[GripAdjuster] ✅ Base grip captured for", tool.Name, "/", (tool:GetAttribute("SkinId") or "default"))
+end
+
+-- Apply the X/Y/Z slider offsets on top of the captured base grip
 local function updateGrip()
     if not currentTool or not xSlider or not ySlider or not zSlider then return end
     
@@ -23,17 +58,14 @@ local function updateGrip()
     local y = tonumber(ySlider.Text) or 0
     local z = tonumber(zSlider.Text) or 0
     
-    -- Use grip after server processing (with rotations) but store it once to prevent stacking
     local baseGrip = currentTool:GetAttribute("ClientBaseGrip")
     if not baseGrip then
-        -- Wait a moment for server to finish processing, then store the result
-        wait(0.1)
-        baseGrip = currentTool.Grip
-        currentTool:SetAttribute("ClientBaseGrip", baseGrip)
+        -- Not ready yet — captureBaseGrip is running async; do nothing
+        return
     end
     
     -- Use same calculation method as server: originalGrip * adjustment
-    local adjustment = CFrame.new(x, y, z)  
+    local adjustment = CFrame.new(x, y, z)
     currentTool.Grip = baseGrip * adjustment
 end
 
@@ -182,13 +214,31 @@ local function watchCharacter(character)
         if child:IsA("Tool") then
             currentTool = child
             
-            -- Clear any old base grip so it gets stored fresh
+            -- Reset base grip so it gets freshly captured from EquipServer
             child:SetAttribute("ClientBaseGrip", nil)
+            child:SetAttribute("GripReady", false)
             
-            createGripUI()
+            -- Async: wait for EquipServer to finish rotation+grip adjustments,
+            -- then capture tool.Grip as the base for slider offsets
+            task.spawn(captureBaseGrip, child)
             
-            -- No persistent adjustments - each weapon starts at 0,0,0
-            -- The UI will show 0,0,0 and the weapon will use server's fullOffset
+            -- Re-capture base when skin changes while this tool is already equipped.
+            -- EquipServer resets & re-runs adjustWeaponGrip whenever SkinId changes.
+            child.AttributeChanged:Connect(function(attr)
+                if attr == "SkinId" and child == currentTool then
+                    child:SetAttribute("ClientBaseGrip", nil)
+                    child:SetAttribute("GripReady", false)
+                    -- Reset sliders to 0 since we're getting a fresh skin/rotation
+                    if xSlider then xSlider.Text = "0" end
+                    if ySlider then ySlider.Text = "0" end
+                    if zSlider then zSlider.Text = "0" end
+                    task.spawn(captureBaseGrip, child)
+                end
+            end)
+            
+            if ENABLED then
+                createGripUI()
+            end
             
             -- Watch for tool being unequipped
             child.AncestryChanged:Connect(function()

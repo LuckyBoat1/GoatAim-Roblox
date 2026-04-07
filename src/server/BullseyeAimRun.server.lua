@@ -1,10 +1,23 @@
+warn("[BullseyeAimRun] Script starting...")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 
-local startRunEvent = ReplicatedStorage:WaitForChild("StartRun")
-local scoreUpdate = ReplicatedStorage:WaitForChild("ScoreUpdate")
+-- Create RemoteEvents if they don't exist (don't rely on RunSystem loading first)
+local startRunEvent = ReplicatedStorage:FindFirstChild("StartRun")
+if not startRunEvent then
+	startRunEvent = Instance.new("RemoteEvent")
+	startRunEvent.Name = "StartRun"
+	startRunEvent.Parent = ReplicatedStorage
+end
 
+local scoreUpdate = ReplicatedStorage:FindFirstChild("ScoreUpdate")
+if not scoreUpdate then
+	scoreUpdate = Instance.new("RemoteEvent")
+	scoreUpdate.Name = "ScoreUpdate"
+	scoreUpdate.Parent = ReplicatedStorage
+end
+--
 local RunDuration = 10
 local MaxShots = 30
 local BullseyesPerRun = 3
@@ -77,16 +90,61 @@ local function updateScore(player, points, streak, ammo)
 	scoreUpdate:FireClient(player, points, streak, ammo)
 end
 
-for _, platform in pairs(Workspace:GetChildren()) do
-	if platform.Name == "BullseyePlatform" then
+local bullseyeFound = false
+warn("[BullseyeAimRun] Searching for BullseyePlatform (recursive)...")
+local foundPlatform = Workspace:FindFirstChild("BullseyePlatform", true)
+
+-- If no BullseyePlatform exists, create one near SpawnArena
+if not foundPlatform then
+	local spawnArena = Workspace:FindFirstChild("Game", true) and Workspace.Game:FindFirstChild("SpawnArena")
+	local bullPlatform = spawnArena and spawnArena:FindFirstChild("BullPlatform", true)
+	local refPos
+	if bullPlatform then
+		local part = bullPlatform:IsA("BasePart") and bullPlatform or bullPlatform:FindFirstChildWhichIsA("BasePart")
+		if part then refPos = part.Position + Vector3.new(-30, 0, 0) end
+	end
+	refPos = refPos or Vector3.new(226, 828, -400) -- fallback near spawn area
+
+	warn("[BullseyeAimRun] No BullseyePlatform found, creating one at", refPos)
+	foundPlatform = Instance.new("Part")
+	foundPlatform.Name = "BullseyePlatform"
+	foundPlatform.Size = Vector3.new(10, 1, 10)
+	foundPlatform.Position = refPos
+	foundPlatform.Anchored = true
+	foundPlatform.BrickColor = BrickColor.new("Bright blue")
+	foundPlatform.Material = Enum.Material.Neon
+	foundPlatform.Parent = spawnArena or Workspace
+end
+
+if foundPlatform then
+	bullseyeFound = true
+	warn("[BullseyeAimRun] Using BullseyePlatform:", foundPlatform:GetFullName())
+	local platform = foundPlatform
 		local prompt = platform:FindFirstChildOfClass("ProximityPrompt")
+		if not prompt then
+			warn("[BullseyeAimRun] ⚠️ No ProximityPrompt on BullseyePlatform! Creating one...")
+			prompt = Instance.new("ProximityPrompt")
+			prompt.ActionText = "Start Bullseye Run"
+			prompt.ObjectText = "Bullseye Aim Training"
+			prompt.HoldDuration = 0.5
+			prompt.Parent = platform
+		end
 		if prompt then
+			warn("[BullseyeAimRun] ✅ ProximityPrompt connected on", platform:GetFullName())
 			prompt.Triggered:Connect(function(player)
-				_G.notify(player, "Bullseye Run Started")
+				pcall(function()
+					if _G.notify then
+						_G.notify(player, "Bullseye Run Started")
+					end
+				end)
+
 				startRunEvent:FireClient(player, "bullseye", MaxShots)
 
-
-				local data = _G.getData(player)
+				local ok, data = pcall(function() return _G.getData(player) end)
+				if not ok or not data then
+					warn("[BullseyeAimRun] _G.getData failed for", player.Name)
+					return
+				end
 				data.remainingShots = MaxShots
 				data.bullseyeScore = 0
 
@@ -95,7 +153,7 @@ for _, platform in pairs(Workspace:GetChildren()) do
 
 
 				task.delay(RunDuration, function()
-					_G.notify(player, "Run ended")
+					pcall(function() if _G.notify then _G.notify(player, "Run ended") end end)
 
 					for _, bullseye in pairs (Workspace:GetChildren()) do
 						if bullseye.Name == "Bullseye" and bullseye:GetAttribute("PlayerId")== player.UserId then
@@ -106,19 +164,19 @@ for _, platform in pairs(Workspace:GetChildren()) do
 				end)
 			end)
 		end
-	end
 end
 
 _G.onBullseyeHit = function(player, ringNumber)
 	print("[BullseyeAimRun] onBullseyeHit called. Ring:", ringNumber) -- DEBUG
-	local data = _G.getData(player)
+	local ok, data = pcall(function() return _G.getData(player) end)
+	if not ok or not data then return end
 	if not data.remainingShots or data.remainingShots <= 0 then return end
 
 	local ringPoints = {6, 5, 4, 3, 2, 1}
 	local points = ringPoints[ringNumber] or 0
 
 	local money = points * 5
-	_G.addMoney(player, money)
+	pcall(function() if _G.addMoney then _G.addMoney(player, money) end end)
 
 	data.remainingShots -= 1
 	data.bullseyeScore += points
@@ -129,7 +187,7 @@ _G.onBullseyeHit = function(player, ringNumber)
 				bullseye:Destroy()
 			end
 		end
-		_G.notify(player, "Run ended")
+		pcall(function() if _G.notify then _G.notify(player, "Run ended") end end)
 		scoreUpdate:FireClient(player, "end")
 
 	end
@@ -138,8 +196,8 @@ _G.onBullseyeHit = function(player, ringNumber)
 end
 
 _G.onBullseyeMiss = function(player)
-	local data = _G.getData(player)
-	if not data or data.remainingShots <= 0 then return end
+	local ok, data = pcall(function() return _G.getData(player) end)
+	if not ok or not data or not data.remainingShots or data.remainingShots <= 0 then return end
 	data.remainingShots -= 1
 	if data.remainingShots == 0 then
 		for _, bullseye in pairs (Workspace:GetChildren()) do
@@ -147,10 +205,24 @@ _G.onBullseyeMiss = function(player)
 				bullseye:Destroy()
 			end
 		end
-		_G.notify(player, "Run ended")
+		pcall(function() if _G.notify then _G.notify(player, "Run ended") end end)
 		scoreUpdate:FireClient(player, "end")
 
 	end
 	updateScore(player, data.bullseyeScore, nil, data.remainingShots)
 
 end
+
+if not bullseyeFound then
+	warn("[BullseyeAimRun] ⚠️ No 'BullseyePlatform' found in Workspace! Bullseye runs won't work.")
+	warn("[BullseyeAimRun] Add a Part named 'BullseyePlatform' to Workspace to enable bullseye aim runs.")
+end
+
+local bullseyeTemplate = ReplicatedStorage:FindFirstChild("Bullseye")
+if not bullseyeTemplate then
+	warn("[BullseyeAimRun] ⚠️ No 'Bullseye' template found in ReplicatedStorage! Targets can't spawn.")
+else
+	warn("[BullseyeAimRun] ✅ Bullseye template found in ReplicatedStorage")
+end
+
+warn("[BullseyeAimRun] ✅ Script loaded. BullseyePlatform found =", bullseyeFound)

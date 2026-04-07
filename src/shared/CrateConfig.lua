@@ -1,33 +1,17 @@
 -- CrateConfig.lua: Configuration for crate system
 -- Similar to CSGO case opening with this game's theme
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CrateConfig = {}
 
--- Hardcoded skins that always work
-local GUARANTEED_SKINS = {
-	"M4-Dragoon", "Cyborg", "M4-Pumpkin", "Leviathan", "Death", 
-	"Monster", "M4-Mind", "Blood&Bones", "M4-Default", "M4-Elite",
-	"AK-Chaos", "Sea Bone", "AK-Jungle", "AK-Default", "AK-Fire", "AK-Dragon",
-	"Luger-Default", "Luger-Gold", "Luger-Elite", "M4-Galaxy", "AK-Void",
-	"M4-Neon", "AK-Plasma", "Glock-Basic", "Glock-Steel", "Glock-Neon"
+-- Each crate type maps to EXACTLY one skin rarity
+CrateConfig.CRATE_RARITY = {
+	BRONZE   = "common",
+	SILVER   = "rare",
+	SAPPHIRE = "epic",
+	OMEGA    = "legendary",
+	RUBY     = "mythic",
 }
-
--- Generate crate contents with guaranteed skins
-local function generateCrateContents()
-	local contents = {}
-	local chancePerSkin = math.max(1, math.floor(100 / #GUARANTEED_SKINS))
-	
-	for _, skinName in ipairs(GUARANTEED_SKINS) do
-		table.insert(contents, {
-			type = "skin",
-			name = skinName,
-			chance = chancePerSkin,
-			rarity = "common"
-		})
-	end
-	
-	return contents
-end
 
 -- Crate types and their contents (now dynamically populated)
 CrateConfig.Crates = {
@@ -38,8 +22,7 @@ CrateConfig.Crates = {
 		color = Color3.fromRGB(205, 127, 50), -- Bronze color
 		rarity = "uncommon",
 		icon = "rbxassetid://0", -- Replace with actual icon
-		openCost = 0, -- Free to open
-		contents = nil -- Will be populated dynamically
+		openCost = 1000,
 	},
 	
 	SILVER = {
@@ -49,8 +32,7 @@ CrateConfig.Crates = {
 		color = Color3.fromRGB(192, 192, 192), -- Silver color
 		rarity = "rare",
 		icon = "rbxassetid://0",
-		openCost = 100, -- Costs 100 credits
-		contents = nil -- Will be populated dynamically
+		openCost = 3000,
 	},
 	
 	SAPPHIRE = {
@@ -60,8 +42,7 @@ CrateConfig.Crates = {
 		color = Color3.fromRGB(65, 105, 225), -- Royal Blue
 		rarity = "epic",
 		icon = "rbxassetid://0",
-		openCost = 250,
-		contents = nil -- Will be populated dynamically
+		openCost = 5000,
 	},
 	
 	OMEGA = {
@@ -71,8 +52,7 @@ CrateConfig.Crates = {
 		color = Color3.fromRGB(255, 128, 0), -- Orange
 		rarity = "legendary",
 		icon = "rbxassetid://0",
-		openCost = 500,
-		contents = nil -- Will be populated dynamically
+		openCost = 10000,
 	},
 
 	RUBY = {
@@ -83,7 +63,6 @@ CrateConfig.Crates = {
 		rarity = "mythic",
 		icon = "rbxassetid://0",
 		openCost = 1000,
-		contents = nil -- Will be populated dynamically
 	},
 }
 
@@ -116,49 +95,6 @@ function CrateConfig.GetAllCrates()
 	return CrateConfig.Crates
 end
 
--- Roll for an item from a crate
-function CrateConfig.RollCrate(crateType)
-	local crate = CrateConfig.Crates[crateType]
-	if not crate then return nil end
-	
-	if not crate.contents or #crate.contents == 0 then
-		warn("[CrateConfig] No contents in crate:", crateType)
-		return nil
-	end
-	
-	-- Calculate total weight
-	local totalChance = 0
-	for _, item in ipairs(crate.contents) do
-		totalChance = totalChance + item.chance
-	end
-	
-	-- Roll random number
-	local roll = math.random() * totalChance
-	local currentChance = 0
-	
-	-- Find which item was rolled
-	for _, item in ipairs(crate.contents) do
-		currentChance = currentChance + item.chance
-		if roll <= currentChance then
-			return {
-				type = item.type,
-				name = item.name,
-				rarity = item.rarity,
-				crateSource = crateType
-			}
-		end
-	end
-	
-	-- Fallback to first item if something goes wrong
-	local firstItem = crate.contents[1]
-	return {
-		type = firstItem.type,
-		name = firstItem.name,
-		rarity = firstItem.rarity,
-		crateSource = crateType
-	}
-end
-
 -- Check if player has enough currency to open crate
 function CrateConfig.CanAfford(crateType, playerCredits)
 	local crate = CrateConfig.GetCrate(crateType)
@@ -171,15 +107,61 @@ function CrateConfig.GetRarityColor(rarity)
 	return CrateConfig.RarityColors[rarity] or CrateConfig.RarityColors.common
 end
 
--- Initialize dynamic crate contents
-function CrateConfig.initializeDynamicContents()
-	-- Populate each crate type with dynamic contents
-	for crateType, crateData in pairs(CrateConfig.Crates) do
-		crateData.contents = generateCrateContents()
-	end
+-- Get the exact rarity a crate type drops
+function CrateConfig.GetCrateRarity(crateType)
+	return CrateConfig.CRATE_RARITY[crateType] or "common"
 end
 
--- Call initialization on load
-CrateConfig.initializeDynamicContents()
+-- Get all skins that match a specific rarity.
+-- Uses SkinConfig.GetPoolsByRarity() as the source of truth (the SKINS table),
+-- so ALL configured skins are available regardless of whether a model exists in SkinLibrary.
+-- SkinLibrary is only used for 3D visuals — missing models show as empty reel slots.
+function CrateConfig.GetSkinsForRarity(targetRarity)
+	local skins = {}
+	local SkinConfig = nil
+	pcall(function()
+		SkinConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SkinConfig"))
+	end)
+
+	-- Primary: pull from SkinConfig's SKINS table (all configured/active skins)
+	if SkinConfig and SkinConfig.GetPoolsByRarity then
+		local pools = SkinConfig.GetPoolsByRarity()
+		local pool = pools[targetRarity] or {}
+		for _, skinId in ipairs(pool) do
+			table.insert(skins, {
+				type = "skin",
+				name = skinId,
+				rarity = targetRarity,
+			})
+		end
+		warn(string.format("[CrateConfig] GetSkinsForRarity('%s'): found %d skins from SkinConfig pool", targetRarity, #skins))
+		if #skins > 0 then return skins end
+	end
+
+	-- Fallback: scan SkinLibrary models if SkinConfig unavailable
+	local skinLib = ReplicatedStorage:FindFirstChild("SkinLibrary")
+	if not skinLib then return skins end
+	for _, skinModel in pairs(skinLib:GetChildren()) do
+		if skinModel:IsA("Model") or skinModel:IsA("BasePart") then
+			table.insert(skins, {
+				type = "skin",
+				name = skinModel.Name,
+				rarity = targetRarity,
+			})
+		end
+	end
+	return skins
+end
+
+-- Roll for an item from a crate (picks only from the crate's rarity)
+function CrateConfig.RollCrate(crateType)
+	local targetRarity = CrateConfig.GetCrateRarity(crateType)
+	local pool = CrateConfig.GetSkinsForRarity(targetRarity)
+	if #pool == 0 then
+		warn("[CrateConfig] No skins found for rarity:", targetRarity, "in crate:", crateType)
+		return nil
+	end
+	return pool[math.random(1, #pool)]
+end
 
 return CrateConfig

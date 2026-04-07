@@ -47,37 +47,35 @@ gui.Name = "DashUI"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 105, 0, 36)  -- a bit smaller
-frame.Position = UDim2.new(0, 20, 1, -60)
-frame.AnchorPoint = Vector2.new(0,1)
-frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
-frame.BackgroundTransparency = 0.3
-frame.BorderSizePixel = 0
-frame.Parent = gui
+local isMobile = UserInputService.TouchEnabled
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0,8)
-corner.Parent = frame
+-- On mobile: image button (no background, no border).
+-- On desktop: no UI at all — Shift key still works.
+local frame, stroke, label
 
-local stroke = Instance.new("UIStroke")
-stroke.Thickness = 3
-stroke.Color = Color3.fromRGB(0,255,0)
-stroke.Parent = frame
-
-local label = Instance.new("TextLabel")
-label.Size = UDim2.new(1,0,1,0)
-label.BackgroundTransparency = 1
-label.Font = Enum.Font.GothamBold
-label.TextScaled = true
-label.TextColor3 = Color3.fromRGB(0,255,0)
-label.Text = "DASH"
-label.Parent = frame
+if isMobile then
+	local btn = Instance.new("ImageButton")
+	btn.Name               = "DashBtn"
+	btn.Size               = UDim2.new(0, 120, 0, 120)
+	btn.AnchorPoint        = Vector2.new(0.5, 1)
+	btn.Position           = UDim2.new(1, -75, 1, -100)
+	btn.BackgroundTransparency = 1
+	btn.BorderSizePixel    = 0
+	btn.AutoButtonColor    = false
+	btn.Image              = "rbxassetid://85119468043924"
+	btn.ScaleType          = Enum.ScaleType.Fit
+	btn.Selectable         = false
+	btn.Parent             = gui
+	frame  = btn
+	stroke = nil
+	label  = btn
+end
 
 ----------------------------------------------------------------
 -- GLOW (only during cooldown)
 ----------------------------------------------------------------
 local function startGlow()
+	if not stroke then return end
 	if glowActive then return end
 	glowActive = true
 	task.spawn(function()
@@ -97,6 +95,7 @@ local function startGlow()
 end
 
 local function stopGlow()
+	if not stroke then return end
 	glowActive = false
 	stroke.Thickness = 3
 	stroke.Color = Color3.fromRGB(0,255,0)
@@ -106,14 +105,12 @@ end
 -- UI STATE
 ----------------------------------------------------------------
 local function setReady()
-	label.Text = "DASH"
-	label.TextColor3 = Color3.fromRGB(0,255,0)
+	label.ImageTransparency = 0
 	stopGlow()
 end
 
 local function setCooldown(secondsLeft)
-	label.Text = string.format("%.1f", secondsLeft)
-	label.TextColor3 = Color3.fromRGB(160,160,160)
+	label.ImageTransparency = 0.45
 	startGlow()
 end
 
@@ -199,18 +196,34 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 	end
 end)
 
+-- Mobile: use UIS bounds-check so dash fires even while another finger is moving/shooting
+if isMobile then
+	UserInputService.InputBegan:Connect(function(input, gpe)
+		if input.UserInputType ~= Enum.UserInputType.Touch then return end
+		local pos  = Vector2.new(input.Position.X, input.Position.Y)
+		local abs  = frame.AbsolutePosition
+		local size = frame.AbsoluteSize
+		if pos.X >= abs.X and pos.X <= abs.X + size.X
+			and pos.Y >= abs.Y and pos.Y <= abs.Y + size.Y then
+			dash()
+		end
+	end)
+end
+
 ----------------------------------------------------------------
--- FRAME UPDATE (UI)
+-- FRAME UPDATE (UI) — mobile only
 ----------------------------------------------------------------
-RunService.RenderStepped:Connect(function()
-	local now = tick()
-	local remaining = (lastDashTime + COOLDOWN) - now
-	if remaining <= 0 then
-		setReady()
-	else
-		setCooldown(remaining)
-	end
-end)
+if isMobile then
+	RunService.RenderStepped:Connect(function()
+		local now = tick()
+		local remaining = (lastDashTime + COOLDOWN) - now
+		if remaining <= 0 then
+			setReady()
+		else
+			setCooldown(remaining)
+		end
+	end)
+end
 
 -- Initialize
 setReady()

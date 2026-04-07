@@ -8,13 +8,13 @@ local PathfindingService = game:GetService("PathfindingService")
 -- NPC Config
 local NPC_FOLDER_NAME = "Npc"
 local MODEL_NAME = "TorsoGhost"
-local NPC_COUNT = 2
+local NPC_COUNT = 20
 local WALK_SPEED = 16
-local ATTACK_DISTANCE = 50
+local ATTACK_DISTANCE = 100
 local DAMAGE = 10
 local IDLE_TIME = {1, 2}
 local WALK_TIME = {3, 6}
-local WALK_RADIUS = 300
+local WALK_RADIUS = 500
 
 -- Animation IDs
 local ANIM_WALK = 131216332533809
@@ -181,8 +181,9 @@ local function getNearestPlayer(npcPos, maxDist)
 	return nearest, nearestDist
 end
 
--- NPC AI Loop - CONSTANT DETECTION
-for _, npc in ipairs(NPCS) do
+-- NPC AI Loop - CONSTANT DETECTION (self-respawning after death)
+local RESPAWN_DELAY = 5  -- seconds before a dead NPC is replaced
+local function startNPCAI(npc)
 	task.spawn(function()
 		local humanoid = npc:FindFirstChildOfClass("Humanoid")
 		if not humanoid then return end
@@ -227,7 +228,7 @@ for _, npc in ipairs(NPCS) do
 			if debugTimer >= 2 then
 				debugTimer = 0
 				local playerCount = #Players:GetPlayers()
-				print("[NPC "..npc.Name.."] State: "..state.." | Players: "..playerCount.." | Pos: "..tostring(npcPos))
+				--print("[NPC "..npc.Name.."] State: "..state.." | Players: "..playerCount.." | Pos: "..tostring(npcPos))
 			end
 			
 			local targetPlayer, dist = getNearestPlayer(npcPos, ATTACK_DISTANCE)
@@ -255,7 +256,12 @@ for _, npc in ipairs(NPCS) do
 							attackTrack:Play()
 							local plHum = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
 							if plHum and plHum.Health > 0 then
-								plHum:TakeDamage(DAMAGE)
+								local plr = game:GetService("Players"):GetPlayerFromCharacter(plHum.Parent)
+								if plr and _G.damagePlayer then
+									_G.damagePlayer(plr, DAMAGE)
+								else
+									plHum:TakeDamage(DAMAGE)
+								end
 							end
 							lastAttackTime = tick()
 						end
@@ -323,5 +329,36 @@ for _, npc in ipairs(NPCS) do
 			
 			task.wait(0.1) -- 10 checks per second
 		end
+
+		-- ── RESPAWN ───────────────────────────────────────────────────────────
+		task.wait(RESPAWN_DELAY)
+		if not template or not template.Parent then return end
+		local rPart  = spawnParts[math.random(1, #spawnParts)]
+		local rPos   = getSpawnPosition(rPart)
+		local newNpc = template:Clone()
+		newNpc.Parent = Workspace
+		for _, part in ipairs(newNpc:GetDescendants()) do
+			if part:IsA("BasePart") then part.Anchored = false end
+		end
+		if newNpc.PrimaryPart then
+			newNpc:SetPrimaryPartCFrame(CFrame.new(rPos))
+		else
+			newNpc:MoveTo(rPos)
+		end
+		local newHum = newNpc:FindFirstChildOfClass("Humanoid")
+		if newHum then
+			newHum.WalkSpeed = WALK_SPEED
+			if not newHum:FindFirstChildOfClass("Animator") then
+				Instance.new("Animator", newHum)
+			end
+			newNpc:SetAttribute("SpawnX", rPos.X)
+			newNpc:SetAttribute("SpawnY", rPos.Y)
+			newNpc:SetAttribute("SpawnZ", rPos.Z)
+			startNPCAI(newNpc)
+		end
 	end)
+end
+
+for _, npc in ipairs(NPCS) do
+	startNPCAI(npc)
 end

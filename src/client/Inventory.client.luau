@@ -74,9 +74,17 @@ main.Name="MainPanel"; main.Size=UDim2.fromOffset(0,0); main.Position=UDim2.from
 main.BackgroundColor3=BLACK; main.BorderSizePixel=0; main.Visible=false; main.ClipsDescendants=false; main.Parent=gui
 Instance.new("UICorner", main).CornerRadius = UDim.new(0,16)
 local mainStroke = Instance.new("UIStroke", main); mainStroke.Color=GREEN; mainStroke.Thickness=2
--- Scale entire inventory by 15% larger
+-- UIScale: design size = 840×624px. Scales up on desktop (×1.15 max) and down on mobile.
 local mainScale = Instance.new("UIScale", main)
-mainScale.Scale = 1.15
+do
+	local _cam = workspace.CurrentCamera
+	local function _updateInvScale()
+		local vp = _cam.ViewportSize
+		mainScale.Scale = math.min(1.15, math.min(vp.X / 880, vp.Y / 660))
+	end
+	_updateInvScale()
+	_cam:GetPropertyChangedSignal("ViewportSize"):Connect(_updateInvScale)
+end
 
 -- Header
 local header = Instance.new("Frame"); header.Size=UDim2.new(1,0,0,60); header.BackgroundColor3=C3(10,15,12); header.BackgroundTransparency=0.2; header.Parent=main
@@ -2171,8 +2179,26 @@ do
     local s = Instance.new("UIStroke"); s.Thickness = 2; s.Color = GREEN; s.Transparency = 0.3; s.Parent = equipBtn
 end
 
+-- DISASSEMBLE button (next to equip)
+local disassembleBtn = Instance.new("TextButton")
+disassembleBtn.Name = "DisassembleButton"
+disassembleBtn.Size = UDim2.fromOffset(130,32)
+disassembleBtn.Position = UDim2.new(1,-250,0,0)
+disassembleBtn.AnchorPoint = Vector2.new(0,0)
+disassembleBtn.BackgroundColor3 = C3(40,15,15)
+disassembleBtn.Text = "DISASSEMBLE"
+disassembleBtn.TextColor3 = C3(255,120,120)
+disassembleBtn.Font = Enum.Font.GothamMedium
+disassembleBtn.TextSize = 14
+disassembleBtn.AutoButtonColor = true
+disassembleBtn.Parent = itemPage
+do
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = disassembleBtn
+    local s = Instance.new("UIStroke"); s.Thickness = 2; s.Color = C3(180,60,60); s.Transparency = 0.3; s.Parent = disassembleBtn
+end
+
 local itemTitle = Instance.new("TextLabel")
-itemTitle.Size=UDim2.new(1,-220,0,32); itemTitle.Position=UDim2.new(0,110,0,0); itemTitle.BackgroundTransparency=1
+itemTitle.Size=UDim2.new(1,-290,0,32); itemTitle.Position=UDim2.new(0,110,0,0); itemTitle.BackgroundTransparency=1
 itemTitle.Font=Enum.Font.FredokaOne; itemTitle.TextXAlignment=Enum.TextXAlignment.Left; itemTitle.TextSize=20; itemTitle.TextColor3=BRIGHT_GREEN; itemTitle.Parent=itemPage
 
 local itemPanel = Instance.new("Frame")
@@ -2285,6 +2311,207 @@ local currentItemSkinName = nil
 local currentItemRarity = nil
 local mythicEffectsCleanup = nil -- Tracking for mythic effects cleanup
 
+-- Disassemble material reward mapping
+local RARITY_NAMES_UPPER = {"COMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"}
+local RARITY_COLORS_DISASSEMBLE = {
+    Color3.new(0.7, 0.7, 0.7),  -- Common
+    Color3.new(0.2, 0.8, 0.2),  -- Rare
+    Color3.new(0.6, 0.2, 1.0),  -- Epic
+    Color3.new(1.0, 0.8, 0.0),  -- Legendary
+    BLOOD_RED                   -- Mythic
+}
+-- Maps rarity index to next-higher rarity index (mythic stays mythic)
+local NEXT_RARITY_INDEX = { [1]=2, [2]=3, [3]=4, [4]=5, [5]=5 }
+
+-- Disassemble confirmation popup
+local disassembleOverlay = nil
+local function showDisassembleConfirm(skinId, rarityIdx)
+    if disassembleOverlay then disassembleOverlay:Destroy() end
+
+    local sameRarityName = RARITY_NAMES_UPPER[rarityIdx] or "COMMON"
+    local higherIdx = NEXT_RARITY_INDEX[rarityIdx] or rarityIdx
+    local higherRarityName = RARITY_NAMES_UPPER[higherIdx] or "COMMON"
+    local sameColor = RARITY_COLORS_DISASSEMBLE[rarityIdx] or Color3.new(0.7,0.7,0.7)
+    local higherColor = RARITY_COLORS_DISASSEMBLE[higherIdx] or Color3.new(0.7,0.7,0.7)
+
+    -- Dark overlay
+    local overlay = Instance.new("TextButton")
+    overlay.Name = "DisassembleOverlay"
+    overlay.Size = UDim2.fromScale(1,1)
+    overlay.BackgroundColor3 = Color3.new(0,0,0)
+    overlay.BackgroundTransparency = 0.5
+    overlay.Text = ""
+    overlay.AutoButtonColor = false
+    overlay.ZIndex = 200
+    overlay.Parent = gui
+    disassembleOverlay = overlay
+
+    -- Popup frame
+    local popup = Instance.new("Frame")
+    popup.Size = UDim2.fromOffset(360, 260)
+    popup.Position = UDim2.fromScale(0.5, 0.5)
+    popup.AnchorPoint = Vector2.new(0.5, 0.5)
+    popup.BackgroundColor3 = C3(12, 14, 16)
+    popup.ZIndex = 201
+    popup.Parent = overlay
+    Instance.new("UICorner", popup).CornerRadius = UDim.new(0, 14)
+    local popStroke = Instance.new("UIStroke", popup)
+    popStroke.Color = C3(180, 60, 60); popStroke.Thickness = 2
+
+    -- Title
+    local popTitle = Instance.new("TextLabel")
+    popTitle.Size = UDim2.new(1, -20, 0, 36)
+    popTitle.Position = UDim2.new(0, 10, 0, 12)
+    popTitle.BackgroundTransparency = 1
+    popTitle.Font = Enum.Font.FredokaOne
+    popTitle.TextSize = 22
+    popTitle.TextColor3 = C3(255, 120, 120)
+    popTitle.Text = "DISASSEMBLE WEAPON?"
+    popTitle.TextXAlignment = Enum.TextXAlignment.Center
+    popTitle.ZIndex = 202
+    popTitle.Parent = popup
+
+    -- Weapon name
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, -20, 0, 24)
+    nameLabel.Position = UDim2.new(0, 10, 0, 52)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = 16
+    nameLabel.TextColor3 = sameColor
+    nameLabel.Text = skinId
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+    nameLabel.ZIndex = 202
+    nameLabel.Parent = popup
+
+    -- Divider
+    local divider = Instance.new("Frame")
+    divider.Size = UDim2.new(0.8, 0, 0, 1)
+    divider.Position = UDim2.new(0.1, 0, 0, 84)
+    divider.BackgroundColor3 = C3(60, 60, 60)
+    divider.BorderSizePixel = 0
+    divider.ZIndex = 202
+    divider.Parent = popup
+
+    -- "You will receive:" label
+    local receiveLabel = Instance.new("TextLabel")
+    receiveLabel.Size = UDim2.new(1, -20, 0, 22)
+    receiveLabel.Position = UDim2.new(0, 10, 0, 94)
+    receiveLabel.BackgroundTransparency = 1
+    receiveLabel.Font = Enum.Font.GothamMedium
+    receiveLabel.TextSize = 14
+    receiveLabel.TextColor3 = C3(180, 180, 180)
+    receiveLabel.Text = "You will receive:"
+    receiveLabel.TextXAlignment = Enum.TextXAlignment.Center
+    receiveLabel.ZIndex = 202
+    receiveLabel.Parent = popup
+
+    -- Same grade reward
+    local sameReward = Instance.new("TextLabel")
+    sameReward.Size = UDim2.new(1, -20, 0, 24)
+    sameReward.Position = UDim2.new(0, 10, 0, 120)
+    sameReward.BackgroundTransparency = 1
+    sameReward.Font = Enum.Font.GothamBold
+    sameReward.TextSize = 16
+    sameReward.TextColor3 = sameColor
+    sameReward.Text = "x2 " .. sameRarityName .. " Materials"
+    sameReward.TextXAlignment = Enum.TextXAlignment.Center
+    sameReward.ZIndex = 202
+    sameReward.Parent = popup
+
+    -- Higher grade reward
+    local higherReward = Instance.new("TextLabel")
+    higherReward.Size = UDim2.new(1, -20, 0, 24)
+    higherReward.Position = UDim2.new(0, 10, 0, 148)
+    higherReward.BackgroundTransparency = 1
+    higherReward.Font = Enum.Font.GothamBold
+    higherReward.TextSize = 16
+    higherReward.TextColor3 = higherColor
+    if rarityIdx == 5 then
+        higherReward.Text = "x1 MYTHIC Materials (bonus)"
+    else
+        higherReward.Text = "x1 " .. higherRarityName .. " Materials"
+    end
+    higherReward.TextXAlignment = Enum.TextXAlignment.Center
+    higherReward.ZIndex = 202
+    higherReward.Parent = popup
+
+    -- Buttons row
+    local btnY = 195
+
+    -- CONFIRM button
+    local confirmBtn = Instance.new("TextButton")
+    confirmBtn.Size = UDim2.fromOffset(140, 38)
+    confirmBtn.Position = UDim2.new(0.5, -150, 0, btnY)
+    confirmBtn.BackgroundColor3 = C3(180, 40, 40)
+    confirmBtn.Text = "CONFIRM"
+    confirmBtn.TextColor3 = Color3.new(1, 1, 1)
+    confirmBtn.Font = Enum.Font.GothamBold
+    confirmBtn.TextSize = 16
+    confirmBtn.ZIndex = 202
+    confirmBtn.Parent = popup
+    Instance.new("UICorner", confirmBtn).CornerRadius = UDim.new(0, 8)
+
+    -- CANCEL button
+    local cancelBtn = Instance.new("TextButton")
+    cancelBtn.Size = UDim2.fromOffset(140, 38)
+    cancelBtn.Position = UDim2.new(0.5, 10, 0, btnY)
+    cancelBtn.BackgroundColor3 = C3(30, 40, 35)
+    cancelBtn.Text = "CANCEL"
+    cancelBtn.TextColor3 = GREEN
+    cancelBtn.Font = Enum.Font.GothamBold
+    cancelBtn.TextSize = 16
+    cancelBtn.ZIndex = 202
+    cancelBtn.Parent = popup
+    Instance.new("UICorner", cancelBtn).CornerRadius = UDim.new(0, 8)
+
+    -- Cancel: close overlay
+    cancelBtn.MouseButton1Click:Connect(function()
+        if disassembleOverlay then disassembleOverlay:Destroy(); disassembleOverlay = nil end
+    end)
+    overlay.MouseButton1Click:Connect(function()
+        if disassembleOverlay then disassembleOverlay:Destroy(); disassembleOverlay = nil end
+    end)
+
+    -- Confirm: call server
+    confirmBtn.MouseButton1Click:Connect(function()
+        confirmBtn.Active = false
+        confirmBtn.AutoButtonColor = false
+        confirmBtn.Text = "DISASSEMBLING..."
+
+        local PlayerDataRF = ReplicatedStorage:FindFirstChild("RemoteEvents")
+        if PlayerDataRF then
+            PlayerDataRF = PlayerDataRF:FindFirstChild("PlayerDataRF")
+        end
+        if not PlayerDataRF then
+            confirmBtn.Text = "ERROR"
+            task.wait(1)
+            if disassembleOverlay then disassembleOverlay:Destroy(); disassembleOverlay = nil end
+            return
+        end
+
+        local ok, result = pcall(function()
+            return PlayerDataRF:InvokeServer("DisassembleWeapon", { skinId = skinId })
+        end)
+
+        if ok and result and result.success then
+            confirmBtn.Text = "SUCCESS!"
+            confirmBtn.BackgroundColor3 = C3(30, 150, 60)
+            task.wait(1)
+            if disassembleOverlay then disassembleOverlay:Destroy(); disassembleOverlay = nil end
+            -- Go back to grid and refresh
+            closeItemPage()
+            populateInventory()
+        else
+            local reason = (result and result.error) or "Failed"
+            confirmBtn.Text = reason
+            confirmBtn.BackgroundColor3 = C3(120, 40, 40)
+            task.wait(1.5)
+            if disassembleOverlay then disassembleOverlay:Destroy(); disassembleOverlay = nil end
+        end
+    end)
+end
+
 local function openItemPage(skinId)
     currentItemSkinName = skinId
     
@@ -2350,6 +2577,7 @@ local function openItemPage(skinId)
         -- Change button to OPEN
         equipBtn.Text = "OPEN"
         equipBtn.BackgroundColor3 = Color3.fromRGB(150, 100, 50) -- Orange for crates
+        disassembleBtn.Visible = false -- Can't disassemble crates
     else
         -- Normal skin handling
         local src = getSkinInstance(skinId)
@@ -2413,6 +2641,7 @@ local function openItemPage(skinId)
         -- Normal EQUIP button
         equipBtn.Text = "EQUIP"
         equipBtn.BackgroundColor3 = C3(20,30,25) -- Normal color
+        disassembleBtn.Visible = true -- Show disassemble for skins
         
         -- For mythic items, make the equip button blood red
         if isMythic then
@@ -2450,6 +2679,12 @@ local function closeItemPage()
         mythicEffectsCleanup()
         mythicEffectsCleanup = nil
     end
+    
+    -- Clean up disassemble overlay if open
+    if disassembleOverlay then
+        disassembleOverlay:Destroy()
+        disassembleOverlay = nil
+    end
 end
 
 backBtn.MouseButton1Click:Connect(closeItemPage)
@@ -2477,12 +2712,13 @@ equipBtn.MouseButton1Click:Connect(function()
             
             if success and result and result.success then
                 -- Crate was successfully removed, now open it
+                local crateToOpen = currentItemSkinName -- save before closeItemPage nils it
                 closeItemPage()
                 
                 -- Small delay then open crate
                 task.wait(0.3)
                 if _G.OpenCrate then
-                    _G.OpenCrate(currentItemSkinName)
+                    _G.OpenCrate(crateToOpen)
                 end
             else
                 -- Failed to use crate
@@ -2536,6 +2772,14 @@ equipBtn.MouseButton1Click:Connect(function()
             equipBtn.AutoButtonColor = true
         end
     end)
+end)
+
+-- Disassemble button behavior
+disassembleBtn.MouseButton1Click:Connect(function()
+    if not currentItemSkinName then return end
+    if isCrate(currentItemSkinName) then return end
+    local rarityIdx = currentItemRarity or 1
+    showDisassembleConfirm(currentItemSkinName, rarityIdx)
 end)
 
 -- Create item slot with mythic effects
@@ -2918,13 +3162,15 @@ local function populateInventory()
         cratesTabBtn.TextColor3 = GREEN
         
     elseif currentTab == "crates" then
-        -- Add crates to the list
+        -- Add crates to the list — one entry PER crate owned (no stacking)
         if CrateConfig then
             local crates = CrateConfig.GetAllCrates()
             for crateName, _ in pairs(crates) do
-                -- Only add if player owns it (count > 0)
-                if playerData and playerData.boxes and playerData.boxes[crateName] and playerData.boxes[crateName] > 0 then
-                    table.insert(allSkinsList, crateName)
+                if playerData and playerData.boxes and playerData.boxes[crateName] then
+                    local owned = playerData.boxes[crateName]
+                    for _i = 1, owned do
+                        table.insert(allSkinsList, crateName)
+                    end
                 end
             end
         end
@@ -3105,9 +3351,12 @@ local function toggleInventory()
         enableInventoryMouse()
         
         backdrop.Visible=true; main.Visible=true; main.Size=UDim2.fromOffset(0,0)
+        -- Hide Stats HUD while inventory is open
+        local statsGui = playerGui:FindFirstChild("Stats")
+        if statsGui then statsGui.Enabled = false end
         TweenService:Create(backdrop, TweenInfo.new(0.15), {BackgroundTransparency=0.5}):Play()
         TweenService:Create(blur, TweenInfo.new(0.15), {Size=10}):Play()
-        local t = TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=UDim2.fromOffset(840,624)})
+        local t = TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=UDim2.fromOffset(840, 624)})
         t:Play(); t.Completed:Connect(function()
             isOpen=true; isBusy=false
             refreshTopStats()
@@ -3142,7 +3391,10 @@ local function toggleInventory()
             main.Visible = false
             isOpen = false
             isBusy = false
-            detailsPanel.Visible = false 
+            detailsPanel.Visible = false
+            -- Restore Stats HUD
+            local statsGui = playerGui:FindFirstChild("Stats")
+            if statsGui then statsGui.Enabled = true end 
             
             -- Clean up rain effect when inventory closes
             if rainCleanup then
@@ -3213,24 +3465,6 @@ ContextActionService:BindAction(
     Enum.KeyCode.Escape
 )
 
--- Mobile button for touch devices
-if UserInputService.TouchEnabled then
-    local mb = Instance.new("TextButton")
-    mb.Size = UDim2.fromOffset(50,50)
-    mb.Position = UDim2.new(0,20,1,-70)
-    mb.AnchorPoint = Vector2.new(0,1)
-    mb.BackgroundColor3 = C3(10,20,15)
-    mb.Text = "📋"
-    mb.TextSize = 24
-    mb.TextColor3 = GREEN
-    mb.Parent = gui
-    Instance.new("UICorner", mb).CornerRadius = UDim.new(0,25)
-    local s = Instance.new("UIStroke", mb)
-    s.Color = GREEN
-    s.Thickness = 2
-    mb.MouseButton1Click:Connect(toggleInventory)
-end
-
 -- Initialize inventory
 populateInventory()
 refreshTopStats()
@@ -3249,10 +3483,48 @@ local function testMythicEffect(slotName)
     return false
 end
 
+------------------------------------------------------------------------
+-- CRATE GRANTED LISTENER — refresh inventory when server grants a crate
+-- (fired by CrateSpawn after _G.GrantBox succeeds for world/kill drops)
+------------------------------------------------------------------------
+task.spawn(function()
+    local RemoteEventsFolder = ReplicatedStorage:WaitForChild("RemoteEvents", 30)
+    if not RemoteEventsFolder then return end
+    local CrateGrantedRE = RemoteEventsFolder:WaitForChild("CrateGranted", 30)
+    if not CrateGrantedRE then return end
+
+    CrateGrantedRE.OnClientEvent:Connect(function(crateType, count)
+        -- Always re-fetch so inventory is up to date when next opened
+        fetchData()
+        -- If inventory is currently open, repopulate the grid immediately
+        if isOpen then
+            populateInventory()
+        end
+        -- Show pickup toast notification
+        if _G.notify then
+            local info = {
+                BRONZE   = "📦 Bronze Crate",
+                SILVER   = "📦 Silver Crate",
+                SAPPHIRE = "📦 Sapphire Crate",
+                OMEGA    = "📦 Omega Crate",
+                RUBY     = "📦 Ruby Crate",
+            }
+            local label = info[tostring(crateType):upper()] or ("📦 " .. tostring(crateType) .. " Crate")
+            _G.notify(player, "+" .. tostring(count or 1) .. "x " .. label)
+        end
+    end)
+end)
+
 -- Return global API
 _G.MatrixInventory = {
     ToggleInventory = toggleInventory,
     RefreshStats = refreshTopStats,
+    Refresh = function()
+        -- Re-fetch player data from server and repopulate the grid.
+        -- Call this after any server-side inventory change (e.g. crate opening).
+        fetchData()
+        if isOpen then populateInventory() end
+    end,
     IsOpen = function() return isOpen end,
     Close = function() if isOpen then toggleInventory() end end,
     TestMythicEffect = testMythicEffect

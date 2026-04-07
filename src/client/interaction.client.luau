@@ -69,6 +69,25 @@ local activeBillboards: { [Player]: { gui: BillboardGui, connections: { RBXScrip
 local character, rootPart, humanoid
 local lastCheck = 0
 
+-- Hide billboards during arena PvP duels and arcade fights.
+local inArenaDuel = false
+task.spawn(function()
+	local PvpCountdownEvent = ReplicatedStorage:FindFirstChild("PvpCountdownEvent")
+		or ReplicatedStorage:WaitForChild("PvpCountdownEvent", 20)
+	if not PvpCountdownEvent then return end
+	PvpCountdownEvent.OnClientEvent:Connect(function(action)
+		if action == "Show" or action == "FightStart" then
+			inArenaDuel = true
+			-- Immediately hide any visible interaction billboards
+			for plr, _ in pairs(activeBillboards) do
+				hideBillboard(plr)
+			end
+		elseif action == "FightEnd" then
+			inArenaDuel = false
+		end
+	end)
+end)
+
 local function bindCharacter()
 	character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
 	humanoid = character:WaitForChild("Humanoid")
@@ -681,6 +700,14 @@ RunService.Heartbeat:Connect(function(dt)
 
 	if not character or not rootPart or not humanoid or humanoid.Health <= 0 then
 		-- Hide all if we're dead
+		for plr, _ in pairs(activeBillboards) do
+			hideBillboard(plr)
+		end
+		return
+	end
+
+	-- Hide all interaction menus during arena PvP duels and arcade fights
+	if inArenaDuel then
 		for plr, _ in pairs(activeBillboards) do
 			hideBillboard(plr)
 		end

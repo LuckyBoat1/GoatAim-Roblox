@@ -26,16 +26,19 @@ if not PvpCountdownEvent then
 end
 
 --------------------------------------------------------------------------
--- ARENA SPAWNS — uses workspace.Pvp with spawn parts "1" and "2"
+-- ARENA SPAWNS — Pvp folder is at workspace root with spawn parts "1" and "2"
 --------------------------------------------------------------------------
-local pvpArena = workspace:FindFirstChild("Pvp")
-local spawn1 = pvpArena and pvpArena:FindFirstChild("1")
-local spawn2 = pvpArena and pvpArena:FindFirstChild("2")
+local pvpArena = workspace:WaitForChild("Pvp", 30)
+local spawn1 = pvpArena and pvpArena:WaitForChild("1", 15)
+local spawn2 = pvpArena and pvpArena:WaitForChild("2", 15)
 
 if pvpArena and spawn1 and spawn2 then
 	print("✅ [Duel] Pvp arena found with spawn points 1 and 2")
+	print(("✅ [Duel] spawn1: %s | spawn2: %s"):format(spawn1:GetFullName(), spawn2:GetFullName()))
 else
-	warn("⚠️ [Duel] Pvp arena or spawn points not found — duels will work but no teleport. Add Workspace > Pvp > 1 + 2 (Parts) to enable.")
+	warn("⚠️ [Duel] Pvp arena or spawn points not found!")
+	warn(("⚠️ [Duel] pvpArena: %s | spawn1: %s | spawn2: %s"):format(
+		tostring(pvpArena), tostring(spawn1), tostring(spawn2)))
 end
 
 --------------------------------------------------------------------------
@@ -160,7 +163,7 @@ local function endDuel(plr1: Player, plr2: Player, reason: string, winner: Playe
 	--------------------------------------------------------------------------
 	-- STATS & GOLD REWARDS
 	--------------------------------------------------------------------------
-	local BASE_GOLD = 1000
+	local BASE_GOLD = 100
 	local STREAK_BONUS_PERCENT = 0.10 -- 10% per winstreak
 	local MAX_STREAK_BONUS = 2.00    -- 200% cap (20 wins)
 
@@ -173,7 +176,7 @@ local function endDuel(plr1: Player, plr2: Player, reason: string, winner: Playe
 			winnerData.wins = (winnerData.wins or 0) + 1
 			winnerData.winstreak = (winnerData.winstreak or 0) + 1
 
-			-- Gold reward: 1000 base + 10% per winstreak, max 200% bonus (3k total)
+			-- Gold reward: 100 base + 10% per winstreak, max 200% bonus (300 total)
 			local streakBonus = math.min((winnerData.winstreak - 1) * STREAK_BONUS_PERCENT, MAX_STREAK_BONUS)
 			local goldReward = math.floor(BASE_GOLD * (1 + streakBonus))
 			if _G.addMoney then
@@ -194,16 +197,19 @@ local function endDuel(plr1: Player, plr2: Player, reason: string, winner: Playe
 		end
 
 		-- Update loser stats
-		if loser.Parent then -- still in game
-			local loserData = _G.getData(loser)
-			if loserData then
-				loserData.losses = (loserData.losses or 0) + 1
-				loserData.winstreak = 0 -- reset streak on loss
-				print(("📉 [Duel] %s LOST — streak reset | W:%d L:%d"):format(
-					loser.Name, loserData.wins or 0, loserData.losses
-				))
-			end
+		local loserData = _G.getData and _G.getData(loser)
+		if loserData then
+			loserData.losses = (loserData.losses or 0) + 1
+			loserData.winstreak = 0 -- reset streak on loss
+			print(("📉 [Duel] %s LOST — streak reset | W:%d L:%d"):format(
+				loser.Name, loserData.wins or 0, loserData.losses
+			))
+		end
+		-- Always fire FightEnd to the loser regardless of parent/alive state.
+		if loser.Parent then
 			PvpCountdownEvent:FireClient(loser, "FightEnd", reason)
+		else
+			pcall(function() PvpCountdownEvent:FireClient(loser, "FightEnd", reason) end)
 		end
 	else
 		-- Draw or no data system — just notify both
@@ -218,25 +224,45 @@ local function endDuel(plr1: Player, plr2: Player, reason: string, winner: Playe
 		for _, plr in { plr1, plr2 } do
 			local savedCF = preDuelPositions[plr]
 			preDuelPositions[plr] = nil
-			if savedCF and plr.Parent and isAlive(plr) then
-				local char = plr.Character
-				local rootPart = char and char:FindFirstChild("HumanoidRootPart")
-				if rootPart then
-					rootPart.Anchored = true
-					char:PivotTo(savedCF)
-					rootPart.AssemblyLinearVelocity = Vector3.zero
-					rootPart.AssemblyAngularVelocity = Vector3.zero
-					task.delay(0.2, function()
-						if rootPart and rootPart.Parent then
-							rootPart.Anchored = false
-							local hum = char:FindFirstChildOfClass("Humanoid")
-							if hum and hum.Parent then
-								hum:ChangeState(Enum.HumanoidStateType.Running)
-							end
+			if not savedCF then continue end
+			if not plr.Parent then continue end
+
+			local function doReturn(char)
+				if not char then return end
+				local rootPart = char:FindFirstChild("HumanoidRootPart")
+				if not rootPart then return end
+				rootPart.Anchored = true
+				char:PivotTo(savedCF)
+				rootPart.AssemblyLinearVelocity = Vector3.zero
+				rootPart.AssemblyAngularVelocity = Vector3.zero
+				task.delay(0.2, function()
+					if rootPart and rootPart.Parent then
+						rootPart.Anchored = false
+						local hum = char:FindFirstChildOfClass("Humanoid")
+						if hum and hum.Parent then
+							hum:ChangeState(Enum.HumanoidStateType.Running)
 						end
-					end)
-					print(("🔙 [Duel] Returned %s to pre-duel position"):format(plr.Name))
-				end
+					end
+				end)
+				print(("🔙 [Duel] Returned %s to pre-duel position"):format(plr.Name))
+			end
+
+			if isAlive(plr) then
+				-- Player is alive (they won or it was a draw) — teleport now.
+				doReturn(plr.Character)
+			else
+				-- Player died (lost the duel) — wait for their character to respawn,
+				-- then teleport the fresh character back to the pre-duel position.
+				local conn
+				conn = plr.CharacterAdded:Connect(function(newChar)
+					conn:Disconnect()
+					task.wait(0.5) -- let spawn settle
+					doReturn(newChar)
+				end)
+				-- Safety timeout: if CharacterAdded doesn't fire within 10 s, give up.
+				task.delay(10, function()
+					if conn then conn:Disconnect() end
+				end)
 			end
 		end
 	end)
@@ -249,16 +275,18 @@ local function startFightTimer(player1: Player, player2: Player)
 		PvpCountdownEvent:FireClient(player1, "FightStart", FIGHT_DURATION)
 		PvpCountdownEvent:FireClient(player2, "FightStart", FIGHT_DURATION)
 
+		-- Count down using wall time so cancellation via task.cancel works cleanly.
+		-- We do NOT check activeDuels inside the loop — if a player dies, endDuel
+		-- calls task.cancel which stops this thread mid-wait. The early-exit guard
+		-- that was here before caused the timer to silently exit (and skip FightEnd)
+		-- whenever endDuel cleared activeDuels between ticks.
 		for t = FIGHT_DURATION, 1, -1 do
-			-- Check duel still active
-			if not activeDuels[player1] or not activeDuels[player2] then return end
-
 			PvpCountdownEvent:FireClient(player1, "FightTimer", t)
 			PvpCountdownEvent:FireClient(player2, "FightTimer", t)
 			task.wait(1)
 		end
 
-		-- Timer expired — draw
+		-- Loop completed naturally (60 s expired) — declare a draw.
 		if activeDuels[player1] and activeDuels[player2] then
 			endDuel(player1, player2, "Time's up — Draw!", nil)
 		end
@@ -357,6 +385,12 @@ DuelEvent.OnServerEvent:Connect(function(player: Player, action: string, targetP
 			activeDuels[player] = targetPlayer
 			activeDuels[targetPlayer] = player
 
+			-- Grant ForceField immediately so shots during the countdown can't deal damage.
+			-- teleportToArena will call grantInvincibility again after teleport, resetting
+			-- the ForceField to a fresh INVINCIBILITY_TIME window.
+			grantInvincibility(player)
+			grantInvincibility(targetPlayer)
+
 			-- Notify both that duel was accepted
 			DuelEvent:FireClient(player, "Message", targetPlayer)
 			DuelEvent:FireClient(targetPlayer, "Message", player)
@@ -384,9 +418,11 @@ DuelEvent.OnServerEvent:Connect(function(player: Player, action: string, targetP
 					teleportToArena(player, targetPlayer)
 					print(("🏟️ [Duel] %s vs %s — FIGHT!"):format(player.Name, targetPlayer.Name))
 				else
-					-- One died during countdown, cancel
+					-- One died during countdown, cancel — fire FightEnd so clients unlock UI
 					activeDuels[player] = nil
 					activeDuels[targetPlayer] = nil
+					PvpCountdownEvent:FireClient(player, "FightEnd", "Duel cancelled")
+					PvpCountdownEvent:FireClient(targetPlayer, "FightEnd", "Duel cancelled")
 					warn("⚠️ [Duel] Cancelled — a player died during countdown")
 				end
 			end)
@@ -570,6 +606,72 @@ _G.PvpDuel = {
 		end
 
 		return true
+	end,
+
+	-- Start a duel directly (used by PvpPlatform, bypasses request/accept flow)
+	-- Returns true if the duel was started, false if it couldn't be
+	startDuel = function(player1: Player, player2: Player): boolean
+		-- Don't allow if either is already in a duel
+		if activeDuels[player1] or activeDuels[player2] then
+			return false
+		end
+		if not isAlive(player1) or not isAlive(player2) then
+			return false
+		end
+
+		-- Mark both as in active duel
+		activeDuels[player1] = player2
+		activeDuels[player2] = player1
+
+		-- Grant ForceField immediately so shots during the countdown can't deal damage
+		grantInvincibility(player1)
+		grantInvincibility(player2)
+
+		print(("⚔️ [Duel] Platform duel: %s vs %s — ACCEPTED! Teleporting in %ds..."):format(
+			player1.Name, player2.Name, COUNTDOWN_TIME
+		))
+
+		-- Animated countdown — same as AcceptDuel flow
+		task.spawn(function()
+			PvpCountdownEvent:FireClient(player1, "Show", player2.Name)
+			PvpCountdownEvent:FireClient(player2, "Show", player1.Name)
+
+			for t = COUNTDOWN_TIME, 1, -1 do
+				PvpCountdownEvent:FireClient(player1, "Countdown", t)
+				PvpCountdownEvent:FireClient(player2, "Countdown", t)
+				task.wait(1)
+			end
+
+			PvpCountdownEvent:FireClient(player1, "Countdown", 0)
+			PvpCountdownEvent:FireClient(player2, "Countdown", 0)
+
+			if isAlive(player1) and isAlive(player2) then
+				teleportToArena(player1, player2)
+				print(("🏟️ [Duel] %s vs %s — FIGHT!"):format(player1.Name, player2.Name))
+			else
+				-- Cancelled — fire FightEnd so clients unlock UI
+				activeDuels[player1] = nil
+				activeDuels[player2] = nil
+				PvpCountdownEvent:FireClient(player1, "FightEnd", "Duel cancelled")
+				PvpCountdownEvent:FireClient(player2, "FightEnd", "Duel cancelled")
+				warn("⚠️ [Duel] Cancelled — a player died during countdown")
+			end
+		end)
+
+		return true
+	end,
+
+	-- Register two players as opponents in the shared activeDuels table.
+	-- Called by PvpArena so that GameShooting's hitscan treats them as duelling.
+	registerArenaMatch = function(p1: Player, p2: Player)
+		activeDuels[p1] = p2
+		activeDuels[p2] = p1
+	end,
+
+	-- Remove the registration when the arena match ends.
+	unregisterArenaMatch = function(p1: Player, p2: Player)
+		activeDuels[p1] = nil
+		activeDuels[p2] = nil
 	end,
 }
 print("✅ [Duel] Global _G.PvpDuel API registered")

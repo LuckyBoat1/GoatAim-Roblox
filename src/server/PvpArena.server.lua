@@ -16,16 +16,31 @@ if not PvpArenaEvent then
 	print("✅ [PvpArena] Created PvpArenaEvent in ReplicatedStorage")
 end
 
+-- PvpCountdownEvent: shared with the duel system so the client UI (SideMenu abyss
+-- lock, SpawnButton dead-man's-switch, PvpCountdownUI) reacts to arena matches too.
+-- Resolved lazily so we don't race against duel.server.lua at startup.
+local _pvpCDE: RemoteEvent? = nil
+local function getPvpCountdown(): RemoteEvent?
+	if _pvpCDE then return _pvpCDE end
+	_pvpCDE = ReplicatedStorage:FindFirstChild("PvpCountdownEvent") :: RemoteEvent?
+	return _pvpCDE
+end
+task.spawn(function()
+	-- Pre-warm: wait up to 15 s for duel.server.lua to register PvpCountdownEvent
+	local pce = ReplicatedStorage:WaitForChild("PvpCountdownEvent", 15)
+	if pce then _pvpCDE = pce :: RemoteEvent end
+end)
+
 --------------------------------------------------------------------------
--- ARENA SPAWNS
+-- ARENA SPAWNS — Pvp folder is at workspace root
 --------------------------------------------------------------------------
-local pvpArena = workspace:WaitForChild("Pvp", 10)
+local pvpArena = workspace:WaitForChild("Pvp", 30)
 if not pvpArena then
-	warn("❌ [PvpArena] Could not find 'Pvp' in Workspace! Make sure the arena model exists.")
+	warn("❌ [PvpArena] Could not find 'Pvp' in workspace! Make sure the arena model exists.")
 end
 
-local spawn1 = pvpArena and pvpArena:FindFirstChild("1")
-local spawn2 = pvpArena and pvpArena:FindFirstChild("2")
+local spawn1 = pvpArena and pvpArena:WaitForChild("1", 15)
+local spawn2 = pvpArena and pvpArena:WaitForChild("2", 15)
 
 if pvpArena and spawn1 and spawn2 then
 	print("✅ [PvpArena] Arena found with both spawn points (1 and 2)")
@@ -114,6 +129,18 @@ local function endMatch(player1: Player, player2: Player, reason: string)
 		matchTimers[player2] = nil
 	end
 
+	-- Unregister from the duel hitscan system
+	if _G.PvpDuel and _G.PvpDuel.unregisterArenaMatch then
+		_G.PvpDuel.unregisterArenaMatch(player1, player2)
+	end
+
+	-- Unlock clients' abyss/spawn buttons
+	local pce = getPvpCountdown()
+	if pce then
+		pce:FireClient(player1, "FightEnd", reason)
+		pce:FireClient(player2, "FightEnd", reason)
+	end
+
 	-- Notify both players the match ended
 	PvpArenaEvent:FireClient(player1, "MatchEnded", player2, reason)
 	PvpArenaEvent:FireClient(player2, "MatchEnded", player1, reason)
@@ -155,6 +182,18 @@ local function startMatch(challenger: Player, target: Player)
 		PvpArenaEvent:FireClient(challenger, "FightStarted", target)
 		PvpArenaEvent:FireClient(target, "FightStarted", challenger)
 		print(("🥊 [PvpArena] %s vs %s — FIGHT!"):format(challenger.Name, target.Name))
+
+		-- Register in the duel hitscan system so shots deal damage
+		if _G.PvpDuel and _G.PvpDuel.registerArenaMatch then
+			_G.PvpDuel.registerArenaMatch(challenger, target)
+		end
+
+		-- Lock clients' abyss/spawn buttons for the match duration
+		local pce = getPvpCountdown()
+		if pce then
+			pce:FireClient(challenger, "FightStart", MATCH_DURATION)
+			pce:FireClient(target, "FightStart", MATCH_DURATION)
+		end
 
 		-- Match timeout timer
 		local timer = task.delay(MATCH_DURATION, function()

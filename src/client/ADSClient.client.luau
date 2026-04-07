@@ -6,6 +6,73 @@ local UserInputService = game:GetService("UserInputService")
 local Rs = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+------------------------------------------------------------------------
+-- SHOOT JOYSTICK — module-level state so UIS is connected ONCE only.
+-- Active=false on the frame so the left movement joystick isn't blocked.
+------------------------------------------------------------------------
+local _shootBtn         = nil   -- Frame reference; updated each respawn
+local _shootActiveInput = nil
+local _shootStartPos    = nil
+local JOYSTICK_TRAVEL   = 34
+
+local function _resetShootKnob()
+	if _shootBtn and _shootBtn.Parent then
+		local k = _shootBtn:FindFirstChild("Knob")
+		if k then k.Position = UDim2.new(0.5, 0, 0.5, 0) end
+	end
+	_shootActiveInput = nil
+	_shootStartPos    = nil
+end
+
+-- Module-level UIS: fires for Active=false frames. Active=false is required so
+-- the camera can pan (aim) while the finger rests on the shoot button.
+-- We do NOT check gameProcessed here — our explicit bounds check is the guard.
+-- gameProcessed can be true from other UI elements in the same area, which would
+-- silently block the joystick from activating if we filtered on it.
+UserInputService.InputBegan:Connect(function(input, _gameProcessed)
+	if input.UserInputType ~= Enum.UserInputType.Touch then return end
+	if not _shootBtn or not _shootBtn.Parent then return end
+	if _shootActiveInput then return end  -- already tracking a touch
+	local abs = _shootBtn.AbsolutePosition
+	local siz = _shootBtn.AbsoluteSize
+	if siz.X == 0 then return end
+	local x, y = input.Position.X, input.Position.Y
+	if x >= abs.X and x <= abs.X + siz.X and y >= abs.Y and y <= abs.Y + siz.Y then
+		_shootActiveInput = input
+		_shootStartPos    = Vector2.new(x, y)
+		-- Fire the shot immediately on tap
+		if _G.MobileTryShoot then
+			_G.MobileTryShoot()
+		else
+			task.spawn(function()
+				local deadline = tick() + 1
+				repeat task.wait(0.05) until _G.MobileTryShoot or tick() > deadline
+				if _G.MobileTryShoot then _G.MobileTryShoot() end
+			end)
+		end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input == _shootActiveInput then _resetShootKnob() end
+end)
+
+-- RenderStepped polls the active touch position every frame so the knob never
+-- lags or misses updates even when two touches are active simultaneously.
+RunService.RenderStepped:Connect(function()
+	if not _shootActiveInput or not _shootBtn or not _shootBtn.Parent then return end
+	if _shootActiveInput.UserInputState == Enum.UserInputState.End then
+		_resetShootKnob()
+		return
+	end
+	local k = _shootBtn:FindFirstChild("Knob")
+	if not k then return end
+	local delta = Vector2.new(_shootActiveInput.Position.X, _shootActiveInput.Position.Y) - _shootStartPos
+	local dist  = delta.Magnitude
+	if dist > JOYSTICK_TRAVEL then delta = delta * (JOYSTICK_TRAVEL / dist) end
+	k.Position = UDim2.new(0.5, delta.X, 0.5, delta.Y)
+end)
+
 -- SkinConfig simple direct require (Studio-style)
 local SkinConfig = require(Rs:WaitForChild("Shared"):WaitForChild("SkinConfig"))
 local player = Players.LocalPlayer
@@ -361,14 +428,9 @@ local function bindInputs()
 		if state == Enum.UserInputState.Begin then beginADS()
 		elseif state == Enum.UserInputState.End then endADS() end
 		return Enum.ContextActionResult.Sink
-	end, true, Enum.UserInputType.MouseButton2, Enum.KeyCode.ButtonL2)
-
-	ContextActionService:BindAction("ADS_ShiftHold", function(_, state)
-		if not currentTool or not adjustedAdsGrip then return Enum.ContextActionResult.Pass end
-		if state == Enum.UserInputState.Begin then beginADS()
-		elseif state == Enum.UserInputState.End then endADS() end
-		return Enum.ContextActionResult.Sink
-	end, false, Enum.KeyCode.LeftShift)
+	end, false, Enum.UserInputType.MouseButton2, Enum.KeyCode.ButtonL2)
+	-- false = no auto-generated Roblox mobile button; we use our own custom ADS button.
+	-- Shift key removed from ADS — Shift is reserved for dash only
 end
 
 local function ensureMobileButton()
@@ -376,27 +438,142 @@ local function ensureMobileButton()
 	local gui = player:FindFirstChildOfClass("PlayerGui")
 	if not gui then return end
 
+	-- Hide the default Roblox jump button and place our shoot button in its spot
+	task.spawn(function()
+		local touchGui = gui:WaitForChild("TouchGui", 10)
+		if not touchGui then return end
+		local function destroyJump(g)
+			for _, obj in ipairs(g:GetDescendants()) do
+				if obj.Name == "JumpButton" then
+					obj.Visible = false
+					obj.Size = UDim2.new(0, 0, 0, 0)
+				end
+			end
+		end
+		destroyJump(touchGui)
+		touchGui.DescendantAdded:Connect(function(obj)
+			if obj.Name == "JumpButton" then
+				task.defer(function()
+					if obj and obj.Parent then
+						obj.Visible = false
+						obj.Size = UDim2.new(0, 0, 0, 0)
+					end
+				end)
+			end
+		end)
+	end)
+
 	local hud = gui:FindFirstChild("ADS_UI") or Instance.new("ScreenGui")
 	hud.Name = "ADS_UI"
 	hud.ResetOnSpawn = false
+	hud.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	hud.DisplayOrder = 10
 	hud.Parent = gui
 
-	local btn = hud:FindFirstChild("ADSButton") or Instance.new("TextButton")
-	btn.Name = "ADSButton"
-	btn.Size = UDim2.new(0, 60, 0, 60)
-	btn.Position = UDim2.new(1, -80, 1, -80)
-	btn.BackgroundColor3 = Color3.fromRGB(20,30,25)
-	btn.Text = "ADS"
-	btn.TextSize = 18
-	btn.TextColor3 = Color3.fromRGB(20,250,120)
-	btn.Parent = hud
-	if not btn:FindFirstChildOfClass("UICorner") then
-		local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,12); c.Parent = btn
-		local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(20,250,120); s.Thickness = 2; s.Parent = btn
+	-- Clear any previous shoot button
+	local old = hud:FindFirstChild("ShootButton")
+	if old then old:Destroy() end
+
+	-- ── Shoot Joystick — original image background + blue stick only ──
+	local BTN_SIZE   = 220  -- transparent hit area (bigger than image for easier touch)
+	local IMG_SIZE   = 170  -- visible image size (unchanged appearance)
+	local KNOB_SIZE  = 52   -- blue knob diameter (moves with finger)
+	local MAX_TRAVEL = 34   -- max knob offset from center
+
+	-- Outer container: Active=false so the camera pan system receives the touch
+	-- and can pan/aim while the finger rests on the shoot area. Hit-detection
+	-- for firing is handled by the module-level UserInputService connection above.
+	local btn = Instance.new("Frame")
+	btn.Name                 = "ShootButton"
+	btn.AnchorPoint          = Vector2.new(1, 1)
+	btn.Size                 = UDim2.new(0, BTN_SIZE, 0, BTN_SIZE)
+	btn.Position             = UDim2.new(1, 30, 1, 30)
+	btn.BackgroundTransparency = 1
+	btn.BorderSizePixel      = 0
+	btn.Active               = false  -- must stay false so camera pan (aim) works
+	btn.Parent               = hud
+
+	-- Background image: centered in the frame (frame center = original image corner position)
+	do
+		local img = Instance.new("ImageLabel")
+		img.Size                  = UDim2.new(0, IMG_SIZE, 0, IMG_SIZE)
+		img.AnchorPoint           = Vector2.new(0.5, 0.5)
+		img.Position              = UDim2.new(0.5, 0, 0.5, 0)
+		img.BackgroundTransparency = 1
+		img.Image                 = "rbxassetid://107599983524020"
+		img.ScaleType             = Enum.ScaleType.Fit
+		img.ZIndex                = 1
+		img.Parent                = btn
 	end
 
-	btn.MouseButton1Down:Connect(function() if currentTool and adjustedAdsGrip then beginADS() end end)
-	btn.MouseButton1Up:Connect(function() if currentTool then endADS() end end)
+	-- Blue knob only (moves with finger, no red base)
+	local knob = Instance.new("Frame")
+	knob.Name                 = "Knob"
+	knob.AnchorPoint          = Vector2.new(0.5, 0.5)
+	knob.Size                 = UDim2.new(0, KNOB_SIZE, 0, KNOB_SIZE)
+	knob.Position             = UDim2.new(0.5, 0, 0.5, 0)
+	knob.BackgroundColor3     = Color3.fromRGB(40, 110, 230)
+	knob.BackgroundTransparency = 0.55
+	knob.BorderSizePixel      = 0
+	knob.ZIndex               = 3
+	knob.Parent               = btn
+	do
+		Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+		local s = Instance.new("UIStroke", knob)
+		s.Color = Color3.fromRGB(120, 180, 255)
+		s.Thickness = 2
+	end
+
+	-- _shootBtn reference updated here; module-level UIS connections handle touch detection.
+	_shootBtn = btn
+
+	-- ── ADS Toggle Button — bottom-left of the shoot button ──────────────
+	local ADS_BTN_SIZE = 90   -- diameter of the button
+
+	local old_ads = hud:FindFirstChild("ADSToggleButton")
+	if old_ads then old_ads:Destroy() end
+
+	local adsBtn = Instance.new("ImageButton")
+	adsBtn.Name                 = "ADSToggleButton"
+	adsBtn.AnchorPoint          = Vector2.new(1, 1)
+	-- Sits in the upper-left quadrant of the shoot button area, 80 px above the bottom edge.
+	-- BTN_SIZE=220: 30 - 220 + 70 = -120 (X), Y = -80 (above the screen-bottom).
+	adsBtn.Size                 = UDim2.new(0, ADS_BTN_SIZE, 0, ADS_BTN_SIZE)
+	adsBtn.Position             = UDim2.new(1, 30 - BTN_SIZE + 70, 1, -80)
+	adsBtn.BackgroundTransparency = 1
+	adsBtn.BorderSizePixel      = 0
+	adsBtn.Image                = "rbxassetid://80229905853399"
+	adsBtn.ScaleType            = Enum.ScaleType.Fit
+	adsBtn.ZIndex               = 5
+	adsBtn.Parent               = hud
+
+	-- Tint to indicate ADS state
+	local function updateAdsBtnTint(active)
+		adsBtn.ImageColor3 = active and Color3.fromRGB(80, 210, 120) or Color3.fromRGB(255, 255, 255)
+		adsBtn.ImageTransparency = active and 0 or 0.15
+	end
+	updateAdsBtnTint(false)
+
+	adsBtn.Activated:Connect(function()
+		if aiming then
+			endADS()
+			updateAdsBtnTint(false)
+		else
+			beginADS()
+			updateAdsBtnTint(true)
+		end
+	end)
+
+	-- Reset tint visually when ADS drops naturally (e.g. tool unequipped).
+	-- Guard against the button being destroyed on the next respawn.
+	local prevAiming = false
+	RunService.RenderStepped:Connect(function()
+		if not adsBtn or not adsBtn.Parent then return end
+		if aiming ~= prevAiming then
+			prevAiming = aiming
+			updateAdsBtnTint(aiming)
+		end
+	end)
 end
 
 local function hookCharacter(char)

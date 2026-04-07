@@ -36,6 +36,42 @@ if not SimpleNPCStats then
 	warn("[PVESystem] SimpleNPCStats not found! Drops will not work.")
 end
 
+-- Load DropConfig for per-damage gold rates
+local DropConfig = nil
+pcall(function()
+	DropConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("DropConfig"))
+end)
+
+-- Lookup goldPerDamage for an NPC model (case-insensitive, trims spaces)
+local function getGoldPerDamage(npcModel)
+	if not DropConfig then return 0 end
+	-- Exact match first
+	local entry = DropConfig[npcModel.Name]
+	if entry and entry.goldPerDamage then return entry.goldPerDamage end
+	-- Fallback: case-insensitive scan
+	local lowerName = npcModel.Name:lower():gsub("%s+", "")
+	for k, v in pairs(DropConfig) do
+		if type(k) == "string" and k:lower():gsub("%s+", "") == lowerName then
+			if v.goldPerDamage then return v.goldPerDamage end
+		end
+	end
+	return 0
+end
+
+-- Lookup expPerDamage for an NPC model (case-insensitive, trims spaces)
+local function getExpPerDamage(npcModel)
+	if not DropConfig then return 0 end
+	local entry = DropConfig[npcModel.Name]
+	if entry and entry.expPerDamage then return entry.expPerDamage end
+	local lowerName = npcModel.Name:lower():gsub("%s+", "")
+	for k, v in pairs(DropConfig) do
+		if type(k) == "string" and k:lower():gsub("%s+", "") == lowerName then
+			if v.expPerDamage then return v.expPerDamage end
+		end
+	end
+	return 0
+end
+
 -- Load SkinConfig for damage lookup
 local SkinConfig = nil
 pcall(function()
@@ -127,55 +163,19 @@ local function spawnDrops(npcModel, position, killerPlayer)
 					_G.notify(killerPlayer, "+" .. amount .. " Gold!")
 				end
 			else
-				-- Spawn physical drop for crates
-				local dropsFolder = Workspace:FindFirstChild("Drops")
-				if not dropsFolder then
-					dropsFolder = Instance.new("Folder")
-					dropsFolder.Name = "Drops"
-					dropsFolder.Parent = Workspace
-				end
-				
-				-- Try to find crate template
-				local crateTemplate = nil
-				local cratesFolder = ReplicatedStorage:FindFirstChild("Crates")
-				if cratesFolder then
-					crateTemplate = cratesFolder:FindFirstChild(itemName)
-				end
-				
-				if crateTemplate then
-					for i = 1, amount do
-						local crate = crateTemplate:Clone()
-						
-						-- Random offset from NPC position
-						local offset = Vector3.new(
-							math.random(-3, 3),
-							2,
-							math.random(-3, 3)
-						)
-						
-						if crate:IsA("Model") and crate.PrimaryPart then
-							crate:SetPrimaryPartCFrame(CFrame.new(position + offset))
-						elseif crate:IsA("BasePart") then
-							crate.Position = position + offset
-						end
-						
-						crate.Parent = dropsFolder
-						
-						-- Make it collectible
-						crate:SetAttribute("DropItem", itemName)
-						crate:SetAttribute("DropAmount", 1)
-						
-						print("[PVESystem] Spawned crate:", itemName, "at", position + offset)
-						
-						-- Auto-destroy after 60 seconds if not collected
-						task.delay(60, function()
-							if crate.Parent then
-								crate:Destroy()
-							end
-						end)
+				-- Spawn pickupable crate drop (same system as CrateSpawn abyss crates)
+				for i = 1, amount do
+					local offset = Vector3.new(
+						math.random(-3, 3),
+						0,
+						math.random(-3, 3)
+					)
+					if _G.SpawnDropCrate then
+						_G.SpawnDropCrate(position + offset, itemName)
+						print("[PVESystem] Spawned pickupable", itemName, "drop at", position + offset)
+					else
+						warn("[PVESystem] _G.SpawnDropCrate not ready — CrateSpawn may not have loaded yet")
 					end
-				else
-					warn("[PVESystem] Crate template not found:", itemName)
 				end
 			end
 		end
@@ -185,15 +185,79 @@ end
 -- Track killed NPCs to prevent double rewards
 local killedNPCs = {}
 
--- Show damage VFX to all nearby players
-local function showDamageVFX(position, damage, isCrit)
-	-- Fire to all players within range
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			local dist = (player.Character.HumanoidRootPart.Position - position).Magnitude
-			if dist <= 150 then -- Only show to nearby players
-				DamageIndicatorEvent:FireClient(player, position, damage, isCrit, false)
+-- Immediately halve any new BillboardGui that enters workspace so health bars
+-- are never full-size (client-side property writes on server-owned objects aren't
+-- possible from LocalScripts, so we do this server-side).
+workspace.DescendantAdded:Connect(function(obj)
+	if obj:IsA("BillboardGui") and not obj:GetAttribute("SizeHalved") then
+		task.defer(function()  -- defer so Size is already set by whatever created it
+			if not obj.Parent then return end
+			obj:SetAttribute("SizeHalved", true)
+			obj.MaxDistance = 60
+			obj.Size = UDim2.new(
+				obj.Size.X.Scale / 2, obj.Size.X.Offset / 2,
+				obj.Size.Y.Scale / 2, obj.Size.Y.Offset / 2
+			)
+		end)
+	end
+end)
+
+-- ── CORPSE HANDLER ────────────────────────────────────────────────────────
+-- Hides the health billboard immediately, then fades the body from t=5→10s
+-- and destroys it. PVESystem destroys the model; the AI while-loop in each
+-- spawner script checks `npc.Parent`, so this also triggers respawn logic.
+local function handleNPCCorpse(npcModel)
+	if not npcModel or not npcModel.Parent then return end
+
+	-- Disable all BillboardGuis (custom health bars) immediately
+	for _, obj in ipairs(npcModel:GetDescendants()) do
+		if obj:IsA("BillboardGui") then
+			obj.Enabled = false
+		end
+	end
+	-- Also suppress the default Roblox health display
+	local hum = npcModel:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.DisplayDistanceType  = Enum.HumanoidDisplayDistanceType.None
+		hum.HealthDisplayType    = Enum.HumanoidHealthDisplayType.AlwaysOff
+	end
+
+	-- Fade + destroy coroutine
+	task.spawn(function()
+		task.wait(5) -- lie still for 5 seconds before fading
+		if not npcModel.Parent then return end
+
+		local STEPS     = 20
+		local STEP_TIME = 5 / STEPS -- fade over 5 seconds → gone at t=10
+		for i = 1, STEPS do
+			if not npcModel.Parent then return end
+			local t = i / STEPS
+			for _, desc in ipairs(npcModel:GetDescendants()) do
+				if desc:IsA("BasePart") then
+					desc.Transparency = t
+					desc.CanCollide   = false
+				elseif desc:IsA("Decal") or desc:IsA("Texture") then
+					desc.Transparency = t
+				end
 			end
+			task.wait(STEP_TIME)
+		end
+
+		if npcModel.Parent then
+			npcModel:Destroy()
+		end
+	end)
+end
+
+-- Show damage VFX to the attacking player (no distance limit)
+local function showDamageVFX(position, damage, isCrit, attacker)
+	local target = attacker
+	-- If attacker not passed, fire to all players (fallback)
+	if target and target:IsA("Player") then
+		DamageIndicatorEvent:FireClient(target, position, damage, isCrit, false)
+	else
+		for _, player in ipairs(Players:GetPlayers()) do
+			DamageIndicatorEvent:FireClient(player, position, damage, isCrit, false)
 		end
 	end
 end
@@ -201,10 +265,35 @@ end
 -- Handle NPC taking damage
 local function damageNPC(npcModel, damage, attacker)
 	if not npcModel then return false end
-	
-	-- Check if already dead
+
+	-- Check if already dead — but verify health wasn't reset (spawner may reuse the same model)
 	if killedNPCs[npcModel] then
-		return false
+		local hum = npcModel:FindFirstChildOfClass("Humanoid")
+		local stillDead = hum and hum.Health <= 0
+		if not stillDead then
+			local attr = npcModel:GetAttribute("Health")
+			stillDead = attr ~= nil and attr <= 0
+		end
+		if stillDead then return false end
+		-- Health was reset → spawner reused the model; clear the stale entry
+		killedNPCs[npcModel] = nil
+	end
+
+	-- Re-enable health billboard in case NPC respawned with it disabled
+	-- Cap MaxDistance so billboard never takes over the whole screen
+	-- Halve billboard visual size once (guarded by attribute so it doesn't keep shrinking)
+	for _, obj in ipairs(npcModel:GetDescendants()) do
+		if obj:IsA("BillboardGui") then
+			obj.Enabled = true
+			obj.MaxDistance = 60  -- disappears beyond 60 studs
+			if not obj:GetAttribute("SizeHalved") then
+				obj:SetAttribute("SizeHalved", true)
+				obj.Size = UDim2.new(
+					obj.Size.X.Scale / 2, obj.Size.X.Offset / 2,
+					obj.Size.Y.Scale / 2, obj.Size.Y.Offset / 2
+				)
+			end
+		end
 	end
 	
 	-- Get hit position for VFX
@@ -217,56 +306,92 @@ local function damageNPC(npcModel, damage, attacker)
 	local isCrit = damage >= 50
 	
 	-- Show damage VFX
-	showDamageVFX(hitPosition, damage, isCrit)
+	showDamageVFX(hitPosition, damage, isCrit, attacker)
 	
 	local humanoid = npcModel:FindFirstChildOfClass("Humanoid")
 	if not humanoid then
-		-- Try attribute-based health (like Bull)
+		-- Try attribute-based health
 		local currentHealth = npcModel:GetAttribute("Health")
 		if currentHealth then
+			local actualDamage = math.min(damage, currentHealth)
 			local newHealth = math.max(0, currentHealth - damage)
 			npcModel:SetAttribute("Health", newHealth)
 			print("[PVESystem] NPC", npcModel.Name, "hit for", damage, "! Health:", newHealth)
-			
+
+			-- Per-damage gold reward
+			if attacker then
+				local gpd = getGoldPerDamage(npcModel)
+				local earned = math.floor(actualDamage * gpd)
+				if earned > 0 and _G.addMoney then _G.addMoney(attacker, earned) end
+			end
+
 			if newHealth <= 0 and not killedNPCs[npcModel] then
 				killedNPCs[npcModel] = true
 				local pos = npcModel.PrimaryPart and npcModel.PrimaryPart.Position or Vector3.new(0, 0, 0)
 				spawnDrops(npcModel, pos, attacker)
-				
-				-- Clean up tracking after respawn time
-				task.delay(10, function()
-					killedNPCs[npcModel] = nil
-				end)
+				-- Award EXP
+				if attacker and _G.addExp then
+					local expConfig = getNPCConfig(npcModel)
+					local expAward = (expConfig and expConfig.EXP) or 10
+					_G.addExp(attacker, expAward)
+				end
+				-- Fade body + hide health bar
+				handleNPCCorpse(npcModel)
+				-- Clear tracking after body is gone
+				task.delay(12, function() killedNPCs[npcModel] = nil end)
 			end
 			return true
 		end
-		
+
 		warn("[PVESystem] NPC has no Humanoid or Health attribute:", npcModel.Name)
 		return false
 	end
-	
+
 	-- Apply damage to humanoid
-	humanoid:TakeDamage(damage)
-	print("[PVESystem] NPC", npcModel.Name, "hit for", damage, "! Health:", humanoid.Health, "/", humanoid.MaxHealth)
-	
+	-- Remove any ForceField that would silently absorb TakeDamage (common on freshly spawned NPCs)
+	for _, ff in ipairs(npcModel:GetDescendants()) do
+		if ff:IsA("ForceField") then ff:Destroy() end
+	end
+
+	local prevHealth = humanoid.Health
+	-- Set Health directly (bypasses ForceField and invincibility scripts that intercept TakeDamage)
+	humanoid.Health = math.max(0, humanoid.Health - damage)
+	local actualDamage = math.max(0, prevHealth - humanoid.Health)
+	print("[PVESystem] NPC", npcModel.Name, "hit for", actualDamage, "! Health:", humanoid.Health, "/", humanoid.MaxHealth)
+
+	-- Per-damage gold reward
+	if attacker then
+		local gpd = getGoldPerDamage(npcModel)
+		local earned = math.floor(actualDamage * gpd)
+		if earned > 0 and _G.addMoney then _G.addMoney(attacker, earned) end
+	end
+
 	-- Check if NPC died
 	if humanoid.Health <= 0 and not killedNPCs[npcModel] then
 		killedNPCs[npcModel] = true
-		local pos = npcModel.PrimaryPart and npcModel.PrimaryPart.Position 
+		local pos = npcModel.PrimaryPart and npcModel.PrimaryPart.Position
 			or humanoid.RootPart and humanoid.RootPart.Position
 			or Vector3.new(0, 0, 0)
-		
+
 		spawnDrops(npcModel, pos, attacker)
-		
+
+		-- Award EXP to killer
+		if attacker and _G.addExp then
+			local expConfig = getNPCConfig(npcModel)
+			local expAward = (expConfig and expConfig.EXP) or 10
+			_G.addExp(attacker, expAward)
+			print("[PVESystem] Awarded", expAward, "EXP to", attacker.Name)
+		end
+
 		-- Notify player
 		if attacker and _G.notify then
 			_G.notify(attacker, "Killed " .. npcModel.Name .. "!")
 		end
-		
-		-- Clean up tracking after respawn time
-		task.delay(10, function()
-			killedNPCs[npcModel] = nil
-		end)
+
+		-- Fade body + hide health bar; body is destroyed at t=10s
+		handleNPCCorpse(npcModel)
+		-- Clear kill-tracking after body is gone
+		task.delay(12, function() killedNPCs[npcModel] = nil end)
 	end
 	
 	return true

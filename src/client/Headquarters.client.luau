@@ -4,9 +4,12 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local isMobile = UserInputService.TouchEnabled
 
 -- Load modules for Storage item display
 local SkinConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SkinConfig"))
+local CrateConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CrateConfig"))
 local MythicEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MythicEffects"))
 local MythicAura = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MythicAura"))
 local LegendaryAura = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("LegendaryAura"))
@@ -31,6 +34,13 @@ local storagePanelFrame = headquartersGui:FindFirstChild("Storage")
 
 -- Upgrades panel inside HeadQuarters (added in Studio with child frames for each upgrade)
 local upgradesPanelFrame = headquartersGui:FindFirstChild("Upgrades")
+
+-- Crafting panel (shows material counts) — direct child of HeadQuarters
+local craftingFrame = headquartersGui:FindFirstChild("Crafting")
+-- CraftingButton (clickable button in Main that opens Crafting panel)
+local craftingButton = mainFrame and mainFrame:FindFirstChild("CraftingButton")
+-- Crafting2 panel (shows craft buttons per rarity) — direct child of HeadQuarters
+local crafting2Panel = headquartersGui:FindFirstChild("Crafting2")
 
 -- Get frames from Main (use FindFirstChild to avoid infinite hangs if user moved frames)
 local topFrame = mainFrame:WaitForChild("Top", 5) or mainFrame:FindFirstChild("Top")
@@ -66,12 +76,12 @@ local originalProps = {}
 local function addHoverEffect(frame)
 	local imageLabel = frame:FindFirstChild("ImageLabel")
 	local textLabel = frame:FindFirstChild("TextLabel")
-	if not imageLabel then return end
+	-- imageLabel is optional — shake and text effects still apply without one
 	
 	-- Store originals
 	originalProps[frame] = {
 		size = frame.Size,
-		imageColor = imageLabel.ImageColor3,
+		imageColor = imageLabel and imageLabel.ImageColor3 or Color3.fromRGB(255, 255, 255),
 		textSize = textLabel and textLabel.TextSize or 22,
 		rotation = frame.Rotation
 	}
@@ -88,13 +98,15 @@ local function addHoverEffect(frame)
 		}):Play()
 		
 		-- Brighten image
-		TweenService:Create(imageLabel, TweenInfo.new(0.15), {
-			ImageColor3 = Color3.fromRGB(
-				math.min(255, orig.imageColor.R * 255 + 40),
-				math.min(255, orig.imageColor.G * 255 + 40),
-				math.min(255, orig.imageColor.B * 255 + 40)
-			)
-		}):Play()
+		if imageLabel then
+			TweenService:Create(imageLabel, TweenInfo.new(0.15), {
+				ImageColor3 = Color3.fromRGB(
+					math.min(255, orig.imageColor.R * 255 + 40),
+					math.min(255, orig.imageColor.G * 255 + 40),
+					math.min(255, orig.imageColor.B * 255 + 40)
+				)
+			}):Play()
+		end
 		
 		-- Pop text
 		if textLabel then
@@ -104,16 +116,18 @@ local function addHoverEffect(frame)
 			}):Play()
 		end
 		
-		-- Subtle wobble (always ends at original rotation)
+		-- Shake effect on hover
 		task.spawn(function()
-			TweenService:Create(frame, TweenInfo.new(0.08), { Rotation = orig.rotation + 2 }):Play()
-			task.wait(0.08)
-			TweenService:Create(frame, TweenInfo.new(0.08), { Rotation = orig.rotation - 2 }):Play()
-			task.wait(0.08)
-			TweenService:Create(frame, TweenInfo.new(0.08), { Rotation = orig.rotation + 1 }):Play()
-			task.wait(0.08)
-			TweenService:Create(frame, TweenInfo.new(0.08), { Rotation = orig.rotation - 1 }):Play()
-			task.wait(0.08)
+			TweenService:Create(frame, TweenInfo.new(0.06), { Rotation = orig.rotation + 6 }):Play()
+			task.wait(0.06)
+			TweenService:Create(frame, TweenInfo.new(0.06), { Rotation = orig.rotation - 5 }):Play()
+			task.wait(0.06)
+			TweenService:Create(frame, TweenInfo.new(0.06), { Rotation = orig.rotation + 4 }):Play()
+			task.wait(0.06)
+			TweenService:Create(frame, TweenInfo.new(0.06), { Rotation = orig.rotation - 3 }):Play()
+			task.wait(0.06)
+			TweenService:Create(frame, TweenInfo.new(0.06), { Rotation = orig.rotation + 2 }):Play()
+			task.wait(0.06)
 			TweenService:Create(frame, TweenInfo.new(0.08), { Rotation = orig.rotation }):Play()
 		end)
 	end)
@@ -128,9 +142,11 @@ local function addHoverEffect(frame)
 		}):Play()
 		
 		-- Restore image color
-		TweenService:Create(imageLabel, TweenInfo.new(0.15), {
-			ImageColor3 = orig.imageColor
-		}):Play()
+		if imageLabel then
+			TweenService:Create(imageLabel, TweenInfo.new(0.15), {
+				ImageColor3 = orig.imageColor
+			}):Play()
+		end
 		
 		-- Restore text
 		if textLabel then
@@ -143,16 +159,19 @@ local function addHoverEffect(frame)
 	
 	-- Click effect - bounce and flash
 	frame.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
 			-- Quick squish
 			TweenService:Create(frame, TweenInfo.new(0.08), {
 				Size = UDim2.new(orig.size.X.Scale * 0.95, orig.size.X.Offset, orig.size.Y.Scale * 0.95, orig.size.Y.Offset)
 			}):Play()
 			
 			-- Flash white
-			TweenService:Create(imageLabel, TweenInfo.new(0.05), {
-				ImageColor3 = Color3.fromRGB(255, 255, 255)
-			}):Play()
+			if imageLabel then
+				TweenService:Create(imageLabel, TweenInfo.new(0.05), {
+					ImageColor3 = Color3.fromRGB(255, 255, 255)
+				}):Play()
+			end
 			
 			task.delay(0.08, function()
 				-- Bounce back bigger
@@ -169,15 +188,17 @@ local function addHoverEffect(frame)
 						Size = targetSize
 					}):Play()
 					
-					TweenService:Create(imageLabel, TweenInfo.new(0.1), {
-						ImageColor3 = isHovering 
-							and Color3.fromRGB(
-								math.min(255, orig.imageColor.R * 255 + 40),
-								math.min(255, orig.imageColor.G * 255 + 40),
-								math.min(255, orig.imageColor.B * 255 + 40)
-							)
-							or orig.imageColor
-					}):Play()
+					if imageLabel then
+						TweenService:Create(imageLabel, TweenInfo.new(0.1), {
+							ImageColor3 = isHovering 
+								and Color3.fromRGB(
+									math.min(255, orig.imageColor.R * 255 + 40),
+									math.min(255, orig.imageColor.G * 255 + 40),
+									math.min(255, orig.imageColor.B * 255 + 40)
+								)
+								or orig.imageColor
+						}):Play()
+					end
 				end)
 			end)
 			
@@ -240,6 +261,10 @@ statsContainer.Size = UDim2.new(1, 0, 1, 0)
 statsContainer.Position = UDim2.new(0, 0, 0, 0)
 statsContainer.BackgroundTransparency = 1
 statsContainer.Parent = middleFrame
+-- Scale stats panel 19% smaller (0.9 * 0.9 = 0.81)
+local statsScale = Instance.new("UIScale")
+statsScale.Scale = 0.81
+statsScale.Parent = statsContainer
 
 -- Grid layout for stat cards (5 cards: 3 top + 2 bottom centered)
 local gridLayout = Instance.new("UIGridLayout")
@@ -354,6 +379,7 @@ end
 local cachedPlayerData = nil
 
 -- Refresh stats from server
+local _postRefreshHooks = {} -- functions added later that run after data refresh
 local function refreshHQStats()
 	if not GetPlayerDataRF then return end
 	local ok, data = pcall(function()
@@ -373,6 +399,10 @@ local function refreshHQStats()
 			local cpd = data.cratesPerDay or 0
 			statCards.cratesPerDay.Text = cpd > 0 and string.format("%.1f", cpd) or "0"
 		end
+		-- Run post-refresh hooks (crafting material displays etc.)
+		for _, fn in ipairs(_postRefreshHooks) do
+			pcall(fn)
+		end
 	end
 end
 
@@ -381,7 +411,13 @@ end
 --------------------------------------------------------------------------
 local upgradeContentBuilt = false
 
--- Map Studio child frame names → upgrade keys (must match server HQUpgrade keys)
+-- ✏️ EASY EDIT: Font sizes for upgrade cards (pixel sizes — change number = text changes)
+-- Mobile uses smaller sizes so text fits inside the physically smaller cards
+local UPGRADE_FONT_LABEL = isMobile and 10 or 14  -- Upgrade name (e.g. "MAX HEALTH")
+local UPGRADE_FONT_DESC  = isMobile and 10 or 14  -- Description line
+local UPGRADE_FONT_INFO  = isMobile and 9  or 13  -- Level, cost, and action
+
+-- Map Studio child frame names → upgrade k--eys (must match server HQUpgrade keys)
 local STUDIO_FRAME_TO_KEY = {
 	Health     = "health",
 	Armor      = "armor",
@@ -397,12 +433,12 @@ local STUDIO_FRAME_TO_KEY = {
 local UPGRADE_DEFS = {
 	health        = { label = "MAX HEALTH",        icon = "❤️",  color = Color3.fromRGB(220, 60, 60),   desc = "+20 HP per level",             maxLevel = 5  },
 	armor         = { label = "ARMOR",             icon = "🛡️",  color = Color3.fromRGB(80, 160, 255),  desc = "+10 armor per level",           maxLevel = 5  },
-	goldPerSecond = { label = "GOLD INCOME",       icon = "💰",  color = Color3.fromRGB(80, 220, 120),  desc = "+2 gold/sec per level",         maxLevel = 10 },
+	goldPerSecond = { label = "GOLD INCOME",       icon = "💰",  color = Color3.fromRGB(80, 220, 120),  desc = "+6 gold/sec per level",         maxLevel = 10 },
 	refinerSpeed  = { label = "REFINER SPEED",     icon = "⚡",  color = Color3.fromRGB(255, 200, 50),  desc = "+15% refiner speed per level",  maxLevel = 10 },
 	pvpGoldBonus  = { label = "PVP GOLD",          icon = "⚔️",  color = Color3.fromRGB(255, 80, 80),   desc = "+10% PVP gold per level",       maxLevel = 10 },
 	abyssGoldBonus= { label = "ABYSS GOLD",        icon = "🌀",  color = Color3.fromRGB(160, 50, 220),  desc = "+10% Abyss gold per level",     maxLevel = 10 },
 	pveGoldBonus  = { label = "PVE GOLD",          icon = "🎯",  color = Color3.fromRGB(50, 180, 220),  desc = "+10% PvE gold per level",       maxLevel = 10 },
-	playTimeBonus = { label = "PLAY TIME BONUS",   icon = "⏱️",  color = Color3.fromRGB(255, 160, 40),  desc = "+5% all gold per level",        maxLevel = 10 },
+	playTimeBonus = { label = "AFK GOLD/SEC",       icon = "⏱️",  color = Color3.fromRGB(255, 160, 40),  desc = "+2 gold/sec while AFK",         maxLevel = 10 },
 }
 
 -- Upgrade cost tables (must match server)
@@ -450,7 +486,13 @@ local function populateUpgradeFrame(studioFrame, key)
 		return
 	end
 
-	-- Configure the text label for upgrade info
+	-- Half-height label centered in the card — TextScaled fills it proportionally on all screens
+	textLabel.AnchorPoint = Vector2.new(0, 0.5)
+	textLabel.Size = UDim2.new(1, -12, 0.475, 0)
+	textLabel.Position = UDim2.new(0, 6, 0.5, 0)
+	-- Pad text content to the right inside the label (works regardless of parent layout)
+	local padding = textLabel:FindFirstChildOfClass("UIPadding") or Instance.new("UIPadding", textLabel)
+	padding.PaddingLeft = UDim.new(0.13, 0)
 	textLabel.Font = Enum.Font.FredokaOne
 	textLabel.TextColor3 = def.color
 	textLabel.TextScaled = true
@@ -462,11 +504,13 @@ local function populateUpgradeFrame(studioFrame, key)
 	textLabel.TextXAlignment = Enum.TextXAlignment.Left
 	textLabel.TextYAlignment = Enum.TextYAlignment.Top
 
-	-- Set initial text
+	-- Remove any size constraint — TextScaled + relative TextLabel size handles all screens
+	local constraint = textLabel:FindFirstChildOfClass("UITextSizeConstraint")
+	if constraint then constraint:Destroy() end
 	local costs = UPGRADE_COSTS[key]
 	local firstCost = costs and costs[1] or 0
 	textLabel.Text = string.format(
-		"<font size=\"16\">%s</font>\n<font size=\"10\" color=\"#a0a5b4\">%s</font>\n\nLv. 0 / %d\n<font color=\"#ffc832\">$%s</font>  •  <font color=\"#ffffff\">TAP TO UPGRADE</font>",
+		"<b>%s</b>\n<font color=\"#a0a5b4\">%s</font>\n\nLv. 0 / %d\n<font color=\"#ffc832\">$%s</font>  ·  <font color=\"#ffffff\">TAP TO UPGRADE</font>",
 		def.label, def.desc, def.maxLevel, formatNumber(firstCost)
 	)
 
@@ -495,7 +539,7 @@ local function refreshUpgradeNodes()
 
 		if isMaxed then
 			nodeUI.textLabel.Text = string.format(
-				"<font size=\"16\">%s</font>\n<font size=\"10\" color=\"#a0a5b4\">%s</font>\n\nLv. %d / %d\n<font color=\"#50dc78\">MAX LEVEL</font>",
+				"<b>%s</b>\n<font color=\"#a0a5b4\">%s</font>\n\nLv. %d / %d\n<font color=\"#50dc78\">MAX LEVEL</font>",
 				def.label, def.desc, currentLevel, maxLevel
 			)
 		else
@@ -507,7 +551,7 @@ local function refreshUpgradeNodes()
 				or "<font color=\"#888888\">NOT ENOUGH GOLD</font>"
 
 			nodeUI.textLabel.Text = string.format(
-				"<font size=\"16\">%s</font>\n<font size=\"10\" color=\"#a0a5b4\">%s</font>\n\nLv. %d / %d\n<font color=\"%s\">$%s</font>  •  %s",
+				"<b>%s</b>\n<font color=\"#a0a5b4\">%s</font>\n\nLv. %d / %d\n<font color=\"%s\">$%s</font>  ·  %s",
 				def.label, def.desc, currentLevel, maxLevel, costColor, formatNumber(nextCost), actionText
 			)
 		end
@@ -523,6 +567,28 @@ local function buildUpgradeUI()
 	end
 	upgradeContentBuilt = true
 
+	-- Create Back button inside Upgrades panel if not already present
+	if not upgradesPanelFrame:FindFirstChild("BackButton") and not upgradesPanelFrame:FindFirstChild("Back") then
+		local upBackBtn = Instance.new("TextButton")
+		upBackBtn.Name = "BackButton"
+		upBackBtn.Size = UDim2.new(0, 100, 0, 36)
+		upBackBtn.Position = UDim2.new(0, 10, 0, 10)
+		upBackBtn.BackgroundColor3 = Color3.fromRGB(30, 35, 40)
+		upBackBtn.BackgroundTransparency = 0.2
+		upBackBtn.Text = "< BACK"
+		upBackBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		upBackBtn.Font = Enum.Font.FredokaOne
+		upBackBtn.TextSize = 16
+		upBackBtn.AutoButtonColor = true
+		upBackBtn.ZIndex = 5
+		upBackBtn.Parent = upgradesPanelFrame
+		Instance.new("UICorner", upBackBtn).CornerRadius = UDim.new(0, 8)
+		Instance.new("UIStroke", upBackBtn).Color = Color3.fromRGB(100, 100, 100)
+		upBackBtn.MouseButton1Click:Connect(function()
+			closeUpgradeView()
+		end)
+	end
+
 	-- Iterate through each child frame in the Studio Upgrades panel
 	for studioName, upgradeKey in pairs(STUDIO_FRAME_TO_KEY) do
 		local studioFrame = upgradesPanelFrame:FindFirstChild(studioName)
@@ -533,11 +599,35 @@ local function buildUpgradeUI()
 
 		populateUpgradeFrame(studioFrame, upgradeKey)
 
-		-- Add hover/click effects to this branch frame
-		local defColor = UPGRADE_DEFS[upgradeKey] and UPGRADE_DEFS[upgradeKey].color or Color3.fromRGB(255, 255, 255)
-		addUpgradeBranchEffects(studioFrame, defColor)
+		-- Shift text down slightly for gold cards (not abyss)
+		local GOLD_KEYS = { goldPerSecond = true, pvpGoldBonus = true, pveGoldBonus = true, playTimeBonus = true }
+		if GOLD_KEYS[upgradeKey] then
+			local tl = studioFrame:FindFirstChild("TextLabel")
+			if tl then
+				local pad = tl:FindFirstChildOfClass("UIPadding") or Instance.new("UIPadding", tl)
+				pad.PaddingTop = UDim.new(0, 0)
+				tl.Position = UDim2.new(0, 6, 0.55, 0)
+			end
+		end
 
-		-- Wire click handler on the whole frame
+		-- Shake on hover/touch for upgrade frames
+		local _shakeRunning = false
+		local function shakeFrame(frame)
+			if _shakeRunning then return end
+			_shakeRunning = true
+			local origRot = frame.Rotation
+			task.spawn(function()
+				TweenService:Create(frame, TweenInfo.new(0.06), { Rotation = origRot + 5 }):Play() task.wait(0.06)
+				TweenService:Create(frame, TweenInfo.new(0.06), { Rotation = origRot - 4 }):Play() task.wait(0.06)
+				TweenService:Create(frame, TweenInfo.new(0.06), { Rotation = origRot + 3 }):Play() task.wait(0.06)
+				TweenService:Create(frame, TweenInfo.new(0.08), { Rotation = origRot }):Play()
+				_shakeRunning = false
+			end)
+		end
+		studioFrame.Active = true  -- required for InputBegan to fire on mobile touch
+		studioFrame.MouseEnter:Connect(function() shakeFrame(studioFrame) end)
+
+		-- Wire click handler on the whole frame (handles both PC mouse and mobile touch)
 		studioFrame.InputBegan:Connect(function(input)
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1
 				and input.UserInputType ~= Enum.UserInputType.Touch then
@@ -553,7 +643,8 @@ local function buildUpgradeUI()
 			local currentLevel = cachedPlayerData and cachedPlayerData[serverKey] or 0
 			if currentLevel >= def.maxLevel then return end -- already maxed
 
-			-- Quick flash effect on the frame
+			-- Shake + flash effect on the frame
+			shakeFrame(studioFrame)
 			local origColor = studioFrame.BackgroundColor3
 			local origTransparency = studioFrame.BackgroundTransparency
 			TweenService:Create(studioFrame, TweenInfo.new(0.05), {
@@ -574,12 +665,13 @@ local function buildUpgradeUI()
 				refreshUpgradeNodes()
 				refreshHQStats()
 
-				-- Success flash (green)
-				TweenService:Create(studioFrame, TweenInfo.new(0.15), {
-					BackgroundColor3 = Color3.fromRGB(80, 255, 120),
-					BackgroundTransparency = 0.4,
-				}):Play()
-				task.delay(0.4, function()
+				-- Trigger flipbook particle burst on this upgrade frame
+				if _G.PlayUpgradeFlipBook then
+					_G.PlayUpgradeFlipBook(studioFrame)
+				end
+
+				-- Restore frame after click flash
+				task.delay(0.15, function()
 					TweenService:Create(studioFrame, TweenInfo.new(0.2), {
 						BackgroundColor3 = origColor,
 						BackgroundTransparency = origTransparency,
@@ -631,11 +723,409 @@ end
 -- Wire the Upgrades button in Main to open upgrade view
 if upgradesFrame then
 	upgradesFrame.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
 			task.delay(0.3, openUpgradeView) -- Wait for bounce animation
 		end
 	end)
 end
+
+--------------------------------------------------------------------------
+-- CRAFTING SYSTEM
+--------------------------------------------------------------------------
+local CRAFT_COST = 10 -- materials consumed per craft
+
+-- Case-insensitive FindFirstChild helper (fixes naming mismatches like "common" vs "Common")
+local function findChildCaseInsensitive(parent, name)
+	local exact = parent:FindFirstChild(name)
+	if exact then return exact end
+	local lower = name:lower()
+	for _, child in parent:GetChildren() do
+		if child.Name:lower() == lower then return child end
+	end
+	return nil
+end
+
+-- Material data key mapping
+local MATERIAL_KEYS = {
+	Common    = "commonMaterials",
+	Rare      = "rareMaterials",
+	Epic      = "epicMaterials",
+	Legendary = "legendaryMaterials",
+	Mythic    = "mythicMaterials",
+}
+
+-- Rarity string for server (lowercase)
+local MATERIAL_RARITY = {
+	Common    = "common",
+	Rare      = "rare",
+	Epic      = "epic",
+	Legendary = "legendary",
+	Mythic    = "mythic",
+}
+
+-- Rarity colors for craft popup
+local CRAFT_RARITY_COLORS = {
+	Common    = Color3.fromRGB(155, 155, 155),
+	Rare      = Color3.fromRGB(31, 81, 255),
+	Epic      = Color3.fromRGB(163, 53, 238),
+	Legendary = Color3.fromRGB(255, 128, 0),
+	Mythic    = Color3.fromRGB(235, 75, 75),
+}
+
+-- Refresh material counts in the Crafting frame
+local function refreshCraftingMaterials()
+	if not craftingFrame or not cachedPlayerData then return end
+	for frameName, dataKey in pairs(MATERIAL_KEYS) do
+		local sub = findChildCaseInsensitive(craftingFrame, frameName)
+		if sub then
+			local tl = sub:FindFirstChild("TextLabel")
+			if tl then
+				local amt = cachedPlayerData[dataKey] or 0
+				tl.Text = tostring(amt)
+				tl.Font = Enum.Font.GothamBold
+				tl.TextSize = 18
+				tl.TextColor3 = Color3.fromRGB(255, 255, 255)
+				tl.TextStrokeTransparency = 0.5
+				tl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+			end
+		else
+			warn("[Headquarters] Crafting frame missing child: " .. frameName)
+		end
+	end
+end
+
+-- Craft confirmation popup
+local craftPopupGui = nil
+local function showCraftPopup(rarityName)
+	-- Remove existing popup if any
+	if craftPopupGui then craftPopupGui:Destroy() end
+
+	local rarityColor = CRAFT_RARITY_COLORS[rarityName] or Color3.fromRGB(255, 255, 255)
+	local dataKey = MATERIAL_KEYS[rarityName]
+	local have = cachedPlayerData and cachedPlayerData[dataKey] or 0
+
+	craftPopupGui = Instance.new("ScreenGui")
+	craftPopupGui.Name = "CraftConfirmPopup"
+	craftPopupGui.DisplayOrder = 200
+	craftPopupGui.Parent = playerGui
+
+	-- Dark overlay
+	local overlay = Instance.new("Frame")
+	overlay.Size = UDim2.new(1, 0, 1, 0)
+	overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	overlay.BackgroundTransparency = 0.5
+	overlay.BorderSizePixel = 0
+	overlay.Parent = craftPopupGui
+
+	-- Popup box
+	local box = Instance.new("Frame")
+	box.Size = UDim2.new(0, 360, 0, 200)
+	box.Position = UDim2.new(0.5, -180, 0.5, -100)
+	box.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	box.BorderSizePixel = 0
+	box.Parent = craftPopupGui
+	local boxCorner = Instance.new("UICorner"); boxCorner.CornerRadius = UDim.new(0, 12); boxCorner.Parent = box
+	local boxStroke = Instance.new("UIStroke"); boxStroke.Color = rarityColor; boxStroke.Thickness = 3; boxStroke.Parent = box
+
+	-- Title
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, -20, 0, 40)
+	title.Position = UDim2.new(0, 10, 0, 10)
+	title.BackgroundTransparency = 1
+	title.Font = Enum.Font.FredokaOne
+	title.TextSize = 22
+	title.TextColor3 = rarityColor
+	title.Text = "CRAFT " .. string.upper(rarityName) .. " WEAPON?"
+	title.TextStrokeTransparency = 0.5
+	title.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	title.Parent = box
+
+	-- Cost info
+	local info = Instance.new("TextLabel")
+	info.Size = UDim2.new(1, -20, 0, 30)
+	info.Position = UDim2.new(0, 10, 0, 55)
+	info.BackgroundTransparency = 1
+	info.Font = Enum.Font.GothamBold
+	info.TextSize = 16
+	info.TextColor3 = Color3.fromRGB(200, 200, 200)
+	info.Text = string.format("Cost: %d %s Materials  (You have: %d)", CRAFT_COST, rarityName, have)
+	info.TextStrokeTransparency = 0.7
+	info.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	info.Parent = box
+
+	-- Not enough warning
+	if have < CRAFT_COST then
+		local warn_label = Instance.new("TextLabel")
+		warn_label.Size = UDim2.new(1, -20, 0, 20)
+		warn_label.Position = UDim2.new(0, 10, 0, 85)
+		warn_label.BackgroundTransparency = 1
+		warn_label.Font = Enum.Font.GothamBold
+		warn_label.TextSize = 14
+		warn_label.TextColor3 = Color3.fromRGB(255, 80, 80)
+		warn_label.Text = "NOT ENOUGH MATERIALS!"
+		warn_label.Parent = box
+	end
+
+	-- Buttons row
+	local btnY = 130
+
+	-- YES button
+	local yesBtn = Instance.new("TextButton")
+	yesBtn.Size = UDim2.new(0, 140, 0, 45)
+	yesBtn.Position = UDim2.new(0.5, -150, 0, btnY)
+	yesBtn.BackgroundColor3 = have >= CRAFT_COST and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(60, 60, 60)
+	yesBtn.Font = Enum.Font.FredokaOne
+	yesBtn.TextSize = 20
+	yesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	yesBtn.Text = "YES, CRAFT"
+	yesBtn.AutoButtonColor = have >= CRAFT_COST
+	yesBtn.BorderSizePixel = 0
+	yesBtn.Parent = box
+	local yesCorner = Instance.new("UICorner"); yesCorner.CornerRadius = UDim.new(0, 8); yesCorner.Parent = yesBtn
+
+	-- NO button
+	local noBtn = Instance.new("TextButton")
+	noBtn.Size = UDim2.new(0, 140, 0, 45)
+	noBtn.Position = UDim2.new(0.5, 10, 0, btnY)
+	noBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+	noBtn.Font = Enum.Font.FredokaOne
+	noBtn.TextSize = 20
+	noBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	noBtn.Text = "NO"
+	noBtn.BorderSizePixel = 0
+	noBtn.Parent = box
+	local noCorner = Instance.new("UICorner"); noCorner.CornerRadius = UDim.new(0, 8); noCorner.Parent = noBtn
+
+	-- NO → just close
+	noBtn.MouseButton1Click:Connect(function()
+		if craftPopupGui then craftPopupGui:Destroy(); craftPopupGui = nil end
+	end)
+	overlay.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			if craftPopupGui then craftPopupGui:Destroy(); craftPopupGui = nil end
+		end
+	end)
+
+	-- YES → call server
+	if have >= CRAFT_COST then
+		yesBtn.MouseButton1Click:Connect(function()
+			yesBtn.Text = "CRAFTING..."
+			yesBtn.AutoButtonColor = false
+			local ok, result = pcall(function()
+				return PlayerDataRF:InvokeServer("CraftWeapon", { rarity = MATERIAL_RARITY[rarityName] })
+			end)
+			if ok and result and result.success then
+				-- Update cached data
+				if cachedPlayerData then
+					local dk = MATERIAL_KEYS[rarityName]
+					cachedPlayerData[dk] = result.materialsLeft
+					-- Add skin to cached skins
+					cachedPlayerData.skins = cachedPlayerData.skins or {}
+					cachedPlayerData.skins[result.skinId] = (cachedPlayerData.skins[result.skinId] or 0) + 1
+				end
+				-- Show success in popup
+				title.Text = "CRAFTED!"
+				info.Text = result.skinId .. " (" .. result.rarity .. ")"
+				info.TextColor3 = rarityColor
+				yesBtn.Text = "✓ SUCCESS"
+				yesBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 60)
+				-- Refresh displays
+				refreshCraftingMaterials()
+				refreshHQStats()
+				-- Auto-close after 2s
+				task.delay(2, function()
+					if craftPopupGui then craftPopupGui:Destroy(); craftPopupGui = nil end
+				end)
+			else
+				local errMsg = (result and result.error) or "Craft failed"
+				yesBtn.Text = errMsg
+				yesBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+				task.delay(2, function()
+					if craftPopupGui then craftPopupGui:Destroy(); craftPopupGui = nil end
+				end)
+			end
+		end)
+	end
+end
+
+-- Step 1: CraftingButton → opens Crafting panel (materials view)
+local function openCraftingView()
+	refreshHQStats()
+	refreshCraftingMaterials()
+	currentView = "crafting"
+	mainFrame.Visible = false
+	if crafting2Panel then crafting2Panel.Visible = false end
+	if craftingFrame then craftingFrame.Visible = true end
+end
+
+-- Step 2: Craft button inside Crafting → opens Crafting2 panel (rarity selection)
+local function openCrafting2View()
+	refreshHQStats()
+	currentView = "crafting2"
+	if craftingFrame then craftingFrame.Visible = false end
+	if crafting2Panel then crafting2Panel.Visible = true end
+end
+
+-- Back from Crafting2 → Crafting
+local function closeCrafting2View()
+	currentView = "crafting"
+	if crafting2Panel then crafting2Panel.Visible = false end
+	if craftingFrame then craftingFrame.Visible = true end
+	refreshHQStats()
+	refreshCraftingMaterials()
+end
+
+-- Back from Crafting → Main
+local function closeCraftingView()
+	currentView = "main"
+	if craftingFrame then craftingFrame.Visible = false end
+	if crafting2Panel then crafting2Panel.Visible = false end
+	mainFrame.Visible = true
+	refreshHQStats()
+end
+
+-- Wire the CraftingButton in Main (opens Crafting panel)
+if craftingButton then
+	-- Set up the label
+	local craftingTextLabel = craftingButton:FindFirstChild("TextLabel")
+	if craftingTextLabel then
+		craftingTextLabel.Text = "CRAFTING"
+		craftingTextLabel.Font = Enum.Font.FredokaOne
+		craftingTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		craftingTextLabel.TextSize = 22
+		craftingTextLabel.TextStrokeTransparency = 0.8
+		craftingTextLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	end
+	-- Add hover effect
+	addHoverEffect(craftingButton)
+	-- Click to open Crafting panel
+	craftingButton.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			task.delay(0.3, openCraftingView)
+		end
+	end)
+end
+
+-- Wire Craft button inside Crafting panel → opens Crafting2
+if craftingFrame then
+	local craftBtn = craftingFrame:FindFirstChild("Craft") or craftingFrame:FindFirstChild("CraftButton")
+	if craftBtn then
+		-- Set up the Craft label
+		local craftLabel = craftBtn:FindFirstChild("TextLabel")
+		if craftLabel then
+			craftLabel.Text = "CRAFT"
+			craftLabel.Font = Enum.Font.GothamBold
+			craftLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			craftLabel.TextStrokeTransparency = 0.5
+			craftLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+		end
+		addHoverEffect(craftBtn)
+		craftBtn.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch then
+				task.delay(0.3, openCrafting2View)
+			end
+		end)
+	end
+	-- Wire Back button inside Crafting panel → back to Main
+	local backBtn = craftingFrame:FindFirstChild("Back") or craftingFrame:FindFirstChild("BackButton")
+	if not backBtn then
+		backBtn = Instance.new("TextButton")
+		backBtn.Name = "BackButton"
+		backBtn.Size = UDim2.new(0, 100, 0, 36)
+		backBtn.Position = UDim2.new(0, 10, 0, 10)
+		backBtn.BackgroundColor3 = Color3.fromRGB(30, 35, 40)
+		backBtn.BackgroundTransparency = 0.2
+		backBtn.Text = "< BACK"
+		backBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		backBtn.Font = Enum.Font.FredokaOne
+		backBtn.TextSize = 16
+		backBtn.AutoButtonColor = true
+		backBtn.ZIndex = 5
+		backBtn.Parent = craftingFrame
+		Instance.new("UICorner", backBtn).CornerRadius = UDim.new(0, 8)
+		Instance.new("UIStroke", backBtn).Color = Color3.fromRGB(100, 100, 100)
+	end
+	backBtn.MouseButton1Click:Connect(function()
+		closeCraftingView()
+	end)
+end
+
+-- Wire Back button inside Crafting2 panel → back to Crafting
+if crafting2Panel then
+	local back2Btn = crafting2Panel:FindFirstChild("Back") or crafting2Panel:FindFirstChild("BackButton")
+	if not back2Btn then
+		back2Btn = Instance.new("TextButton")
+		back2Btn.Name = "BackButton"
+		back2Btn.Size = UDim2.new(0, 100, 0, 36)
+		back2Btn.Position = UDim2.new(0, 10, 0, 10)
+		back2Btn.BackgroundColor3 = Color3.fromRGB(30, 35, 40)
+		back2Btn.BackgroundTransparency = 0.2
+		back2Btn.Text = "< BACK"
+		back2Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		back2Btn.Font = Enum.Font.FredokaOne
+		back2Btn.TextSize = 16
+		back2Btn.AutoButtonColor = true
+		back2Btn.ZIndex = 5
+		back2Btn.Parent = crafting2Panel
+		Instance.new("UICorner", back2Btn).CornerRadius = UDim.new(0, 8)
+		Instance.new("UIStroke", back2Btn).Color = Color3.fromRGB(100, 100, 100)
+	end
+	back2Btn.MouseButton1Click:Connect(function()
+		closeCrafting2View()
+	end)
+end
+
+-- Wire Crafting2 panel rarity frames (click to craft)
+if crafting2Panel then
+	-- Set up material counts & click handlers on each rarity frame
+	for frameName, _ in pairs(MATERIAL_KEYS) do
+		local rarityFrame = findChildCaseInsensitive(crafting2Panel, frameName)
+		if rarityFrame then
+			-- Set text label to show material count
+			local tl = rarityFrame:FindFirstChild("TextLabel")
+			if tl then
+				tl.Font = Enum.Font.GothamBold
+				tl.TextSize = 18
+				tl.TextColor3 = Color3.fromRGB(255, 255, 255)
+				tl.TextStrokeTransparency = 0.5
+				tl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+			end
+			-- Click handler → show craft popup
+			rarityFrame.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch then
+					-- Refresh data first
+					refreshHQStats()
+					showCraftPopup(frameName)
+				end
+			end)
+		else
+			warn("[Headquarters] Crafting2 missing rarity frame: " .. frameName)
+		end
+	end
+end
+
+-- Refresh Crafting2 material counts
+local function refreshCrafting2Materials()
+	if not crafting2Panel or not cachedPlayerData then return end
+	for frameName, dataKey in pairs(MATERIAL_KEYS) do
+		local sub = findChildCaseInsensitive(crafting2Panel, frameName)
+		if sub then
+			local tl = sub:FindFirstChild("TextLabel")
+			if tl then
+				local amt = cachedPlayerData[dataKey] or 0
+				tl.Text = tostring(amt)
+			end
+		end
+	end
+end
+
+-- Register crafting refreshes as post-refresh hooks
+table.insert(_postRefreshHooks, refreshCraftingMaterials)
+table.insert(_postRefreshHooks, refreshCrafting2Materials)
 
 --------------------------------------------------------------------------
 -- STORAGE SYSTEM
@@ -645,15 +1135,37 @@ local inventoryItemCleanups = {}
 
 local BLOOD_RED = Color3.fromRGB(220, 20, 40)
 
--- Helper: Get skin model from SkinLibrary
+-- Helper: Get skin model from SkinLibrary (or crate model from Crates folder)
 local function getStorageSkinInstance(name)
 	local lib = ReplicatedStorage:FindFirstChild("SkinLibrary")
-	if not lib then return nil end
-	return lib:FindFirstChild(name, true)
+	if lib then
+		local found = lib:FindFirstChild(name, true)
+		if found then return found end
+	end
+	-- Fallback: check Crates folder for crate models
+	if CrateConfig then
+		local crateData = CrateConfig.GetCrate(name)
+		if crateData then
+			local cratesFolder = ReplicatedStorage:FindFirstChild("Crates")
+			if cratesFolder then
+				local modelName = crateData.modelName or name
+				local model = cratesFolder:FindFirstChild(modelName)
+				if model then return model end
+			end
+		end
+	end
+	return nil
 end
 
--- Helper: Get skin rarity (1-5)
+-- Crate rarity order (matches skin rarity scale)
+local CRATE_RARITY_ORDER = { BRONZE = 1, SILVER = 2, SAPPHIRE = 3, OMEGA = 4, RUBY = 5 }
+
+-- Helper: Get skin/crate rarity (1-5)
 local function getStorageSkinRarity(skinName)
+	-- Check if it's a crate
+	if CRATE_RARITY_ORDER[skinName] then
+		return CRATE_RARITY_ORDER[skinName]
+	end
 	if not SkinConfig then return 1 end
 	local meta = SkinConfig.GetSkinMeta(skinName)
 	if not meta then return 1 end
@@ -775,9 +1287,15 @@ local function createStorageSlot(parent, scrollParent, skinName, onClickCallback
 		placeholder.Parent = vpContainer
 	end
 
-	-- Process name (remove Meshes/ prefix, capitalize)
+	-- Process name: use crate display name, strip Meshes/ prefix, or use as-is
 	local processedName = skinName
-	if string.find(skinName, "Meshes/") then
+	if CrateConfig then
+		local crateData = CrateConfig.GetCrate(skinName)
+		if crateData and crateData.name then
+			processedName = crateData.name
+		end
+	end
+	if processedName == skinName and string.find(skinName, "Meshes/") then
 		processedName = string.gsub(skinName, "Meshes/", "")
 		processedName = string.gsub(processedName, "(%l)([%w_']*)", function(first, rest)
 			return string.upper(first) .. rest
@@ -1259,7 +1777,68 @@ local function refreshStorageView()
 		end
 	end
 
-	print(string.format("[Storage] Loaded %d inventory items, %d storage items", #invList, #storList))
+	-- Build crate lists from boxes (inventory) and crateStorage
+	local boxes = data.boxes or {}
+	local crateStorage = data.crateStorage or {}
+	local invCrateList = {}
+	local storCrateList = {}
+	for crateType, qty in pairs(boxes) do
+		local count = (type(qty) == "number" and qty or 0)
+		for _ = 1, count do
+			table.insert(invCrateList, crateType)
+		end
+	end
+	for crateType, qty in pairs(crateStorage) do
+		local count = (type(qty) == "number" and qty or 0)
+		for _ = 1, count do
+			table.insert(storCrateList, crateType)
+		end
+	end
+	table.sort(invCrateList, sortByRarity)
+	table.sort(storCrateList, sortByRarity)
+
+	-- Populate inventory crates (click = move crate to crate storage)
+	for i, crateName in ipairs(invCrateList) do
+		local slot, cleanup = createStorageSlot(invScrollFrame, invScrollFrame, crateName, function(name)
+			if not PlayerDataRF then warn("[Storage] PlayerDataRF not found") return end
+			local moveOk, result = pcall(function()
+				return PlayerDataRF:InvokeServer("MoveCrateToStorage", { crateType = name })
+			end)
+			if moveOk and result and result.success then
+				print("[Storage] Moved crate", name, "to storage")
+				refreshStorageView()
+			else
+				warn("[Storage] Failed to move crate", name, ":", result and result.error or "unknown")
+			end
+		end)
+		if slot then
+			slot.LayoutOrder = #invList + i
+			table.insert(inventoryItemCleanups, cleanup)
+		end
+	end
+
+	-- Populate storage crates (click = retrieve crate back to boxes)
+	for i, crateName in ipairs(storCrateList) do
+		local slot, cleanup = createStorageSlot(storScrollFrame, storScrollFrame, crateName, function(name)
+			if not PlayerDataRF then warn("[Storage] PlayerDataRF not found") return end
+			local moveOk, result = pcall(function()
+				return PlayerDataRF:InvokeServer("MoveCrateFromStorage", { crateType = name })
+			end)
+			if moveOk and result and result.success then
+				print("[Storage] Retrieved crate", name, "from storage")
+				refreshStorageView()
+			else
+				warn("[Storage] Failed to retrieve crate", name, ":", result and result.error or "unknown")
+			end
+		end)
+		if slot then
+			slot.LayoutOrder = #storList + i
+			table.insert(storageItemCleanups, cleanup)
+		end
+	end
+
+	print(string.format("[Storage] Loaded %d skins + %d crates (inv) | %d skins + %d crates (storage)",
+		#invList, #invCrateList, #storList, #storCrateList))
 end
 
 -- Open storage view (switch from Main to Storage overlay)
@@ -1344,10 +1923,34 @@ end
 --------------------------------------------------------------------------
 local function open()
 	if isOpen then return end
+
+	-- Refresh reference in case the ScreenGui was destroyed/recreated after respawn.
+	if not headquartersGui or not headquartersGui.Parent then
+		headquartersGui = playerGui:FindFirstChild("HeadQuarters")
+		if headquartersGui then
+			-- Re-bind child refs that may also be stale
+			mainFrame          = headquartersGui:FindFirstChild("Main")
+			storagePanelFrame  = headquartersGui:FindFirstChild("Storage")
+			upgradesPanelFrame = headquartersGui:FindFirstChild("Upgrades")
+			craftingFrame      = headquartersGui:FindFirstChild("Crafting")
+			crafting2Panel     = headquartersGui:FindFirstChild("Crafting2")
+		end
+	end
+	if not headquartersGui then
+		warn("[Headquarters] open(): HeadQuarters GUI not found")
+		return
+	end
+
 	isOpen = true
 	currentView = "main"
 
 	hideStatsUI()
+
+	-- Hide mobile combat buttons while HQ is open
+	local adsUI = playerGui:FindFirstChild("ADS_UI")
+	if adsUI then adsUI.Enabled = false end
+	local dashUI = playerGui:FindFirstChild("DashUI")
+	if dashUI then dashUI.Enabled = false end
 
 	-- Enable the HQ gui (pcall-guarded so stats re-show if GUI was destroyed)
 	local ok, err = pcall(function()
@@ -1358,6 +1961,8 @@ local function open()
 		if storagePanelFrame then storagePanelFrame.Visible = false end
 		if storageOverlayGui then storageOverlayGui.Enabled = false end
 		if upgradesPanelFrame then upgradesPanelFrame.Visible = false end
+		if craftingFrame then craftingFrame.Visible = false end
+		if crafting2Panel then crafting2Panel.Visible = false end
 	end)
 	if not ok then
 		warn("[Headquarters] open() error:", err)
@@ -1378,20 +1983,26 @@ local function close()
 	-- Hide overlays immediately
 	if storageOverlayGui then storageOverlayGui.Enabled = false end
 	if upgradesPanelFrame then upgradesPanelFrame.Visible = false end
+	if craftingFrame then craftingFrame.Visible = false end
+	if crafting2Panel then crafting2Panel.Visible = false end
+	if craftPopupGui then craftPopupGui:Destroy(); craftPopupGui = nil end
 
-	task.wait(0.05)
-	if not isOpen then
-		-- Always re-show stats, even if HQ GUI errors (e.g. after respawn)
-		local ok, err = pcall(function()
-			if headquartersGui then
-				headquartersGui.Enabled = false
-			end
-			if mainFrame then mainFrame.Visible = true end
-			if storagePanelFrame then storagePanelFrame.Visible = false end
-		end)
-		if not ok then warn("[Headquarters] close() error:", err) end
-		showStatsUI()
-	end
+	-- Always re-show stats, even if HQ GUI errors (e.g. after respawn)
+	local ok, err = pcall(function()
+		if headquartersGui then
+			headquartersGui.Enabled = false
+		end
+		if mainFrame then mainFrame.Visible = true end
+		if storagePanelFrame then storagePanelFrame.Visible = false end
+	end)
+	if not ok then warn("[Headquarters] close() error:", err) end
+	showStatsUI()
+
+	-- Restore mobile combat buttons
+	local adsUI = playerGui:FindFirstChild("ADS_UI")
+	if adsUI then adsUI.Enabled = true end
+	local dashUI = playerGui:FindFirstChild("DashUI")
+	if dashUI then dashUI.Enabled = true end
 end
 
 local function toggle()
@@ -1415,5 +2026,7 @@ headquartersGui.Enabled = false
 if storagePanelFrame then storagePanelFrame.Visible = false end
 if storageOverlayGui then storageOverlayGui.Enabled = false end
 if upgradesPanelFrame then upgradesPanelFrame.Visible = false end
+if craftingFrame then craftingFrame.Visible = false end
+if crafting2Panel then crafting2Panel.Visible = false end
 
-print("[Headquarters] Controller initialized with Upgrades + Storage system")
+print("[Headquarters] Controller initialized with Upgrades + Storage + Crafting system")

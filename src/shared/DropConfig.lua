@@ -17,8 +17,15 @@
 	- 0.1 or 10 = 10% chance
 	- values > 1 are treated as percentages (0-100)
 	- values 0-1 are treated as decimal (0-1)
-	
+
 	Each item has independent chance - multiple items can drop from same kill!
+
+	goldPerDamage:
+	- Gold earned per point of damage dealt ON EVERY HIT (not just kills)
+	- e.g. goldPerDamage = 1.0  →  hitting for 10 damage gives 10 gold
+	- e.g. goldPerDamage = 0.5  →  hitting for 10 damage gives 5 gold
+	- e.g. goldPerDamage = 2.5  →  hitting for 10 damage gives 25 gold
+	- Set to 0 to disable per-hit gold for that NPC
 ]]
 
 local DropConfig = {}
@@ -27,6 +34,8 @@ local DropConfig = {}
 -- END NPC DROPS
 -- ============================================================
 DropConfig.End = {
+	goldPerDamage = 1.25, -- gold earned per point of damage dealt
+	expPerDamage = 1.0, -- EXP earned per point of damage dealt
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.4 },
@@ -42,6 +51,8 @@ DropConfig.End = {
 -- BEGINNING NPC DROPS
 -- ============================================================
 DropConfig.Beginning = {
+	goldPerDamage = 1.25,
+	expPerDamage = 1.0,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.35 },
@@ -57,6 +68,8 @@ DropConfig.Beginning = {
 -- WORLD BREAKER NPC DROPS
 -- ============================================================
 DropConfig.WorldBreaker = {
+	goldPerDamage = 1.5,
+	expPerDamage = 1.5,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.42 },
@@ -72,6 +85,8 @@ DropConfig.WorldBreaker = {
 -- THE WEEPING KING NPC DROPS
 -- ============================================================
 DropConfig.TheWeepingKing = {
+	goldPerDamage = 1.5,
+	expPerDamage = 1.5,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.45 },
@@ -87,6 +102,8 @@ DropConfig.TheWeepingKing = {
 -- TWO FACE NPC DROPS
 -- ============================================================
 DropConfig.TwoFace = {
+	goldPerDamage = 1.25,
+	expPerDamage = 1.0,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.44 },
@@ -102,6 +119,8 @@ DropConfig.TwoFace = {
 -- DICE NPC DROPS
 -- ============================================================
 DropConfig.Dice = {
+	goldPerDamage = 1.0,
+	expPerDamage = 0.8,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.38 },
@@ -117,73 +136,85 @@ DropConfig.Dice = {
 -- OTHER NPCS (Skelly, BabyGhost, MamaGhost, TorsoGhost, Spidy, Robo)
 -- ============================================================
 DropConfig.Skelly = {
+	goldPerDamage = 0.25,
+	expPerDamage = 0.3,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.25 },
 		{ itemName = "Bronze", chance = 0.18 },
 		{ itemName = "Sapphire", chance = 0.08 },
 		{ itemName = "Omega", chance = 0.03 },
-		{ itemName = "Ruby", chance = 0.005 },
+		{ itemName = "Ruby", chance = 0.001 },
 		{ itemName = "EXP", chance = 1 },
 	}
 }
 
 DropConfig.BabyGhost = {
+	goldPerDamage = 0.25,
+	expPerDamage = 0.3,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.2 },
 		{ itemName = "Bronze", chance = 0.14 },
 		{ itemName = "Sapphire", chance = 0.06 },
 		{ itemName = "Omega", chance = 0.02 },
-		{ itemName = "Ruby", chance = 0.003 },
+		{ itemName = "Ruby", chance = 0.001 },
 		{ itemName = "EXP", chance = 1 },
 	}
 }
 
 DropConfig.MamaGhost = {
+	goldPerDamage = 0.25,
+	expPerDamage = 0.3,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.32 },
 		{ itemName = "Bronze", chance = 0.23 },
 		{ itemName = "Sapphire", chance = 0.11 },
 		{ itemName = "Omega", chance = 0.05 },
-		{ itemName = "Ruby", chance = 0.01 },
+		{ itemName = "Ruby", chance = 0.001 },
 		{ itemName = "EXP", chance = 1 },
 	}
 }
 
 DropConfig.TorsoGhost = {
+	goldPerDamage = 0.25,
+	expPerDamage = 0.3,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.28 },
 		{ itemName = "Bronze", chance = 0.2 },
 		{ itemName = "Sapphire", chance = 0.09 },
 		{ itemName = "Omega", chance = 0.04 },
-		{ itemName = "Ruby", chance = 0.008 },
+		{ itemName = "Ruby", chance = 0.001 },
 		{ itemName = "EXP", chance = 1 },
 	}
 }
 
 DropConfig.Spidy = {
+	goldPerDamage = 0.25,
+	expPerDamage = 0.3,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.3 },
 		{ itemName = "Bronze", chance = 0.22 },
 		{ itemName = "Sapphire", chance = 0.1 },
 		{ itemName = "Omega", chance = 0.04 },
-		{ itemName = "Ruby", chance = 0.008 },
+		{ itemName = "Ruby", chance = 0.001 },
 		{ itemName = "EXP", chance = 1 },
 	}
 }
 
 DropConfig.Robo = {
+	goldPerDamage = 0.25,
+	expPerDamage = 0.3,
 	drops = {
 		{ itemName = "Gold", chance = 1 },
 		{ itemName = "Silver", chance = 0.3 },
 		{ itemName = "Bronze", chance = 0.22 },
 		{ itemName = "Sapphire", chance = 0.1 },
 		{ itemName = "Omega", chance = 0.05 },
-		{ itemName = "Ruby", chance = 0.009 },
+		{ itemName = "Ruby", chance = 0.001 },
 		{ itemName = "EXP", chance = 1 },
 	}
 }

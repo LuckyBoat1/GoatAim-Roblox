@@ -239,6 +239,17 @@ main.Name="MainPanel"; main.Size=UDim2.fromOffset(0,0); main.Position=UDim2.from
 main.BackgroundColor3=C3(10,12,20); main.BorderSizePixel=0; main.Visible=false; main.ClipsDescendants=true; main.Parent=gui
 main.Active = true
 Instance.new("UICorner", main).CornerRadius = UDim.new(0,18)
+-- UIScale: design size = 1200×700px. Shrinks to fit any screen; never zooms in on desktop.
+local _questUIScale = Instance.new("UIScale", main)
+do
+	local _cam = workspace.CurrentCamera
+	local function _updateQuestScale()
+		local vp = _cam.ViewportSize
+		_questUIScale.Scale = math.min(1, math.min(vp.X / 1260, vp.Y / 760))
+	end
+	_updateQuestScale()
+	_cam:GetPropertyChangedSignal("ViewportSize"):Connect(_updateQuestScale)
+end
 
 -- Main panel gradient - DARK NAVY with subtle depth
 local mainGrad = Instance.new("UIGradient")
@@ -1218,7 +1229,8 @@ local function toggleUI()
 		TweenService:Create(blur, TweenInfo.new(0.2), {Size=12}):Play()
 		TweenService:Create(bloom, TweenInfo.new(0.3), {Intensity=0.3}):Play()
 
-		local t = TweenService:Create(main, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=UDim2.fromOffset(1240,726)})
+		-- Fixed design size; UIScale (above) shrinks it to fit any screen.
+		local t = TweenService:Create(main, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=UDim2.fromOffset(1200, 700)})
 		t:Play()
 		t.Completed:Connect(function()
 			isOpen = true

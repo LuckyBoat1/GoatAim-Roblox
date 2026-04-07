@@ -662,23 +662,27 @@ end
 
 -- Hide fight timer bar (slides up)
 local function hideFightTimer()
-	local slideUp = TweenService:Create(timerContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+	-- Slide up animation — use task.delay instead of Completed:Wait so this function
+	-- returns immediately and can never hang (e.g. if the container parent changes).
+	timerContainer.Position = UDim2.new(0.5, -210, 0, 20) -- ensure we start from a visible position
+	TweenService:Create(timerContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		Position = UDim2.new(0.5, -210, 0, -150)
-	})
-	slideUp:Play()
-	slideUp.Completed:Wait()
-	timerContainer.Visible = false
-	heartsContainer.Visible = false
-	showOtherGuis() -- restore Stats
+	}):Play()
 
-	-- Reset hearts for next duel
-	for i = 1, MAX_HEARTS do
-		heartLabels[i].Text = "\u{2764}"
-		heartLabels[i].TextColor3 = Color3.fromRGB(255, 50, 70)
-		heartLabels[i].TextTransparency = 0
-		heartLabels[i].TextSize = 40
-		heartLabels[i].Rotation = 0
-	end
+	task.delay(0.35, function()
+		timerContainer.Visible = false
+		heartsContainer.Visible = false
+		showOtherGuis() -- restore Stats
+
+		-- Reset hearts for next duel
+		for i = 1, MAX_HEARTS do
+			heartLabels[i].Text = "\u{2764}"
+			heartLabels[i].TextColor3 = Color3.fromRGB(255, 50, 70)
+			heartLabels[i].TextTransparency = 0
+			heartLabels[i].TextSize = 40
+			heartLabels[i].Rotation = 0
+		end
+	end)
 end
 
 -- Update the fight timer display
@@ -817,6 +821,25 @@ local function showFightFlash()
 end
 
 --------------------------------------------------------------------------
+-- FORCE-HIDE HELPER
+-- Called by FightEnd AND by SpawnButton after auto-teleport.
+-- Guarantees zero-latency cleanup regardless of animation state.
+--------------------------------------------------------------------------
+local function forcePvpHide()
+	-- Setting Visible = false immediately hides the frames regardless of any
+	-- in-flight position tweens (they can keep running — they just don't render).
+	timerContainer.Visible  = false
+	heartsContainer.Visible = false
+	container.Visible       = false  -- also hide the countdown intro frame if mid-show
+	if guisHidden then
+		showOtherGuis()
+	end
+end
+
+-- Expose so SpawnButton can call it after auto-teleporting the player back to spawn.
+_G.ForcePvpHide = forcePvpHide
+
+--------------------------------------------------------------------------
 -- HANDLE EVENTS
 --------------------------------------------------------------------------
 PvpCountdownEvent.OnClientEvent:Connect(function(action, data)
@@ -925,7 +948,10 @@ PvpCountdownEvent.OnClientEvent:Connect(function(action, data)
 
 	elseif action == "FightEnd" then
 		-- data = reason string (e.g. "Time's up — Draw!")
-		hideFightTimer()
+		-- Immediately force-hide timer/hearts so there is zero chance they linger.
+		-- The slide-up animation is cosmetic; hiding instantly is the safe default.
+		forcePvpHide()
+		hideFightTimer() -- still resets hearts / tween state for the next duel
 
 		-- Show result message briefly
 		if data and data ~= "" then
@@ -964,6 +990,29 @@ PvpCountdownEvent.OnClientEvent:Connect(function(action, data)
 				end)
 			end)
 		end
+	end
+end)
+
+--------------------------------------------------------------------------
+-- CHARACTER RESPAWN SAFETY-NET
+-- If FightEnd was never received (network edge case, or the client died while
+-- endDuel was in-flight), the timer will still be visible when the player
+-- respawns.  Force-hide everything and restore Stats GUIs at that point.
+--------------------------------------------------------------------------
+player.CharacterAdded:Connect(function()
+	-- Give the network a moment to deliver any in-flight FightEnd event.
+	task.wait(1.5)
+
+	if timerContainer.Visible or heartsContainer.Visible then
+		warn("[PvpCountdownUI] Timer still visible after respawn — forcing cleanup (FightEnd may have been dropped)")
+		timerContainer.Position = UDim2.new(0.5, -210, 0, -150)
+		timerContainer.Visible = false
+		heartsContainer.Visible = false
+	end
+
+	-- Always restore GUIs on respawn in case showOtherGuis() was never called.
+	if guisHidden then
+		showOtherGuis()
 	end
 end)
 

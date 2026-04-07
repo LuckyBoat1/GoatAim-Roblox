@@ -1,8 +1,7 @@
 -- Script Type: ServerScript
 -- Location: ServerScriptService
 -- MultiPlatformAimRun.lua
--- Current Date and Time: 2025-08-21 01:07:36
--- Current User: Hulk11121
+warn("[RunSystem] Script starting...")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -23,7 +22,7 @@ if not scoreUpdate then
 	scoreUpdate.Parent = ReplicatedStorage
 end
 
-local RunDuration = 3
+local RunDuration = 30
 local TargetsPerRun = 30
 
 -- Create a target template
@@ -114,16 +113,25 @@ local function onHit(player)
 		end
 	end)
 
+	-- Award EXP for practice (2 per target hit, streak bonus up to +1)
+	pcall(function()
+		if _G.addExp then
+			local expGain = math.floor(2 + math.min((data.streak or 0) * 0.1, 1))
+			_G.addExp(player, expGain)
+		end
+	end)
+
 	updateScore(player)
 	print("Hit registered! Score: " .. data.currentRunHits)
 end
 
 -- Setup global onHit function
 _G.onHit = onHit
+
 -- Target spawning function
 local function spawnTargets(player, basePosition)
 	if not targetTemplate then
-		warn("Target template not found")
+		warn("[RunSystem] Target template not found")
 		return
 	end
 
@@ -141,264 +149,137 @@ local function spawnTargets(player, basePosition)
 	if clickDetector then
 		clickDetector.MouseClick:Connect(function(playerWhoClicked)
 			if playerWhoClicked == player then
-				print("Target hit by " .. player.Name)
+				print("[RunSystem] Target hit by " .. player.Name)
 				onHit(player)
 				target:Destroy()
 			end
 		end)
 	else
-		warn("No ClickDetector found on target")
+		warn("[RunSystem] No ClickDetector found on target")
 	end
 
 	return target
 end
 
--- Check for existing platforms
-local platformFound = false
-for _, platform in pairs(Workspace:GetChildren()) do
-	if platform.Name == "StartPlatform" then
-		platformFound = true
-
-		-- Add prompt if missing
-		local prompt = platform:FindFirstChildOfClass("ProximityPrompt")
-		if not prompt then
-			prompt = Instance.new("ProximityPrompt")
-			prompt.ActionText = "Start Aim Run"
-			prompt.ObjectText = "Test your speed!"
-			prompt.HoldDuration = 0.5
-			prompt.Parent = platform
-		end
-
-		-- Connect prompt to start run
-		prompt.Triggered:Connect(function(player)
-			print("Aim Run triggered by " .. player.Name)
-
-			-- Notify player if function exists
-			pcall(function()
-				if _G.notify then
-					_G.notify(player, "Aim Run Started")
-				end
-			end)
-
-			startRunEvent:FireClient(player)
-
-			-- Reset current run stats but keep high score
-			local data = getPlayerData(player)
-			data.currentRunHits = 0
-			data.streak = 0
-
-			-- Initial score update
-			updateScore(player)
-
-			-- Set end timer
-			local startTime = tick()
-			local endTime = startTime + RunDuration
-
-			-- Spawn targets
-			local spawnedTargets = {}
-
-			-- Spawn initial targets
-			for i = 1, 5 do  -- Start with 5 targets
-				local target = spawnTargets(player, platform.Position)
-				if target then
-					table.insert(spawnedTargets, target)
-				end
-				wait(0.4)
-			end
-
-			-- Function to spawn more targets as needed
-			local function spawnMoreTargets()
-				if tick() < endTime then
-					local activeTargets = 0
-
-					-- Count current active targets
-					for _, target in pairs(Workspace:GetChildren()) do
-						if target.Name == "Target" and target:GetAttribute("PlayerId") == player.UserId then
-							activeTargets = activeTargets + 1
-						end
-					end
-
-					-- Spawn more if needed
-					while activeTargets < 5 and tick() < endTime do
-						local target = spawnTargets(player, platform.Position)
-						if target then
-							table.insert(spawnedTargets, target)
-							activeTargets = activeTargets + 1
-						end
-						wait(0.1)
-					end
-
-					-- Schedule next check
-					if tick() < endTime then
-						task.delay(0.5, spawnMoreTargets)
-					end
-				end
-			end
-
-			-- Start the target respawn loop
-			spawnMoreTargets()
-
-			-- End the run after duration
-			task.delay(RunDuration, function()
-				pcall(function()
-					if _G.notify then
-						_G.notify(player, "Run ended")
-					end
-				end)
-
-				-- Update high score if current run is better
-				if data.currentRunHits > (data.runHits or 0) then
-					data.runHits = data.currentRunHits
-					print("New high score for " .. player.Name .. ": " .. data.runHits)
-				end
-
-				-- IMPORTANT: Force leaderboard update immediately
-				pcall(function()
-					if _G.forceLeaderboardUpdate then
-						_G.forceLeaderboardUpdate()
-					end
-				end)
-
-				-- Update final score
-				updateScore(player, "end")
-
-				-- Clean up targets
-				for _, target in pairs(Workspace:GetChildren()) do
-					if target.Name == "Target" and target:GetAttribute("PlayerId") == player.UserId then
-						target:Destroy()
-					end
-				end
-
-				print("Aim Run ended for " .. player.Name .. " with score: " .. (data.currentRunHits or 0))
-				print("High score: " .. (data.runHits or 0))
-			end)
-		end)
+-- Shared function to connect a platform's ProximityPrompt to the aim run logic
+local function connectPlatform(platform)
+	local prompt = platform:FindFirstChildOfClass("ProximityPrompt")
+	if not prompt then
+		prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = "Start Aim Run"
+		prompt.ObjectText = "Test your speed!"
+		prompt.HoldDuration = 0.5
+		prompt.Parent = platform
 	end
-end
 
--- Create a platform if none exists
-if not platformFound then
-	local platform = Instance.new("Part")
-	platform.Name = "StartPlatform"
-	platform.Size = Vector3.new(10, 1, 10)
-	platform.Position = Vector3.new(20, 5, 0)
-	platform.Anchored = true
-	platform.BrickColor = BrickColor.new("Bright green")
-	platform.Material = Enum.Material.Neon
-	platform.Parent = Workspace
+	warn("[RunSystem] ✅ ProximityPrompt connected on", platform:GetFullName())
 
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Start Aim Run"
-	prompt.ObjectText = "Test your speed!"
-	prompt.HoldDuration = 0.5
-	prompt.Parent = platform
-
-	print("Created new StartPlatform at position " .. tostring(platform.Position))
-
-	-- Connect the same trigger logic as above
 	prompt.Triggered:Connect(function(player)
-		print("Aim Run triggered by " .. player.Name)
+		warn("[RunSystem] Aim Run triggered by " .. player.Name)
 
-		-- Notify player if function exists
 		pcall(function()
-			if _G.notify then
-				_G.notify(player, "Aim Run Started")
-			end
+			if _G.notify then _G.notify(player, "Aim Run Started") end
 		end)
 
 		startRunEvent:FireClient(player)
 
-		-- Reset current run stats but keep high score
 		local data = getPlayerData(player)
 		data.currentRunHits = 0
 		data.streak = 0
-
-		-- Initial score update
 		updateScore(player)
 
-		-- Set end timer
 		local startTime = tick()
 		local endTime = startTime + RunDuration
 
-		-- Spawn targets
-		local spawnedTargets = {}
-
-		-- Spawn initial targets
-		for i = 1, 5 do  -- Start with 5 targets
-			local target = spawnTargets(player, platform.Position)
-			if target then
-				table.insert(spawnedTargets, target)
-			end
-			wait(0.4)
+		-- Spawn initial 5 targets
+		for i = 1, 5 do
+			spawnTargets(player, platform.Position)
+			task.wait(0.4)
 		end
 
-		-- Function to spawn more targets as needed
+		-- Respawn loop: keep 5 active targets
 		local function spawnMoreTargets()
-			if tick() < endTime then
-				local activeTargets = 0
+			if tick() >= endTime then return end
 
-				-- Count current active targets
-				for _, target in pairs(Workspace:GetChildren()) do
-					if target.Name == "Target" and target:GetAttribute("PlayerId") == player.UserId then
-						activeTargets = activeTargets + 1
-					end
-				end
-
-				-- Spawn more if needed
-				while activeTargets < 5 and tick() < endTime do
-					local target = spawnTargets(player, platform.Position)
-					if target then
-						table.insert(spawnedTargets, target)
-						activeTargets = activeTargets + 1
-					end
-					wait(0.1)
-				end
-
-				-- Schedule next check
-				if tick() < endTime then
-					task.delay(0.5, spawnMoreTargets)
+			local activeTargets = 0
+			for _, target in pairs(Workspace:GetChildren()) do
+				if target.Name == "Target" and target:GetAttribute("PlayerId") == player.UserId then
+					activeTargets += 1
 				end
 			end
-		end
 
-		-- Start the target respawn loop
+			while activeTargets < 5 and tick() < endTime do
+				spawnTargets(player, platform.Position)
+				activeTargets += 1
+				task.wait(0.1)
+			end
+
+			if tick() < endTime then
+				task.delay(0.5, spawnMoreTargets)
+			end
+		end
 		spawnMoreTargets()
 
 		-- End the run after duration
 		task.delay(RunDuration, function()
 			pcall(function()
-				if _G.notify then
-					_G.notify(player, "Run ended")
-				end
+				if _G.notify then _G.notify(player, "Run ended") end
 			end)
 
-			-- Update high score if current run is better
 			if data.currentRunHits > (data.runHits or 0) then
 				data.runHits = data.currentRunHits
-				print("New high score for " .. player.Name .. ": " .. data.runHits)
+				warn("[RunSystem] New high score for " .. player.Name .. ": " .. data.runHits)
 			end
 
-			-- IMPORTANT: Force leaderboard update immediately
 			pcall(function()
-				if _G.forceLeaderboardUpdate then
-					_G.forceLeaderboardUpdate()
-				end
+				if _G.forceLeaderboardUpdate then _G.forceLeaderboardUpdate() end
 			end)
 
-			-- Update final score
 			updateScore(player, "end")
 
-			-- Clean up targets
 			for _, target in pairs(Workspace:GetChildren()) do
 				if target.Name == "Target" and target:GetAttribute("PlayerId") == player.UserId then
 					target:Destroy()
 				end
 			end
 
-			print("Aim Run ended for " .. player.Name .. " with score: " .. (data.currentRunHits or 0))
-			print("High score: " .. (data.runHits or 0))
+			warn("[RunSystem] Aim Run ended for " .. player.Name .. " | Score: " .. (data.currentRunHits or 0) .. " | High: " .. (data.runHits or 0))
 		end)
 	end)
 end
 
-print("MultiPlatformAimRun loaded at 2025-08-21 01:07:36 by Hulk11121")
+-- Search RECURSIVELY for StartPlatform (it may be inside Workspace.Game.SpawnArena)
+local platformFound = false
+warn("[RunSystem] Searching for StartPlatform (recursive)...")
+local existingPlatform = Workspace:FindFirstChild("StartPlatform", true)
+if existingPlatform then
+	platformFound = true
+	warn("[RunSystem] Found StartPlatform:", existingPlatform:GetFullName())
+	connectPlatform(existingPlatform)
+end
+
+-- Create a platform if none exists — place it near SpawnArena
+if not platformFound then
+	-- Find SpawnArena to place the platform nearby
+	local spawnArena = Workspace:FindFirstChild("Game", true) and Workspace.Game:FindFirstChild("SpawnArena")
+	local bullPlatform = spawnArena and spawnArena:FindFirstChild("BullPlatform", true)
+	local refPos
+	if bullPlatform then
+		local part = bullPlatform:IsA("BasePart") and bullPlatform or bullPlatform:FindFirstChildWhichIsA("BasePart")
+		if part then refPos = part.Position + Vector3.new(30, 0, 0) end
+	end
+	refPos = refPos or Vector3.new(280, 828, -400) -- fallback near spawn area
+
+	warn("[RunSystem] No StartPlatform found, creating one at", refPos)
+	local platform = Instance.new("Part")
+	platform.Name = "StartPlatform"
+	platform.Size = Vector3.new(10, 1, 10)
+	platform.Position = refPos
+	platform.Anchored = true
+	platform.BrickColor = BrickColor.new("Bright green")
+	platform.Material = Enum.Material.Neon
+	platform.Parent = spawnArena or Workspace
+	connectPlatform(platform)
+end
+
+warn("[RunSystem] ✅ MultiPlatformAimRun loaded. platformFound =", platformFound)

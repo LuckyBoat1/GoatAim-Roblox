@@ -11,8 +11,13 @@ local CrateConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 local SkinConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SkinConfig"))
 
 local RemoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
-local GetPlayerData = RemoteEvents:WaitForChild("GetPlayerData")
-local PlayerDataRF = RemoteEvents:WaitForChild("PlayerDataRF")
+-- Fetch remotes non-blocking so this script doesn't freeze on GetPlayerData.
+-- Both are only used inside task.spawn+pcall so nil is safe until they arrive.
+local GetPlayerData, PlayerDataRF
+task.spawn(function()
+	GetPlayerData = RemoteEvents:WaitForChild("GetPlayerData")
+	PlayerDataRF  = RemoteEvents:WaitForChild("PlayerDataRF")
+end)
 
 -- ============================================================================
 -- THEME: NEON CYBER (The "Better" Menu Design)
@@ -56,6 +61,18 @@ mainFrame.ClipsDescendants = true
 mainFrame.Parent = gui
 
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 16)
+
+-- Dynamic UIScale so the fixed-pixel shop layout fits on all screen sizes (including mobile)
+do
+	local _shopScale = Instance.new("UIScale", mainFrame)
+	local _cam = workspace.CurrentCamera
+	local function _updateShopScale()
+		local vp = _cam.ViewportSize
+		_shopScale.Scale = math.min(1, math.min(vp.X / 1000, vp.Y / 650))
+	end
+	_updateShopScale()
+	_cam:GetPropertyChangedSignal("ViewportSize"):Connect(_updateShopScale)
+end
 
 -- Main Gradient (Deep Space Vibe)
 local mainGrad = Instance.new("UIGradient")
@@ -442,7 +459,7 @@ local function clearContent()
 end
 
 local function loadCrates()
-	local CRATE_ORDER = {"BRONZE", "SILVER", "SAPPHIRE", "OMEGA", "RUBY"}
+	local CRATE_ORDER = {"BRONZE", "SILVER", "SAPPHIRE", "OMEGA"}
 	for i, key in ipairs(CRATE_ORDER) do
 		local data = CrateConfig.Crates[key]
 		if data then

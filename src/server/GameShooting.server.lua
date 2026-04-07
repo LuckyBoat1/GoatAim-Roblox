@@ -31,139 +31,84 @@ end
 
 -- Bullet system
 local BulletsFolder = ReplicatedStorage:FindFirstChild("Bullets")
-local WEAPON_BULLETS = {
-	["necromancer"] = "Darkness",
-	["power"] = "RedMatter",
+local SkinConfig    = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SkinConfig"))
+
+-- RemoteEvent so clients (not server) do the Emit() — server Emit() doesn't replicate
+local BulletEffectEvent = ReplicatedStorage:FindFirstChild("BulletEffectEvent")
+if not BulletEffectEvent then
+	BulletEffectEvent = Instance.new("RemoteEvent")
+	BulletEffectEvent.Name = "BulletEffectEvent"
+	BulletEffectEvent.Parent = ReplicatedStorage
+end
+
+-- Resolve which bullet template to use for a given skin.
+--
+-- Priority order (most specific → most generic):
+--   Mythic    → exact skin name           e.g. "Dragon Sniper"
+--   Legendary → exact skin name           e.g. "Golden AK"
+--   Epic      → weapon type               e.g. "Epic_Sniper", "Epic_Pistol"
+--   Rare      → "Rare"  (shared template)
+--   Common    → "Common" (shared template)
+--
+-- Falls back one step at a time until something is found in BulletsFolder.
+-- Explicit per-skin overrides (maps skinId → exact model name in Bullets folder)
+local SKIN_BULLET_OVERRIDE = {
+	["Power"]       = "RedMatter",
+	["Necromancer"] = "Darkness",
 }
 
-local function spawnBulletVisual(skinId, startPos, endPos)
-	print("[ShootingServer] spawnBulletVisual called - skinId:", skinId)
-	
-	if not BulletsFolder then 
-		warn("[ShootingServer] BulletsFolder not found!")
-		return 
+local function resolveBulletTemplate(skinId)
+	if not BulletsFolder or not skinId then return nil end
+
+	-- Check explicit overrides first
+	local override = SKIN_BULLET_OVERRIDE[skinId]
+	if override then
+		local t = BulletsFolder:FindFirstChild(override)
+		if t then return t, override end
 	end
-	
-	if not skinId then 
-		warn("[ShootingServer] No skinId provided!")
-		return 
-	end
-	
-	print("[ShootingServer] Looking up bullet for skinId:", skinId, "->", string.lower(skinId))
-	local bulletName = WEAPON_BULLETS[string.lower(skinId)]
-	
-	-- Fallback for Power if not found (case sensitivity check)
-	if not bulletName and string.lower(skinId) == "power" then
-		bulletName = "RedMatter"
-	end
-	
-	if not bulletName then 
-		warn("[ShootingServer] No bullet mapped for skin:", skinId)
-		return 
-	end
-	
-	print("[ShootingServer] Searching for bullet:", bulletName)
-	local bulletTemplate = BulletsFolder:FindFirstChild(bulletName)
-	if not bulletTemplate then 
-		warn("[ShootingServer] Bullet not found in BulletsFolder:", bulletName)
-		return 
-	end
-	
-	local bullet = bulletTemplate:Clone()
-	
-	-- Scale the bullet by 4x (applies to geometry and particles)
-	if bullet:IsA("Model") then
-		bullet:ScaleTo(bullet:GetScale() * 4)
-	end
-	
-	-- Find or set PrimaryPart if not already set
-	if not bullet.PrimaryPart then
-		-- Try to find a part named "Main" or just use the first BasePart
-		local mainPart = bullet:FindFirstChild("Main") or bullet:FindFirstChildWhichIsA("BasePart", true)
-		if mainPart then
-			bullet.PrimaryPart = mainPart
-			print("[ShootingServer] Auto-set PrimaryPart to:", mainPart.Name)
-		else
-			warn("[ShootingServer] No BasePart found in bullet model!")
-			bullet:Destroy()
-			return
-		end
-	end
-	
-	bullet:SetPrimaryPartCFrame(CFrame.lookAt(startPos, endPos))
-	
-	local projectilesFolder = workspace:FindFirstChild("Projectiles")
-	if not projectilesFolder then
-		projectilesFolder = Instance.new("Folder")
-		projectilesFolder.Name = "Projectiles"
-		projectilesFolder.Parent = workspace
-	end
-	bullet.Parent = projectilesFolder
-	
-	-- Set all parts to non-collidable and anchored
-	for _, part in ipairs(bullet:GetDescendants()) do
-		if part:IsA("BasePart") then
-			part.CanCollide = false
-			part.Anchored = true
-		end
-	end
-	
-	-- Enable all particle emitters
-	for _, child in ipairs(bullet:GetDescendants()) do
-		if child:IsA("ParticleEmitter") then
-			child.Rate = child.Rate * 5 -- Multiply rate by 5X
-			child:Emit(2)
-			child.Enabled = true
-			print("[ShootingServer] Enabled particle:", child.Name)
-		end
-	end
-	
-	-- Ensure the bullet is visible
-	-- bullet.Parent = workspace -- REMOVED: Kept in Projectiles folder
-	-- print("[ShootingServer] Bullet parented to workspace")
-	
-	-- Use CFrame-based movement instead of physics
-	local primaryPart = bullet.PrimaryPart
-	if primaryPart then
-		local direction = (endPos - startPos).Unit
-		local speed = 1000 -- studs/second (Increased to 1000)
-		local distance = (endPos - startPos).Magnitude
-		local travelTime = math.min(distance / speed, 5) -- Cap at 5 seconds flight time
-		
-		print("[ShootingServer] Bullet will travel for", travelTime, "seconds at speed", speed)
-		
-		-- Move bullet with CFrame animation
-		task.spawn(function()
-			local startTime = tick()
-			while tick() - startTime < travelTime do
-				if not bullet.Parent then break end
-				
-				local elapsed = tick() - startTime
-				local progress = elapsed / travelTime
-				local currentPos = startPos + (direction * speed * elapsed)
-				
-				bullet:SetPrimaryPartCFrame(CFrame.new(currentPos) * CFrame.Angles(0, 0, 0))
-				task.wait()
-			end
-			
-			if bullet.Parent then
-				print("[ShootingServer] Destroying bullet after", travelTime, "seconds")
-				bullet:Destroy()
-			end
-		end)
+
+	local meta    = SkinConfig.GetSkinMeta(skinId)
+	local rarity  = meta and meta.rarity  or "common"
+	local weapon  = meta and meta.weapon  or "Unknown"
+
+	local candidates = {}
+
+	if rarity == "mythic" or rarity == "legendary" then
+		table.insert(candidates, "RedMatter")
+	elseif rarity == "epic" then
+		table.insert(candidates, "Darkness")
+	elseif rarity == "rare" then
+		table.insert(candidates, "Rare")
 	else
-		warn("[ShootingServer] Bullet has no PrimaryPart!")
-		bullet:Destroy()
+		table.insert(candidates, "Common")
 	end
-	
-	print("[ShootingServer] Spawned", bulletName, "bullet for", skinId, "at position", startPos)
-	return bullet
+
+	for _, name in ipairs(candidates) do
+		local t = BulletsFolder:FindFirstChild(name)
+		if t then return t, name end
+	end
+
+	-- Last-resort: fall back down the rarity chain
+	local fallbacks = { "Rare", "Common" }
+	for _, name in ipairs(fallbacks) do
+		local t = BulletsFolder:FindFirstChild(name)
+		if t then return t, name end
+	end
+
+	return nil, nil
+end
+
+local function spawnBulletVisual(skinId, startPos, endPos)
+	if not skinId then return end
+	-- Tell every client to play the effect locally — ParticleEmitter:Emit() doesn't replicate from server
+	BulletEffectEvent:FireAllClients(skinId, startPos, endPos)
 end
 
 -- Bullseye tracking uses bullseyeCurrent / bullseyeHigh fields in player data (set up in PlayerDataManager)
 local function updateBullseye(player, ringNumber)
-	local d = _G.getData(player)
-	if not d then return end
+	if not _G.getData then return end
+	local ok, d = pcall(_G.getData, player)
+	if not ok or not d then return end
 	local points = 7 - ringNumber -- ring1=6 .. ring6=1
 	d.bullseyeCurrent = (d.bullseyeCurrent or 0) + points
 	if d.bullseyeCurrent > (d.bullseyeHigh or 0) then
@@ -172,15 +117,16 @@ local function updateBullseye(player, ringNumber)
 end
 
 local function _endBullseyeRound(player)
-	local d = _G.getData(player)
-	if d then d.bullseyeCurrent = 0 end
+	if not _G.getData then return end
+	local ok, d = pcall(_G.getData, player)
+	if ok and d then d.bullseyeCurrent = 0 end
 end
 
 -- Add global bullseye hit function if not already defined
 if not _G.onBullseyeHit then
 	_G.onBullseyeHit = function(player, ringNumber)
 		updateBullseye(player, ringNumber)
-		_G.checkRankUp(player)
+		if _G.checkRankUp then pcall(_G.checkRankUp, player) end
 	end
 end
 
@@ -195,8 +141,8 @@ _G.onBullHit = function(player)
 	
 	-- Add Money
 	if _G.addMoney then
-		_G.addMoney(player, 100)
-		print("[ShootingServer] Added 100 money") -- DEBUG
+		_G.addMoney(player, 1)
+		print("[ShootingServer] Added 1 money") -- DEBUG
 	else
 		warn("[ShootingServer] _G.addMoney is NIL!")
 	end
@@ -218,15 +164,18 @@ _G.onBullHit = function(player)
 
 	-- Notify
 	if _G.notify then
-		_G.notify(player, "Bull Hit! +100")
+		_G.notify(player, "Bull Hit! +1")
 	end
 end
 
 -- Add onShot function if not already defined
 if not _G.onShot then
 	_G.onShot = function(player)
-		local d = _G.getData(player)
-		d.sessionShots = (d.sessionShots or 0) + 1
+		if not _G.getData then return end
+		local ok, d = pcall(_G.getData, player)
+		if ok and d then
+			d.sessionShots = (d.sessionShots or 0) + 1
+		end
 	end
 end
 
@@ -437,7 +386,9 @@ shootEvent.OnServerEvent:Connect(function(player, mouseHitPosition)
 		print("[ShootingServer] Raycast Missed! Distance:", distance)
 		
 		-- DEBUG: Analyze why we missed the bull
-		local arena = workspace:FindFirstChild("BullArena_1") or workspace:FindFirstChild("BullArena")
+		local gameFolder = workspace:FindFirstChild("Game")
+		local bullArenaFolder = gameFolder and gameFolder:FindFirstChild("BullArena")
+		local arena = workspace:FindFirstChild("BullArena_1") or bullArenaFolder
 		if arena then
 			local bull = arena:FindFirstChild("bull")
 			if bull then
@@ -465,7 +416,7 @@ shootEvent.OnServerEvent:Connect(function(player, mouseHitPosition)
 			end
 		end
 
-		_G.onMiss(player)
+		if _G.onMiss then pcall(_G.onMiss, player) end
 		return
 	end
 
@@ -539,21 +490,32 @@ shootEvent.OnServerEvent:Connect(function(player, mouseHitPosition)
 		local npcModel = _G.PVESystem.findNPCFromHit(hitPart)
 		if npcModel then
 			print("[ShootingServer] NPC Hit:", npcModel.Name, "by", player.Name)
-			
-			local damage = _G.PVESystem.getWeaponDamage(player)
-			_G.PVESystem.damageNPC(npcModel, damage, player)
-			return
-		end
-	end
 
-	-- 🟢 Normal Mode
-	if hitPart:GetAttribute("PlayerId") == player.UserId then
-		hitPart:Destroy()
-		_G.recordTargetHit(player)
-		if _G.onHit then _G.onHit(player) end
-		_G.checkRankUp(player)
-	else
-		if _G.onMiss then _G.onMiss(player) end
+			local damage = _G.PVESystem.getWeaponDamage(player)
+			-- Headshot detection: part name OR Y-position above the NPC's neck
+			local partName = hitPart.Name:lower()
+			local isHeadshot = partName:find("head") ~= nil
+			if not isHeadshot then
+				-- Fallback: check if hit position is at or above the NPC's neck line
+				local npcHead = npcModel:FindFirstChild("Head")
+				if npcHead and result.Position then
+					local neckY = npcHead.Position.Y - (npcHead.Size.Y * 0.5)
+					isHeadshot = result.Position.Y >= neckY
+				end
+			end
+			if isHeadshot then
+				local mult = 1.5 + math.random() * 0.5 -- between 1.5 and 2.0
+				damage = math.floor(damage * mult)
+				print(("[ShootingServer] 💥 NPC HEADSHOT! mult=%.2f final_dmg=%d"):format(mult, damage))
+			end
+
+			_G.PVESystem.damageNPC(npcModel, damage, player)
+			if _G.recordTargetHit then pcall(_G.recordTargetHit, player) end
+			if _G.onHit then pcall(_G.onHit, player) end
+			if _G.checkRankUp then pcall(_G.checkRankUp, player) end
+		else
+			if _G.onMiss then pcall(_G.onMiss, player) end
+		end
 	end
 end)
 
